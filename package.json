@@ -1,0 +1,28 @@
+{
+  "name": "v8-snapshot-utils",
+  "version": "0.0.0",
+  "description": "Various utils related to create v8 snapshots for electron apps.",
+  "main": "dist/v8-snapshot-utils.js",
+  "types": "src/v8-snapshot-utils.ts",
+  "scripts": {
+    "tsc": "tsc",
+    "lint": "prettier -c ./src/",
+    "lint:fix": "prettier --format ./src",
+    "watch": "tsc --watch"
+  },
+  "directories": {
+    "dist": "./dist"
+  },
+  "author": {
+    "name": "Thorsten Lorenz",
+    "email": "thlorenz@gmx.de",
+    "url": "http://thlorenz.com"
+  },
+  "license": "MIT",
+  "private": false,
+  "devDependencies": {
+    "electron": "^10.1.2",
+    "electron-link": "^0.4.3",
+    "electron-mksnapshot": "^10.0.0"
+  }
+}
