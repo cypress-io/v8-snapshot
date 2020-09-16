@@ -30,6 +30,11 @@
   dependencies:
     defer-to-connect "^1.0.1"
 
+"@types/debug@^4.1.5":
+  version "4.1.5"
+  resolved "https://registry.yarnpkg.com/@types/debug/-/debug-4.1.5.tgz#b14efa8852b7768d898906613c23f688713e02cd"
+  integrity sha512-Q1y515GcOdTHgagaVFhHnIFQ38ygs/kmxdNpvpou+raI9UO3YZcHDngBSYKQklcKlvA7iuQlmIKbzvmxcOE9CQ==
+
 "@types/node@*":
   version "14.10.2"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-14.10.2.tgz#9b47a2c8e4dabd4db73b57e750b24af689600514"
@@ -873,6 +878,11 @@ truncate-utf8-bytes@^1.0.0:
   integrity sha1-QFkjkJWS1W94pYGENLC3hInKXys=
   dependencies:
     utf8-byte-length "^1.0.1"
+
+tslib@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.0.1.tgz#410eb0d113e5b6356490eec749603725b021b43e"
+  integrity sha512-SgIkNheinmEBgx1IUNirK0TUD4X9yjjBRTqqjggWCU3pUEqIk3/Uwl3yRixYKT6WjQuGiwDv4NomL3wqRCj+CQ==
 
 tunnel@^0.0.6:
   version "0.0.6"

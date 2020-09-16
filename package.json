@@ -21,8 +21,13 @@
   "license": "MIT",
   "private": false,
   "devDependencies": {
+    "@types/debug": "^4.1.5",
+    "debug": "^4.1.1",
     "electron": "^10.1.2",
-    "electron-link": "^0.4.3",
-    "electron-mksnapshot": "^10.0.0"
+    "electron-mksnapshot": "^10.0.0",
+    "tslib": "^2.0.1"
+  },
+  "dependencies": {
+    "electron-link": "^0.4.3"
   }
 }
