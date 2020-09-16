@@ -13,6 +13,7 @@ const snapshotGenerator = new SnapshotGenerator(
 ;(async () => {
   try {
     await snapshotGenerator.createScript()
+    snapshotGenerator.makeSnapshot()
   } catch (err) {
     console.error(err)
   }

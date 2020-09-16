@@ -148,14 +148,15 @@ export class SnapshotGenerator {
     )
 
     this.snapshotScript = result.snapshotScript
+
     if (this.verify) {
       logInfo('Verifying snapshot script')
       this._verifyScript()
     } else {
       logInfo('Skipping snapshot script verification')
     }
-
-    logInfo(`Created snapshot script at ${this.snapshotScriptPath}`)
+    logInfo(`Writing snapshot script to ${this.snapshotScriptPath}`)
+    return fs.promises.writeFile(this.snapshotScriptPath, this.snapshotScript)
   }
 
   makeSnapshot() {
@@ -163,11 +164,19 @@ export class SnapshotGenerator {
       this.snapshotScript != null,
       'Run `createScript` first to create snapshotScript'
     )
-    execFileSync(this.mksnapshotBin, [
-      this.snapshotScriptPath,
-      '--output_dir',
-      this.snapshotBinDir,
-    ])
+    execFileSync(
+      this.mksnapshotBin,
+      [this.snapshotScriptPath, '--output_dir', this.snapshotBinDir],
+      { stdio: 'pipe' }
+    )
+  }
+
+  installSnapshot() {
+    assert(
+      this.snapshotScript != null,
+      'Run `createScript` and `makeSnapshot` first to create snapshot'
+    )
+    // TODO:
   }
 
   private _verifyScript() {
