@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Example app demonstrating how to use v8-snapshot-utils.",
   "main": "app/app.js",
+  "scripts": {
+    "start": "electron app/app",
+    "install-snapshot": "node ./snapshot/install-snapshot.js",
+    "uninstall-snapshot": "node ./snapshot/uninstall-snapshot.js"
+  },
   "author": "Thorsten Lorenz <thlorenz@gmx.de>",
   "license": "MIT",
   "private": false,
