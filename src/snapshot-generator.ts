@@ -3,40 +3,24 @@ import electronLink from 'electron-link'
 import debug from 'debug'
 import { strict as assert } from 'assert'
 import fs from 'fs'
-import { join, resolve } from 'path'
+import { join, dirname } from 'path'
 import vm from 'vm'
 import { execFileSync } from 'child_process'
+import {
+  ensureDirSync,
+  checkFileSync,
+  checkDirSync,
+  findMksnapshot,
+  eletronSnapshotPath,
+  fileExistsSync,
+} from './utils'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
 
-function canAccessSync(p: string) {
-  try {
-    fs.accessSync(p)
-    return true
-  } catch (_) {
-    return false
-  }
-}
-
-function ensureDirSync(dir: string) {
-  if (!canAccessSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
-    return
-  }
-  // dir already exists, make sure it isn't a file
-  const stat = fs.statSync(dir)
-  if (!stat.isDirectory()) {
-    throw new Error(`'${dir}' is not a directory`)
-  }
-}
-
-function checkBinary(p: string) {
-  if (!canAccessSync(p)) throw new Error(`Unable to find '${p}'`)
-  const stat = fs.statSync(p)
-  if (!stat.isFile()) throw new Error(`${p} is no executable file`)
-}
+const SNAPSHOT_BACKUP = 'v8_context_snapshot.orig.bin'
+const SNAPSHOT_BIN = 'v8_context_snapshot.bin'
 
 export type ModuleFilter = (mp: {
   requiringModulePath: string
@@ -50,17 +34,6 @@ type GenerationOpts = {
   cacheDir: string
   snapshotBinDir: string
   mksnapshotBin?: string
-}
-
-function findMksnapshot(root: string) {
-  const p = resolve(
-    root,
-    'node_modules',
-    '.bin',
-    'mksnapshot' + (process.platform === 'win32' ? '.cmd' : '')
-  )
-  checkBinary(p)
-  return p
 }
 
 function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
@@ -114,7 +87,7 @@ export class SnapshotGenerator {
       logDebug('No mksnapshot binary provided, attempting to find it')
       this.mksnapshotBin = findMksnapshot(projectBaseDir)
     } else {
-      checkBinary(opts.mksnapshotBin)
+      checkFileSync(opts.mksnapshotBin)
       this.mksnapshotBin = opts.mksnapshotBin
     }
 
@@ -176,7 +149,30 @@ export class SnapshotGenerator {
       this.snapshotScript != null,
       'Run `createScript` and `makeSnapshot` first to create snapshot'
     )
-    // TODO:
+    const createdSnapshotBin = join(this.snapshotBinDir, SNAPSHOT_BIN)
+    assert(
+      fileExistsSync(createdSnapshotBin),
+      'Run `makeSnapshot` first to create ' + createdSnapshotBin
+    )
+
+    const electronSnapshotBin = eletronSnapshotPath(this.projectBaseDir)
+    const electronSnapshotDir = dirname(electronSnapshotBin)
+    checkDirSync(electronSnapshotDir)
+
+    const originalSnapshotBin = join(electronSnapshotDir, SNAPSHOT_BACKUP)
+
+    if (!fileExistsSync(originalSnapshotBin)) {
+      logInfo(
+        `Backing up original electron snapshot to '${originalSnapshotBin}'`
+      )
+      assert(
+        fileExistsSync(electronSnapshotBin),
+        'cannot find original electron snapshot'
+      )
+      fs.copyFileSync(electronSnapshotBin, originalSnapshotBin)
+    }
+    logInfo(`Moving snapshot bin to '${electronSnapshotBin}'`)
+    fs.renameSync(createdSnapshotBin, electronSnapshotBin)
   }
 
   private _verifyScript() {
@@ -186,4 +182,19 @@ export class SnapshotGenerator {
       displayErrors: true,
     })
   }
+}
+
+export function uninstallSnapshot(projectBaseDir: string) {
+  const electronSnapshotBin = eletronSnapshotPath(projectBaseDir)
+  const electronSnapshotDir = dirname(electronSnapshotBin)
+  checkDirSync(electronSnapshotDir)
+
+  const originalSnapshotBin = join(electronSnapshotDir, SNAPSHOT_BACKUP)
+  assert(
+    fileExistsSync(originalSnapshotBin),
+    'cannot find original electron snapshot'
+  )
+  fs.copyFileSync(originalSnapshotBin, electronSnapshotBin)
+
+  logInfo(`Copying original snapshot bin to '${electronSnapshotBin}'`)
 }
