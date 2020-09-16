@@ -14,6 +14,7 @@ const snapshotGenerator = new SnapshotGenerator(
   try {
     await snapshotGenerator.createScript()
     snapshotGenerator.makeSnapshot()
+    snapshotGenerator.installSnapshot()
   } catch (err) {
     console.error(err)
   }
