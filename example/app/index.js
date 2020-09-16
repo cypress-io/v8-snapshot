@@ -1,7 +1,7 @@
 const { app, BrowserWindow } = require('electron')
 
 if (typeof snapshotResult !== 'undefined') {
-  console.log({ snapshotResult })
+  console.log('snapshot result:\n', snapshotResult)
 }
 
 function createWindow() {

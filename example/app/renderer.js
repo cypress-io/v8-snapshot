@@ -1,4 +1,4 @@
-require('../../').snapshotRequire(__filename)
+require('../../').snapshotRequire(require.resolve('../package.json'))
 const React = require('react')
 const ReactDOM = require('react-dom')
 
