@@ -1,8 +1,7 @@
 import path from 'path'
 
-export function snapshotRequire(entryPath: string) {
-  const entryDir = path.dirname(entryPath)
-
+export function snapshotRequire(packageJsonPath: string) {
+  const projectBaseDir = path.dirname(packageJsonPath)
   // @ts-ignore global snapshotResult
   if (typeof (snapshotResult as any) !== 'undefined') {
     // @ts-ignore global snapshotResult
@@ -13,7 +12,7 @@ export function snapshotRequire(entryPath: string) {
     // TODO(thlorenz): this may neeed some hardening
     Module.prototype.require = function (moduleUri: string) {
       const absoluteFilePath = Module._resolveFilename(moduleUri, this, false)
-      let relativeFilePath = path.relative(entryDir, absoluteFilePath)
+      let relativeFilePath = path.relative(projectBaseDir, absoluteFilePath)
       if (!relativeFilePath.startsWith('./')) {
         relativeFilePath = `./${relativeFilePath}`
       }
