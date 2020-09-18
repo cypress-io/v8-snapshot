@@ -108,7 +108,7 @@ export class SnapshotGenerator {
         baseDirPath: this.projectBaseDir,
         mainPath: this.snapshotEntryFile,
         cachePath: this.cacheDir,
-        shouldExcludeModule: this.shouldExcludeModule,
+        shouldExcludeModule: this._shouldExcludeModule,
       })
     } catch (err) {
       logError('Failed creating script with electron-link')
@@ -130,6 +130,19 @@ export class SnapshotGenerator {
     }
     logInfo(`Writing snapshot script to ${this.snapshotScriptPath}`)
     return fs.promises.writeFile(this.snapshotScriptPath, this.snapshotScript)
+  }
+
+  _shouldExcludeModule: ModuleFilter = ({
+    requiringModulePath,
+    requiredModulePath,
+  }) => {
+    return (
+      /v8-snapshot-utils.dist.v8-snapshot-utils.js$/.test(requiredModulePath) ||
+      this.shouldExcludeModule({
+        requiringModulePath,
+        requiredModulePath,
+      })
+    )
   }
 
   makeSnapshot() {
