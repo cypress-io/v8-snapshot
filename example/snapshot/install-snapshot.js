@@ -3,7 +3,9 @@ const path = require('path')
 const { SnapshotGenerator } = require('../../')
 
 const projectBaseDir = path.join(__dirname, '../')
-const snapshotEntryFile = require.resolve('../app/renderer')
+const snapshotEntryFile = process.env.RENDERER
+  ? require.resolve('../app/renderer')
+  : require.resolve('./snapshot.js')
 
 const snapshotGenerator = new SnapshotGenerator(
   projectBaseDir,
