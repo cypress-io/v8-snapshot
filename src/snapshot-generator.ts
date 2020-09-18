@@ -34,6 +34,7 @@ type GenerationOpts = {
   cacheDir: string
   snapshotBinDir: string
   mksnapshotBin?: string
+  auxiliaryData?: Record<string, any>
 }
 
 function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
@@ -54,6 +55,7 @@ export class SnapshotGenerator {
   readonly snapshotScriptPath: string
   readonly mksnapshotBin: string
   readonly snapshotBinDir: string
+  readonly auxiliaryData?: Record<string, any>
   snapshotScript?: string
 
   constructor(
@@ -82,6 +84,7 @@ export class SnapshotGenerator {
     this.cacheDir = cacheDir
     this.snapshotBinDir = snapshotBinDir
     this.snapshotScriptPath = join(cacheDir, 'snapshot.js')
+    this.auxiliaryData = opts.auxiliaryData
 
     if (opts.mksnapshotBin == null) {
       logDebug('No mksnapshot binary provided, attempting to find it')
@@ -91,12 +94,14 @@ export class SnapshotGenerator {
       this.mksnapshotBin = opts.mksnapshotBin
     }
 
+    const auxiliaryDataKeys = Object.keys(this.auxiliaryData || {})
     logInfo({
       projectBaseDir,
       cacheDir,
       snapshotBinDir,
       snapshotScriptPath: this.snapshotScriptPath,
       mksnapshotBin: this.mksnapshotBin,
+      auxiliaryData: auxiliaryDataKeys,
       verify,
     })
   }
@@ -108,6 +113,7 @@ export class SnapshotGenerator {
         baseDirPath: this.projectBaseDir,
         mainPath: this.snapshotEntryFile,
         cachePath: this.cacheDir,
+        auxiliaryData: this.auxiliaryData,
         shouldExcludeModule: this._shouldExcludeModule,
       })
     } catch (err) {
