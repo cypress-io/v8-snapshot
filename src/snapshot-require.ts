@@ -1,7 +1,6 @@
 import path from 'path'
 
-export function snapshotRequire(packageJsonPath: string) {
-  const projectBaseDir = path.dirname(packageJsonPath)
+export function snapshotRequire(projectBaseDir: string) {
   // @ts-ignore global snapshotResult
   if (typeof (snapshotResult as any) !== 'undefined') {
     // @ts-ignore global snapshotResult
