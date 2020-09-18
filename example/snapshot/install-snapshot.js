@@ -3,7 +3,7 @@ const path = require('path')
 const { SnapshotGenerator } = require('../../')
 
 const projectBaseDir = path.join(__dirname, '../')
-const snapshotEntryFile = require.resolve('./snapshot')
+const snapshotEntryFile = require.resolve('../app/renderer')
 
 const snapshotGenerator = new SnapshotGenerator(
   projectBaseDir,
