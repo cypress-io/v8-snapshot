@@ -28,6 +28,7 @@
     "tslib": "^2.0.1"
   },
   "dependencies": {
-    "electron-link": "^0.4.3"
+    "electron-link": "^0.4.3",
+    "terser": "^5.3.2"
   }
 }

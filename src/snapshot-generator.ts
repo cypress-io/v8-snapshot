@@ -6,6 +6,7 @@ import fs from 'fs'
 import { join, dirname } from 'path'
 import vm from 'vm'
 import { execFileSync } from 'child_process'
+import { minify } from 'terser'
 import {
   ensureDirSync,
   checkFileSync,
@@ -135,6 +136,12 @@ export class SnapshotGenerator {
       logInfo('Skipping snapshot script verification')
     }
     logInfo(`Writing snapshot script to ${this.snapshotScriptPath}`)
+
+    if (this.minify) {
+      logInfo('Minifying snapshot script')
+      const minified = await minify(this.snapshotScript!, { sourceMap: false })
+      return fs.promises.writeFile(this.snapshotScriptPath, minified.code)
+    }
     return fs.promises.writeFile(this.snapshotScriptPath, this.snapshotScript)
   }
 
