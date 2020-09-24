@@ -33,12 +33,18 @@ export function snapshotRequire(projectBaseDir: string) {
       return cachedModule.exports
     }
 
+    // The below aren't available in all environments
+    const checked_process: any = typeof process !== 'undefined' ? process : {}
+    const checked_window: any = typeof window !== 'undefined' ? window : {}
+    const checked_document: any =
+      typeof document !== 'undefined' ? document : {}
+
     // @ts-ignore global snapshotResult
     snapshotResult.setGlobals(
       global,
-      process,
-      window,
-      document,
+      checked_process,
+      checked_window,
+      checked_document,
       console,
       global.require
     )
