@@ -1,0 +1,2 @@
+require('isobject')
+require('tmpfile')
