@@ -1,5 +1,4 @@
 // @ts-ignore
-import electronLink from 'electron-link'
 import debug from 'debug'
 import { strict as assert } from 'assert'
 import fs from 'fs'
@@ -16,6 +15,8 @@ import {
   fileExistsSync,
 } from './utils'
 
+import { createSnapshotScript } from './create-snapshot-script'
+
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
@@ -23,13 +24,7 @@ const logError = debug('snapgen:error')
 const SNAPSHOT_BACKUP = 'v8_context_snapshot.orig.bin'
 const SNAPSHOT_BIN = 'v8_context_snapshot.bin'
 
-export type ModuleFilter = (mp: {
-  requiringModulePath: string
-  requiredModulePath: string
-}) => boolean
-
 type GenerationOpts = {
-  shouldExcludeModule: ModuleFilter
   verify: boolean
   minify: boolean
   cacheDir: string
@@ -40,7 +35,6 @@ type GenerationOpts = {
 
 function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
   return {
-    shouldExcludeModule: (_) => false,
     verify: true,
     minify: true,
     cacheDir: join(projectBaseDir, 'cache'),
@@ -49,7 +43,6 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
 }
 
 export class SnapshotGenerator {
-  readonly shouldExcludeModule: ModuleFilter
   readonly verify: boolean
   readonly minify: boolean
   readonly cacheDir: string
@@ -60,18 +53,17 @@ export class SnapshotGenerator {
   snapshotScript?: string
 
   constructor(
+    readonly bundlerPath: string,
     readonly projectBaseDir: string,
     readonly snapshotEntryFile: string,
     opts: Partial<GenerationOpts> = {}
   ) {
     const {
-      shouldExcludeModule,
       verify,
       minify,
       cacheDir,
       snapshotBinDir,
     }: GenerationOpts = Object.assign(
-      {},
       getDefaultGenerationOpts(projectBaseDir),
       opts
     )
@@ -79,7 +71,6 @@ export class SnapshotGenerator {
     ensureDirSync(cacheDir)
     ensureDirSync(snapshotBinDir)
 
-    this.shouldExcludeModule = shouldExcludeModule
     this.verify = verify
     this.minify = minify
     this.cacheDir = cacheDir
@@ -110,15 +101,14 @@ export class SnapshotGenerator {
   async createScript() {
     let result
     try {
-      result = await electronLink({
+      result = await createSnapshotScript({
         baseDirPath: this.projectBaseDir,
-        mainPath: this.snapshotEntryFile,
-        cachePath: this.cacheDir,
+        entryFilePath: this.snapshotEntryFile,
+        bundlerPath: this.bundlerPath,
         auxiliaryData: this.auxiliaryData,
-        shouldExcludeModule: this._shouldExcludeModule,
       })
     } catch (err) {
-      logError('Failed creating script with electron-link')
+      logError('Failed creating script')
       throw err
     }
     logDebug(
@@ -145,29 +135,26 @@ export class SnapshotGenerator {
     return fs.promises.writeFile(this.snapshotScriptPath, this.snapshotScript)
   }
 
-  _shouldExcludeModule: ModuleFilter = ({
-    requiringModulePath,
-    requiredModulePath,
-  }) => {
-    return (
-      /v8-snapshot-utils.dist.v8-snapshot-utils.js$/.test(requiredModulePath) ||
-      this.shouldExcludeModule({
-        requiringModulePath,
-        requiredModulePath,
-      })
-    )
-  }
-
   makeSnapshot() {
     assert(
       this.snapshotScript != null,
       'Run `createScript` first to create snapshotScript'
     )
-    execFileSync(
-      this.mksnapshotBin,
-      [this.snapshotScriptPath, '--output_dir', this.snapshotBinDir],
-      { stdio: 'pipe' }
-    )
+    try {
+      execFileSync(
+        this.mksnapshotBin,
+        [this.snapshotScriptPath, '--output_dir', this.snapshotBinDir],
+        { stdio: ['pipe', 'pipe', 'inherit'] }
+      )
+    } catch (err) {
+      if (err.stderr != null) {
+        logError(err.stderr.toString())
+      }
+      if (err.stdout != null) {
+        logDebug(err.stdout.toString())
+      }
+      throw new Error('Failed `mksnapshot` command')
+    }
   }
 
   installSnapshot() {
