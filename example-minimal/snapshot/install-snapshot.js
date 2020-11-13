@@ -1,3 +1,6 @@
+const SKIP_CREATE = false
+const VERIFY = false
+
 process.env.DEBUG = 'snapgen:*'
 const path = require('path')
 const { SnapshotGenerator } = require('../../')
@@ -14,17 +17,28 @@ if (process.env.BUNDLER == null) {
   process.exit(1)
 }
 
+const cacheDir =
+  process.env.LINK == 1
+    ? path.resolve(__dirname, '../cache-link')
+    : path.resolve(__dirname, '../cache')
 const bundlerPath = path.resolve(process.env.BUNDLER)
 const snapshotGenerator = new SnapshotGenerator(
   bundlerPath,
   projectBaseDir,
   snapshotEntryFile,
-  { minify: false, verify: true }
+  { minify: false, verify: VERIFY, cacheDir }
 )
 
 ;(async () => {
   try {
-    await snapshotGenerator.createScript()
+    if (SKIP_CREATE) {
+      snapshotGenerator.snapshotScript = require('fs').readFileSync(
+        snapshotGenerator.snapshotScriptPath,
+        'utf8'
+      )
+    } else {
+      await snapshotGenerator.createScript()
+    }
     snapshotGenerator.makeSnapshot()
     snapshotGenerator.installSnapshot()
   } catch (err) {
