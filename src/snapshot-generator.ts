@@ -27,6 +27,7 @@ const SNAPSHOT_BIN = 'v8_context_snapshot.bin'
 type GenerationOpts = {
   verify: boolean
   minify: boolean
+  skipWriteOnVerificationFailure: boolean
   cacheDir: string
   snapshotBinDir: string
   mksnapshotBin?: string
@@ -36,7 +37,8 @@ type GenerationOpts = {
 function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
   return {
     verify: true,
-    minify: true,
+    minify: false,
+    skipWriteOnVerificationFailure: false,
     cacheDir: join(projectBaseDir, 'cache'),
     snapshotBinDir: projectBaseDir,
   }
@@ -45,6 +47,7 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
 export class SnapshotGenerator {
   readonly verify: boolean
   readonly minify: boolean
+  readonly skipWriteOnVerificationFailure: boolean
   readonly cacheDir: string
   readonly snapshotScriptPath: string
   readonly mksnapshotBin: string
@@ -61,6 +64,7 @@ export class SnapshotGenerator {
     const {
       verify,
       minify,
+      skipWriteOnVerificationFailure,
       cacheDir,
       snapshotBinDir,
     }: GenerationOpts = Object.assign(
@@ -73,6 +77,7 @@ export class SnapshotGenerator {
 
     this.verify = verify
     this.minify = minify
+    this.skipWriteOnVerificationFailure = skipWriteOnVerificationFailure
     this.cacheDir = cacheDir
     this.snapshotBinDir = snapshotBinDir
     this.snapshotScriptPath = join(cacheDir, 'snapshot.js')
@@ -121,7 +126,20 @@ export class SnapshotGenerator {
 
     if (this.verify) {
       logInfo('Verifying snapshot script')
-      this._verifyScript()
+      try {
+        this._verifyScript()
+      } catch (err) {
+        if (!this.skipWriteOnVerificationFailure) {
+          logInfo(
+            `Script failed verification, writing to ${this.snapshotScriptPath}`
+          )
+          await fs.promises.writeFile(
+            this.snapshotScriptPath,
+            this.snapshotScript
+          )
+        }
+        throw err
+      }
     } else {
       logInfo('Skipping snapshot script verification')
     }

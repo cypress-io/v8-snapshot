@@ -1,5 +1,6 @@
+import { blueBright, gray, green, yellow } from 'ansi-colors'
 import fs from 'fs'
-import { join, resolve } from 'path'
+import path, { join, resolve } from 'path'
 
 function canAccessSync(p: string) {
   try {
@@ -81,4 +82,46 @@ export function eletronSnapshotPath(root: string) {
 
   const snapshotLocation = join(electron, location)
   return join(snapshotLocation, 'v8_context_snapshot.bin')
+}
+// at Object.__commonJS../node_modules/mute-stream/mute.js (/Volumes/d/dev/cy/perf-tr1/v8-snapshot-utils/example-multi/cache/snapshot.js:10555:43)
+const commonJsModuleRx = /(at Object.__commonJS\.)([^(]+)([^ :]+) *:(\d+)(.+)/
+export function prettyPrintError(err: Error, baseDirPath: string) {
+  if (!err.message.includes('Cannot require module') || err.stack == null) {
+    console.error(err)
+    return
+  }
+  console.error(err.message)
+  const frames = err.stack.split('\n')
+
+  const locations = []
+  const prettyFrames = []
+  for (const frame of frames) {
+    const match = frame.match(commonJsModuleRx)
+    if (match == null) {
+      prettyFrames.push(frame)
+      continue
+    }
+    const parts = {
+      atObject: match[1],
+      requireString: match[2].trimEnd(),
+      snapshotPath: match[3],
+      lineno: match[4],
+      rest: match[5],
+    }
+    prettyFrames.push(
+      `${gray(parts.atObject)} ${green(parts.requireString)}` +
+        `${gray(parts.snapshotPath)}` +
+        `:${blueBright(parts.lineno)}${gray(')')}`
+    )
+    const fullPath = path.resolve(baseDirPath, parts.requireString)
+    locations.push(
+      `${parts.requireString} ${gray('at snapshot:' + parts.lineno)} (${gray(
+        fullPath
+      )})`
+    )
+  }
+  console.error(prettyFrames.join('\n'))
+
+  console.error(yellow('\nRequire Definitions Stack:'))
+  console.error('  %s', green(locations.join('\n  ')))
 }
