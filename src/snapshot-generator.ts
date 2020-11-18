@@ -1,21 +1,20 @@
+import { strict as assert } from 'assert'
+import { execFileSync } from 'child_process'
 // @ts-ignore
 import debug from 'debug'
-import { strict as assert } from 'assert'
 import fs from 'fs'
-import { join, dirname } from 'path'
-import vm from 'vm'
-import { execFileSync } from 'child_process'
+import { dirname, join } from 'path'
 import { minify } from 'terser'
-import {
-  ensureDirSync,
-  checkFileSync,
-  checkDirSync,
-  findMksnapshot,
-  eletronSnapshotPath,
-  fileExistsSync,
-} from './utils'
-
+import vm from 'vm'
 import { createSnapshotScript } from './create-snapshot-script'
+import {
+  checkDirSync,
+  checkFileSync,
+  eletronSnapshotPath,
+  ensureDirSync,
+  fileExistsSync,
+  findMksnapshot,
+} from './utils'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
@@ -158,12 +157,21 @@ export class SnapshotGenerator {
       this.snapshotScript != null,
       'Run `createScript` first to create snapshotScript'
     )
+    const args = [this.snapshotScriptPath, '--output_dir', this.snapshotBinDir]
+    const cmd = `node ${this.mksnapshotBin} ${args.join(' ')}`
+    logDebug(cmd)
     try {
-      execFileSync(
-        this.mksnapshotBin,
-        [this.snapshotScriptPath, '--output_dir', this.snapshotBinDir],
-        { stdio: ['pipe', 'pipe', 'inherit'] }
-      )
+      execFileSync(this.mksnapshotBin, args)
+      const createdSnapshotBin = join(this.snapshotBinDir, SNAPSHOT_BIN)
+      if (!fileExistsSync(createdSnapshotBin)) {
+        logError(
+          `Cannot find ${createdSnapshotBin} which should've been created.\n` +
+            `This could be due to the mksnapshot command silently failing. Run:\n   ${cmd}\n` +
+            `to verify this.`
+        )
+        return false
+      }
+      return true
     } catch (err) {
       if (err.stderr != null) {
         logError(err.stderr.toString())
