@@ -84,6 +84,14 @@ function assembleScript(
     'const pathSeparator = null',
     `const pathSeparator = ${JSON.stringify(path.sep)}`
   )
+  //
+  //
+  // Version specifics
+  //
+  snapshotScript = snapshotScript.replace(
+    /processNodeVersion/g,
+    process.version
+  )
 
   //
   // Auxiliary Data

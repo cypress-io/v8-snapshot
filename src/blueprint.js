@@ -18,6 +18,14 @@ function generateSnapshot() {
       },
       enumerable: false,
     },
+    version: {
+      value: 'processNodeVersion',
+      enumerable: false,
+    },
+    versions: {
+      value: { node: 'processNodeVersion' },
+      enumerable: false,
+    },
   })
 
   function get_process() {
