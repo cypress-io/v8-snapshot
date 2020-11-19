@@ -86,10 +86,17 @@ export function eletronSnapshotPath(root: string) {
 // at Object.__commonJS../node_modules/mute-stream/mute.js (/Volumes/d/dev/cy/perf-tr1/v8-snapshot-utils/example-multi/cache/snapshot.js:10555:43)
 const commonJsModuleRx = /(at Object.__commonJS\.)([^(]+)([^ :]+) *:(\d+)(.+)/
 export function prettyPrintError(err: Error, baseDirPath: string) {
-  if (!err.message.includes('Cannot require module') || err.stack == null) {
+  if (
+    !(
+      err.stack != null &&
+      (err.message.includes('Cannot require module') ||
+        commonJsModuleRx.test(err.stack))
+    )
+  ) {
     console.error(err)
     return
   }
+
   console.error(err.message)
   const frames = err.stack.split('\n')
 

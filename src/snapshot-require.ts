@@ -5,6 +5,8 @@ export function snapshotRequire(projectBaseDir: string) {
   if (typeof (snapshotResult as any) !== 'undefined') {
     // @ts-ignore global snapshotResult
     console.log('snapshotResult available!', snapshotResult)
+    // @ts-ignore global snapshotResult
+    console.log(Object.keys(snapshotResult.customRequire.cache))
 
     const Module = require('module')
 
