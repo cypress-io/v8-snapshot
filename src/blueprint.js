@@ -896,6 +896,30 @@ function generateSnapshot() {
     )
   }
 
+  //
+  // Core module stubs with reduced functionality
+  //
+  function getCoreUtil() {
+    function inherits(ctor, superCtor) {
+      if (superCtor) {
+        ctor.super_ = superCtor
+        ctor.prototype = Object.create(superCtor.prototype, {
+          constructor: {
+            value: ctor,
+            enumerable: false,
+            writable: true,
+            configurable: true,
+          },
+        })
+      }
+    }
+    return { inherits }
+  }
+
+  const coreStubs = {
+    util: getCoreUtil(),
+  }
+
   function customRequire(modulePath) {
     let module = customRequire.cache[modulePath]
 
@@ -919,6 +943,9 @@ function generateSnapshot() {
           customRequire,
           define,
         ])
+      } else if (coreStubs.hasOwnProperty(modulePath)) {
+        module.exports = coreStubs[modulePath]
+        customRequire.cache[modulePath] = module
       } else {
         module.exports = require(modulePath)
         customRequire.cache[modulePath] = module
