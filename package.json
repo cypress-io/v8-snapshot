@@ -5,7 +5,7 @@
   "main": "dist/v8-snapshot-utils.js",
   "types": "src/v8-snapshot-utils.ts",
   "scripts": {
-    "tsc": "tsc && (rm -f ./dist/blueprint.js && cp ./src/blueprint.js ./dist/blueprint.js)",
+    "build": "tsc && (rm -rf ./dist/blueprint && cp -R ./src/blueprint ./dist/blueprint)",
     "lint": "prettier -c ./src/",
     "lint:fix": "prettier --format ./src",
     "watch": "tsc --watch"

@@ -6,11 +6,10 @@ import path from 'path'
 import { tmpdir } from 'os'
 import { ensureDirSync } from './utils'
 import { execSync } from 'child_process'
+import { BlueprintConfig, scriptFromBlueprint } from './blueprint'
 
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
-
-const blueprintPath = path.join(__dirname, 'blueprint.js')
 
 export type CreateSnapshotScriptOpts = {
   baseDirPath: string
@@ -45,11 +44,11 @@ type Metadata = {
 
 const requireDefinitions = (bundle: string) => `
   //
-  // Start Bundle generated with esbuild
+  // <esbuild bundle>
   //
   ${bundle}
   //
-  // End Bundle generated with esbuild
+  // </esbuild bundle>
   //
 
   customRequire.definitions = __commonJS 
@@ -74,59 +73,25 @@ function assembleScript(
   basedir: string,
   auxiliaryData?: Record<string, any>
 ) {
-  let snapshotScript = fs.readFileSync(blueprintPath, 'utf8')
-
-  //
-  // Platform specifics
-  //
-  snapshotScript = snapshotScript.replace('processPlatform', process.platform)
-  snapshotScript = snapshotScript.replace(
-    'const pathSeparator = null',
-    `const pathSeparator = ${JSON.stringify(path.sep)}`
-  )
-  //
-  //
-  // Version specifics
-  //
-  snapshotScript = snapshotScript.replace(
-    /processNodeVersion/g,
-    process.version
-  )
-
-  //
-  // Auxiliary Data
-  //
   const auxiliaryDataString = JSON.stringify(auxiliaryData || {})
-  const auxiliaryDataAssignment = 'var snapshotAuxiliaryData = {}'
-  const auxiliaryDataAssignmentStartIndex = snapshotScript.indexOf(
-    auxiliaryDataAssignment
-  )
-  const auxiliaryDataAssignmentEndIndex =
-    auxiliaryDataAssignmentStartIndex + auxiliaryDataAssignment.length
-  snapshotScript =
-    snapshotScript.slice(0, auxiliaryDataAssignmentStartIndex) +
-    `var snapshotAuxiliaryData = ${auxiliaryDataString};` +
-    snapshotScript.slice(auxiliaryDataAssignmentEndIndex)
 
-  //
-  // require definitions and mainModuleRequirePath
-  //
-  let mainModuleRequirePath = getMainModuleRequirePath(meta, basedir)
-  const definitionsAssignment = 'customRequire.definitions = {}'
+  const mainModuleRequirePath = getMainModuleRequirePath(meta, basedir)
   assert(
     mainModuleRequirePath != null,
     'metadata should have exactly one entry point'
   )
-  snapshotScript = snapshotScript.replace(
-    'mainModuleRequirePath',
-    JSON.stringify(mainModuleRequirePath)
-  )
 
   const indentedBundle = bundle.split('\n').join('\n  ')
-  const requireDefs = requireDefinitions(indentedBundle)
-  snapshotScript = snapshotScript.replace(definitionsAssignment, requireDefs)
+  const customRequireDefinitions = requireDefinitions(indentedBundle)
 
-  return snapshotScript
+  const config: BlueprintConfig = {
+    processPlatform: process.platform,
+    processNodeVersion: process.version,
+    mainModuleRequirePath: JSON.stringify(mainModuleRequirePath),
+    auxiliaryData: auxiliaryDataString,
+    customRequireDefinitions,
+  }
+  return scriptFromBlueprint(config)
 }
 
 export function createSnapshotScript(
