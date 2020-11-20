@@ -11,7 +11,6 @@ const coreUtil = read('core-util')
 const coreEvents = read('core-events')
 const customRequire = read('custom-require')
 const setGlobals = read('set-globals')
-const translateSnapshotRow = read('translate-snapshot-row')
 
 export type BlueprintConfig = {
   processPlatform: string
@@ -86,7 +85,6 @@ function generateSnapshot() {
   return {
     customRequire,
     setGlobals: ${setGlobals},
-    translateSnapshotRow: ${translateSnapshotRow},
   }
 }
 
