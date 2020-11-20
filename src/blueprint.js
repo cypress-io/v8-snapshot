@@ -945,7 +945,7 @@ function generateSnapshot() {
         ])
       } else if (coreStubs.hasOwnProperty(modulePath)) {
         module.exports = coreStubs[modulePath]
-        customRequire.cache[modulePath] = module
+        // we don't cache core modules but only serve stubs to not break snapsshotting
       } else {
         module.exports = require(modulePath)
         customRequire.cache[modulePath] = module
