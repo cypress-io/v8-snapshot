@@ -1,8 +1,6 @@
-const SKIP_CREATE = false
-
 process.env.DEBUG = 'snapgen:*'
 const path = require('path')
-const { SnapshotGenerator, prettyPrintError } = require('../../')
+const { SnapshotGenerator } = require('../../')
 
 const projectBaseDir = path.join(__dirname, '../')
 const snapshotEntryFile = require.resolve('./snapshot.js')
@@ -25,20 +23,8 @@ const snapshotGenerator = new SnapshotGenerator(
 
 ;(async () => {
   try {
-    if (SKIP_CREATE) {
-      snapshotGenerator.snapshotScript = require('fs').readFileSync(
-        snapshotGenerator.snapshotScriptPath,
-        'utf8'
-      )
-    } else {
-      await snapshotGenerator.createScript()
-    }
-    // TODO: should be part of API
-    if (snapshotGenerator.makeSnapshot()) {
-      snapshotGenerator.installSnapshot()
-    } else {
-      throw new Error('make snapshot failed')
-    }
+    await snapshotGenerator.createScript()
+    snapshotGenerator.makeAndInstallSnapshot()
   } catch (err) {
     prettyPrintError(err, projectBaseDir)
     process.exit(1)
