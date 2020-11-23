@@ -14,6 +14,7 @@ import {
   ensureDirSync,
   fileExistsSync,
   findMksnapshot,
+  prettyPrintError,
 } from './utils'
 
 const logInfo = debug('snapgen:info')
@@ -212,6 +213,14 @@ export class SnapshotGenerator {
     }
     logInfo(`Moving snapshot bin to '${electronSnapshotBin}'`)
     fs.renameSync(createdSnapshotBin, electronSnapshotBin)
+  }
+
+  makeAndInstallSnapshot() {
+    if (this.makeSnapshot()) {
+      this.installSnapshot()
+    } else {
+      throw new Error('make snapshot failed')
+    }
   }
 
   private _verifyScript() {
