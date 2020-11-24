@@ -42,16 +42,19 @@ export type SnapshotDoctorOpts = Omit<CreateSnapshotScriptOpts, 'deferred'>
 // - deduce from the stack trace where the error actually originates and to identify the culprit
 //   this would require us to know where in the snapshot.js each module ended up
 //
+class HealState {
+  constructor(
+    readonly meta: Metadata,
+    readonly verified: Set<string> = new Set(),
+    readonly deferred: Set<string> = new Set(),
+    readonly needDefer: Set<string> = new Set()
+  ) {}
+}
+
 export class SnapshotDoctor {
   readonly baseDirPath: string
   readonly entryFilePath: string
   readonly bundlerPath: string
-  private _meta?: Metadata
-  private _bundle?: string
-  private _snapshotScript?: string
-  private _verified: Set<string> = new Set()
-  private _deferred: Set<string> = new Set()
-  private _needDefer: Set<string> = new Set()
 
   constructor(opts: SnapshotDoctorOpts) {
     this.baseDirPath = opts.baseDirPath
@@ -60,116 +63,129 @@ export class SnapshotDoctor {
   }
 
   async heal() {
-    await this._createScript()
-    this._processCurrentScript()
-    while (this._needDefer.size > 0) {
-      await this._createScript()
-      this._processCurrentScript()
+    const { meta, bundle } = await this._createScript()
+    const healState = new HealState(meta)
+
+    let snapshotScript = this._processCurrentScript(bundle, healState)
+    while (healState.needDefer.size > 0) {
+      for (const x of healState.needDefer) {
+        healState.deferred.add(x)
+      }
+      const { bundle } = await this._createScript(healState.deferred)
+      healState.needDefer.clear()
+      snapshotScript = this._processCurrentScript(bundle, healState)
     }
 
     return {
-      verified: this._verified,
-      deferred: this._deferred,
-      bundle: this._bundle!,
-      snapshotScript: this._snapshotScript!,
-      meta: this._meta!,
+      verified: healState.verified,
+      deferred: healState.deferred,
+      bundle,
+      snapshotScript,
+      meta,
     }
   }
 
-  _processCurrentScript() {
-    assert(this._meta != null, 'expected meta data to be initialized')
-    assert(this._bundle != null, 'expected bundle data to be initialized')
+  _getChildren(meta: Metadata, mdl: string) {
+    const info = meta.inputs[mdl]
+    assert(info != null, `unable to find ${mdl} in the metadata`)
+    return info.imports.map((x) => x.path)
+  }
+
+  _processCurrentScript(
+    bundle: string,
+    healState: HealState
+  ): string | undefined {
+    let snapshotScript
     for (
-      let nextStage = this._findNextStage();
+      let nextStage = this._findNextStage(healState);
       nextStage.length > 0;
-      nextStage = this._findNextStage()
+      nextStage = this._findNextStage(healState)
     ) {
       for (const key of nextStage) {
-        const snapshotScript = assembleScript(
-          this._bundle,
-          this._meta,
+        snapshotScript = assembleScript(
+          bundle,
+          healState.meta,
           this.baseDirPath,
           {
             entryPoint: `./${key}`,
           }
         )
-        this._testScript(key, snapshotScript)
-        this._snapshotScript = snapshotScript
+        this._testScript(key, snapshotScript, healState)
       }
     }
+    return snapshotScript
   }
 
-  _testScript(key: string, snapshotScript: string) {
+  _testScript(key: string, snapshotScript: string, healState: HealState) {
     try {
       vm.runInNewContext(snapshotScript, undefined, {
         filename: `./${key}`,
         displayErrors: true,
       })
-      this._verified.add(key)
+      healState.verified.add(key)
     } catch (err) {
       logDebug(err)
       logInfo('Will defer "%s"', key)
-      this._needDefer.add(key)
+      healState.needDefer.add(key)
     }
   }
 
-  async _createScript() {
+  async _createScript(
+    deferred?: Set<string>
+  ): Promise<{ meta: Metadata; bundle: string }> {
     try {
-      for (const x of this._needDefer) {
-        this._deferred.add(x)
-      }
-      this._needDefer = new Set()
-
-      const deferred =
-        this._deferred.size > 0
-          ? Array.from(this._deferred).map((x) => `./${x}`)
+      const deferredArg =
+        deferred != null && deferred.size > 0
+          ? Array.from(deferred).map((x) => `./${x}`)
           : undefined
 
       const { meta, bundle } = await createSnapshotScript({
         baseDirPath: this.baseDirPath,
         entryFilePath: this.entryFilePath,
         bundlerPath: this.bundlerPath,
-        deferred,
+        deferred: deferredArg,
       })
-      this._meta = meta
-      this._bundle = bundle
+      return { meta, bundle }
     } catch (err) {
       logError('Failed creating initial bundle')
       throw err
     }
   }
 
-  _findNextStage() {
-    const visited =
-      this._verified.size + this._deferred.size + this._needDefer.size
-    return visited === 0 ? this._findLeaves() : this._findVerifiables()
+  _findNextStage(healState: HealState) {
+    const { verified, deferred, needDefer } = healState
+    const visited = verified.size + deferred.size + needDefer.size
+    return visited === 0
+      ? this._findLeaves(healState.meta)
+      : this._findVerifiables(healState)
   }
 
-  _findLeaves() {
-    assert(this._meta != null, 'expected meta data to be initialized')
+  _findLeaves(meta: Metadata) {
     const leaves = []
-    for (const [key, { imports }] of Object.entries(this._meta.inputs)) {
+    for (const [key, { imports }] of Object.entries(meta.inputs)) {
       if (imports.length === 0) leaves.push(key)
     }
     return leaves
   }
 
-  _findVerifiables() {
+  _findVerifiables(healState: HealState) {
     // Finds modules that only depend on previously handled modules
-    assert(this._meta != null, 'expected meta data to be initialized')
     const verifiables = []
-    for (const [key, { imports }] of Object.entries(this._meta.inputs)) {
-      if (this._needDefer.has(key)) continue
-      if (this._wasHandled(key)) continue
+    for (const [key, { imports }] of Object.entries(healState.meta.inputs)) {
+      if (healState.needDefer.has(key)) continue
+      if (this._wasHandled(key, healState.verified, healState.deferred))
+        continue
 
-      const allImportsHandled = imports.every((x) => this._wasHandled(x.path))
+      const allImportsHandled = imports.every((x) =>
+        this._wasHandled(x.path, healState.verified, healState.deferred)
+      )
       if (allImportsHandled) verifiables.push(key)
     }
     return verifiables
   }
 
-  _wasHandled(key: string) {
-    return this._verified.has(key) || this._deferred.has(key)
+  _wasHandled(key: string, verified: Set<string>, deferred: Set<string>) {
+    return verified.has(key) || deferred.has(key)
   }
 }
 
