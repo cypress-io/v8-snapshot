@@ -28,8 +28,9 @@ export function scriptFromBlueprint(config: BlueprintConfig) {
     customRequireDefinitions,
   } = config
 
+  // TODO: NODE_ENV needs to be configurable
   return `
- var snapshotAuxiliaryData = ${auxiliaryData}
+var snapshotAuxiliaryData = ${auxiliaryData}
 
 function generateSnapshot() {
   //
