@@ -15,13 +15,15 @@ export type CreateSnapshotScriptOpts = {
   baseDirPath: string
   entryFilePath: string
   bundlerPath: string
+  deferred?: string[]
   auxiliaryData?: Record<string, any>
 }
 export type CreateSnapshotScript = (
   opts: CreateSnapshotScriptOpts
 ) => Promise<{ snapshotScript: string }>
 
-type Metadata = {
+export type Metadata = {
+  inputs: Record<string, { bytes: number; imports: { path: string }[] }>
   outputs: Record<
     string,
     {
@@ -67,15 +69,17 @@ function getMainModuleRequirePath(meta: Metadata, basedir: string) {
 }
 
 // Modified from electron-link/src/generate-snapshot-script.js
-function assembleScript(
+export function assembleScript(
   bundle: string,
   meta: Metadata,
   basedir: string,
-  auxiliaryData?: Record<string, any>
+  opts: { auxiliaryData?: Record<string, any>; entryPoint?: string } = {}
 ) {
-  const auxiliaryDataString = JSON.stringify(auxiliaryData || {})
+  const auxiliaryDataString = JSON.stringify(opts.auxiliaryData || {})
 
-  const mainModuleRequirePath = getMainModuleRequirePath(meta, basedir)
+  const mainModuleRequirePath =
+    opts.entryPoint ?? getMainModuleRequirePath(meta, basedir)
+
   assert(
     mainModuleRequirePath != null,
     'metadata should have exactly one entry point'
@@ -96,7 +100,7 @@ function assembleScript(
 
 export function createSnapshotScript(
   opts: CreateSnapshotScriptOpts
-): Promise<{ snapshotScript: string }> {
+): Promise<{ snapshotScript: string; meta: Metadata; bundle: string }> {
   // 1. Create bundle and meta file via the provided bundler written in Go
   const bundleTmpDir = path.join(tmpdir(), 'v8-snapshot')
   ensureDirSync(bundleTmpDir)
@@ -110,6 +114,7 @@ export function createSnapshotScript(
     ` --outfile=${outfile}` +
     ` --basedir=${basedir}` +
     ` --metafile=${metafile}` +
+    (opts.deferred != null ? ` --deferred='${opts.deferred.join(',')}'` : '') +
     ` ${opts.entryFilePath}`
 
   logDebug('Running "%s"', cmd)
@@ -139,7 +144,5 @@ export function createSnapshotScript(
     opts.auxiliaryData
   )
 
-  return Promise.resolve({ snapshotScript: script })
+  return Promise.resolve({ snapshotScript: script, meta, bundle })
 }
-
-module.exports = { createSnapshotScript }

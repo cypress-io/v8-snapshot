@@ -14,7 +14,6 @@ import {
   ensureDirSync,
   fileExistsSync,
   findMksnapshot,
-  prettyPrintError,
 } from './utils'
 
 const logInfo = debug('snapgen:info')
