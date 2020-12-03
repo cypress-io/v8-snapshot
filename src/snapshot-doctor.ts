@@ -14,41 +14,46 @@ const logError = debug('snapgen:error')
 
 export type SnapshotDoctorOpts = Omit<CreateSnapshotScriptOpts, 'deferred'>
 
-// TODO: this is now a fully working version, but ends up deferring parents when deferring a child would
-// solve the problem.
-// Mainly in some cases it doesn't detect that the problem can be fixed by deferring one of
-// it's imports instead of the module itself.
-//
-// Example:
-//
-//  Error: Cannot require module "tty".
-//  To use Node's require you need to call `snapshotResult.setGlobals` first!
-//      at require (./node_modules/express/lib/router/index.js:1398:11)
-//      at customRequire (./node_modules/express/lib/router/index.js:1431:26)
-//      at __get_tty__ (./node_modules/express/lib/router/index.js:2758:26)
-//      at Function.useColors (./node_modules/express/lib/router/index.js:2802:89)
-//      at createDebug (./node_modules/express/lib/router/index.js:2623:35)
-//      at Object.__commonJS../node_modules/express/lib/router/index.js (./node_modules/express/lib/router/index.js:17166:62)
-//
-// This problem is actually due to `var debug = require('debug')('express:router');`
-// Of note is that a module itself can be fine but become a problem in other modules iff
-// the result of the `require` is invoked or a property on it accessed.
-// In this case it is fixable by deferring `./node_modules/debug/index.js` or similar.
-//
-// Approaches:
-//
-// - have the bundler inform us which imports are invoked and try to defer those to identify the culprit
-// - defer imports one by one and in some cases permutations (expensive) to identify the culprit
-// - deduce from the stack trace where the error actually originates and to identify the culprit
-//   this would require us to know where in the snapshot.js each module ended up
-//
 class HealState {
   constructor(
-    readonly meta: Metadata,
+    readonly meta: Readonly<Metadata>,
     readonly verified: Set<string> = new Set(),
     readonly deferred: Set<string> = new Set(),
     readonly needDefer: Set<string> = new Set()
   ) {}
+}
+
+function sortModulesByLeafness(meta: Metadata) {
+  const sorted = []
+  const handled = new Set()
+  const entries = Object.entries(meta.inputs)
+  while (handled.size < entries.length) {
+    const justSorted = []
+    // Include modules whose children have been included already
+    for (const [key, { imports }] of entries) {
+      if (handled.has(key)) continue
+      const children = imports.map((x) => x.path)
+      if (children.every((x) => handled.has(x))) {
+        justSorted.push(key)
+      }
+    }
+    // Sort them further by number of imports
+    justSorted.sort((a, b) => {
+      const lena = meta.inputs[a].imports.length
+      const lenb = meta.inputs[b].imports.length
+      return lena > lenb ? -1 : 1
+    })
+
+    for (const x of justSorted) {
+      sorted.push(x)
+      handled.add(x)
+    }
+  }
+  return sorted
+}
+
+function sortDeferredByLeafness(meta: Metadata, deferred: Set<string>) {
+  return sortModulesByLeafness(meta).filter((x) => deferred.has(x))
 }
 
 export class SnapshotDoctor {
@@ -76,13 +81,89 @@ export class SnapshotDoctor {
       snapshotScript = this._processCurrentScript(bundle, healState)
     }
 
+    const sortedDeferred = sortDeferredByLeafness(meta, healState.deferred)
+
+    logInfo('Optimizing')
+    logDebug({ deferred: sortedDeferred })
+
+    const optimizedDeferred = await this._optimizeDeferred(meta, sortedDeferred)
     return {
       verified: healState.verified,
-      deferred: healState.deferred,
+      deferred: optimizedDeferred,
       bundle,
       snapshotScript,
       meta,
     }
+  }
+
+  async _optimizeDeferred(meta: Metadata, deferredSortedByLeafness: string[]) {
+    const optimizedDeferred: Set<string> = new Set()
+    // Make each deferred an entry point and defer one of its imports to see if that maybe sufficient
+    // to defer.
+    for (const key of deferredSortedByLeafness) {
+      const imports = meta.inputs[key].imports.map((x) => x.path)
+      if (imports.length === 0) {
+        optimizedDeferred.add(key)
+        logInfo('Optimize: deferred leaf', key)
+        continue
+      }
+
+      // Check if it was fixed by one of the optimizedDeferred added previously
+      if (await this._entryWorksWhenDeferring(key, meta, optimizedDeferred)) {
+        logInfo('Optimize: deferring no longer needed for', key)
+        continue
+      }
+
+      // Defer all imports to verify that the module can be fixed at all, if not give up
+      if (
+        !(await this._entryWorksWhenDeferring(
+          key,
+          meta,
+          new Set([...optimizedDeferred, ...imports])
+        ))
+      ) {
+        optimizedDeferred.add(key)
+        logInfo('Optimize: deferred unfixable parent', key)
+        continue
+      }
+
+      // Find the one import we need to defer to fix the entry module
+      let success = false
+      for (const imp of imports) {
+        if (
+          await this._entryWorksWhenDeferring(
+            key,
+            meta,
+            new Set([...optimizedDeferred, imp])
+          )
+        ) {
+          optimizedDeferred.add(imp)
+          logInfo('Optimize: deferred import "%s" of "%s"', imp, key)
+          success = true
+          break
+        }
+      }
+      assert(
+        success,
+        `${key} does not need to be deferred, but only when more than one of it's imports are deferred.` +
+          `This case is not yet handled.`
+      )
+    }
+    return optimizedDeferred
+  }
+
+  async _entryWorksWhenDeferring(
+    key: string,
+    meta: Metadata,
+    deferring: Set<string>
+  ) {
+    const { bundle } = await this._createScript(deferring)
+    const snapshotScript = assembleScript(bundle, meta, this.baseDirPath, {
+      entryPoint: `./${key}`,
+    })
+    const healState = new HealState(meta)
+    this._testScript(key, snapshotScript, healState)
+    return !healState.needDefer.has(key)
   }
 
   _getChildren(meta: Metadata, mdl: string) {
@@ -202,16 +283,20 @@ const entryFilePath = path.join(baseDirPath, 'snapshot', 'snapshot.js')
 const cacheDir = path.join(baseDirPath, 'cache')
 const snapshotCache = path.join(cacheDir, 'snapshot.doc.js')
 
+async function heal() {
+  const doctor = new SnapshotDoctor({
+    bundlerPath,
+    entryFilePath,
+    baseDirPath,
+  })
+  const { deferred, snapshotScript } = await doctor.heal()
+  fs.writeFileSync(snapshotCache, snapshotScript, 'utf8')
+  logInfo({ deferred })
+}
+
 ;(async () => {
   try {
-    const doctor = new SnapshotDoctor({
-      bundlerPath,
-      entryFilePath,
-      baseDirPath,
-    })
-    const { deferred, snapshotScript } = await doctor.heal()
-    fs.writeFileSync(snapshotCache, snapshotScript, 'utf8')
-    logInfo({ deferred })
+    await heal()
   } catch (err) {
     console.error(err)
   }
