@@ -118,6 +118,8 @@ export class SnapshotGenerator {
     logDebug(
       Object.assign({}, result, {
         snapshotScript: `len: ${result.snapshotScript.length}`,
+        bundle: `len: ${result.bundle.length}`,
+        meta: '<hidden>',
       })
     )
 
