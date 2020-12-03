@@ -56,6 +56,14 @@ function sortDeferredByLeafness(meta: Metadata, deferred: Set<string>) {
   return sortModulesByLeafness(meta).filter((x) => deferred.has(x))
 }
 
+function pathify(deferred: Set<string>) {
+  const xs = []
+  for (const x of deferred) {
+    xs.push(`./${x}`)
+  }
+  return xs
+}
+
 export class SnapshotDoctor {
   readonly baseDirPath: string
   readonly entryFilePath: string
@@ -92,8 +100,8 @@ export class SnapshotDoctor {
     } = await this._optimizeDeferred(meta, sortedDeferred, forceDeferred)
     return {
       verified: healState.verified,
-      includingImplicitsDeferred,
-      deferred: optimizedDeferred,
+      includingImplicitsDeferred: pathify(includingImplicitsDeferred),
+      deferred: pathify(optimizedDeferred),
       bundle,
       snapshotScript,
       meta,
@@ -111,6 +119,8 @@ export class SnapshotDoctor {
 
     // Treat the deferred as an entry point and find an import that would fix the encountered problem
     for (const key of deferredSortedByLeafness) {
+      if (forceDeferred.includes(key)) continue
+
       const imports = meta.inputs[key].imports.map((x) => x.path)
       if (imports.length === 0) {
         optimizedDeferred.add(key)
@@ -174,6 +184,10 @@ export class SnapshotDoctor {
         )
       ) {
         optimizedDeferred.delete(key)
+        logInfo(
+          'Optimize: removing defer of "%s", already deferred implicitly',
+          key
+        )
       }
     }
 
@@ -189,7 +203,7 @@ export class SnapshotDoctor {
     const snapshotScript = assembleScript(bundle, meta, this.baseDirPath, {
       entryPoint: `./${key}`,
     })
-    const healState = new HealState(meta)
+    const healState = new HealState(meta, deferring)
     this._testScript(key, snapshotScript, healState)
     return !healState.needDefer.has(key)
   }
@@ -234,7 +248,11 @@ export class SnapshotDoctor {
       healState.verified.add(key)
     } catch (err) {
       logDebug(err)
-      logInfo('Will defer "%s"', key)
+      logInfo(
+        '"%s" cannot be loaded for current setup (%d deferred)',
+        key,
+        healState.deferred.size
+      )
       healState.needDefer.add(key)
     }
   }
@@ -319,9 +337,13 @@ async function heal() {
   })
   const { deferred, snapshotScript } = await doctor.heal([
     'node_modules/depd/index.js',
+    // requires and invokes `depd` during module load which is not caught during verification
+    //  TODO: we could check if any deferred is required in during that step and throw if so
+    //  (update blueprint generation)
+    'node_modules/body-parser/index.js',
   ])
   fs.writeFileSync(snapshotCache, snapshotScript, 'utf8')
-  logInfo({ deferred })
+  console.log(deferred)
 }
 
 ;(async () => {
