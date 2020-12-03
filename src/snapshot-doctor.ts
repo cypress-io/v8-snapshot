@@ -86,13 +86,13 @@ export class SnapshotDoctor {
     logInfo('Optimizing')
     logDebug({ deferred: sortedDeferred })
 
-    const optimizedDeferred = await this._optimizeDeferred(
-      meta,
-      sortedDeferred,
-      forceDeferred
-    )
+    const {
+      optimizedDeferred,
+      includingImplicitsDeferred,
+    } = await this._optimizeDeferred(meta, sortedDeferred, forceDeferred)
     return {
       verified: healState.verified,
+      includingImplicitsDeferred,
       deferred: optimizedDeferred,
       bundle,
       snapshotScript,
@@ -106,8 +106,10 @@ export class SnapshotDoctor {
     forceDeferred: string[]
   ) {
     const optimizedDeferred: Set<string> = new Set(forceDeferred)
-    // Make each deferred an entry point and defer one of its imports to see if that maybe sufficient
-    // to defer.
+
+    // 1. Push down defers where possible, i.e. prefer deferring one import instead of an entire module
+
+    // Treat the deferred as an entry point and find an import that would fix the encountered problem
     for (const key of deferredSortedByLeafness) {
       const imports = meta.inputs[key].imports.map((x) => x.path)
       if (imports.length === 0) {
@@ -157,7 +159,25 @@ export class SnapshotDoctor {
           `This case is not yet handled.`
       )
     }
-    return optimizedDeferred
+
+    const includingImplicitsDeferred = new Set(optimizedDeferred)
+
+    // 2. Find children that don't need to be explicitly deferred since they are via their deferred parent
+    const entry = path.relative(this.baseDirPath, this.entryFilePath)
+    for (const key of optimizedDeferred) {
+      if (forceDeferred.includes(key)) continue
+      if (
+        await this._entryWorksWhenDeferring(
+          entry,
+          meta,
+          new Set([...optimizedDeferred].filter((x) => x !== key))
+        )
+      ) {
+        optimizedDeferred.delete(key)
+      }
+    }
+
+    return { optimizedDeferred, includingImplicitsDeferred }
   }
 
   async _entryWorksWhenDeferring(
