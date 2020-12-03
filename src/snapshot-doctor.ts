@@ -17,8 +17,8 @@ export type SnapshotDoctorOpts = Omit<CreateSnapshotScriptOpts, 'deferred'>
 class HealState {
   constructor(
     readonly meta: Readonly<Metadata>,
-    readonly verified: Set<string> = new Set(),
     readonly deferred: Set<string> = new Set(),
+    readonly verified: Set<string> = new Set(),
     readonly needDefer: Set<string> = new Set()
   ) {}
 }
@@ -67,9 +67,9 @@ export class SnapshotDoctor {
     this.bundlerPath = opts.bundlerPath
   }
 
-  async heal() {
+  async heal(forceDeferred: string[] = []) {
     const { meta, bundle } = await this._createScript()
-    const healState = new HealState(meta)
+    const healState = new HealState(meta, new Set(forceDeferred))
 
     let snapshotScript = this._processCurrentScript(bundle, healState)
     while (healState.needDefer.size > 0) {
@@ -86,7 +86,11 @@ export class SnapshotDoctor {
     logInfo('Optimizing')
     logDebug({ deferred: sortedDeferred })
 
-    const optimizedDeferred = await this._optimizeDeferred(meta, sortedDeferred)
+    const optimizedDeferred = await this._optimizeDeferred(
+      meta,
+      sortedDeferred,
+      forceDeferred
+    )
     return {
       verified: healState.verified,
       deferred: optimizedDeferred,
@@ -96,8 +100,12 @@ export class SnapshotDoctor {
     }
   }
 
-  async _optimizeDeferred(meta: Metadata, deferredSortedByLeafness: string[]) {
-    const optimizedDeferred: Set<string> = new Set()
+  async _optimizeDeferred(
+    meta: Metadata,
+    deferredSortedByLeafness: string[],
+    forceDeferred: string[]
+  ) {
+    const optimizedDeferred: Set<string> = new Set(forceDeferred)
     // Make each deferred an entry point and defer one of its imports to see if that maybe sufficient
     // to defer.
     for (const key of deferredSortedByLeafness) {
@@ -289,7 +297,9 @@ async function heal() {
     entryFilePath,
     baseDirPath,
   })
-  const { deferred, snapshotScript } = await doctor.heal()
+  const { deferred, snapshotScript } = await doctor.heal([
+    'node_modules/depd/index.js',
+  ])
   fs.writeFileSync(snapshotCache, snapshotScript, 'utf8')
   logInfo({ deferred })
 }
