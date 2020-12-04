@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert'
+import {strict as assert} from 'assert'
 import debug from 'debug'
 import vm from 'vm'
 import {
@@ -30,7 +30,7 @@ function sortModulesByLeafness(meta: Metadata) {
   while (handled.size < entries.length) {
     const justSorted = []
     // Include modules whose children have been included already
-    for (const [key, { imports }] of entries) {
+    for (const [key, {imports}] of entries) {
       if (handled.has(key)) continue
       const children = imports.map((x) => x.path)
       if (children.every((x) => handled.has(x))) {
@@ -76,7 +76,7 @@ export class SnapshotDoctor {
   }
 
   async heal(forceDeferred: string[] = []) {
-    const { meta, bundle } = await this._createScript()
+    const {meta, bundle} = await this._createScript()
     const healState = new HealState(meta, new Set(forceDeferred))
 
     let snapshotScript = this._processCurrentScript(bundle, healState)
@@ -84,7 +84,7 @@ export class SnapshotDoctor {
       for (const x of healState.needDefer) {
         healState.deferred.add(x)
       }
-      const { bundle } = await this._createScript(healState.deferred)
+      const {bundle} = await this._createScript(healState.deferred)
       healState.needDefer.clear()
       snapshotScript = this._processCurrentScript(bundle, healState)
     }
@@ -92,7 +92,7 @@ export class SnapshotDoctor {
     const sortedDeferred = sortDeferredByLeafness(meta, healState.deferred)
 
     logInfo('Optimizing')
-    logDebug({ deferred: sortedDeferred })
+    logDebug({deferred: sortedDeferred})
 
     const {
       optimizedDeferred,
@@ -163,11 +163,14 @@ export class SnapshotDoctor {
           break
         }
       }
-      assert(
-        success,
-        `${key} does not need to be deferred, but only when more than one of it's imports are deferred.` +
-          `This case is not yet handled.`
-      )
+      if (!success) {
+        logDebug(
+          `${key} does not need to be deferred, but only when more than one of it's imports are deferred.` +
+          `This case is not yet handled, therefore we defer the entire module instead.`
+        )
+        optimizedDeferred.add(key)
+        logInfo('Optimize: deferred unfixable parent', key)
+      }
     }
 
     const includingImplicitsDeferred = new Set(optimizedDeferred)
@@ -191,7 +194,7 @@ export class SnapshotDoctor {
       }
     }
 
-    return { optimizedDeferred, includingImplicitsDeferred }
+    return {optimizedDeferred, includingImplicitsDeferred}
   }
 
   async _entryWorksWhenDeferring(
@@ -199,9 +202,10 @@ export class SnapshotDoctor {
     meta: Metadata,
     deferring: Set<string>
   ) {
-    const { bundle } = await this._createScript(deferring)
+    const {bundle} = await this._createScript(deferring)
     const snapshotScript = assembleScript(bundle, meta, this.baseDirPath, {
       entryPoint: `./${key}`,
+      includeStrictVerifiers: true,
     })
     const healState = new HealState(meta, deferring)
     this._testScript(key, snapshotScript, healState)
@@ -259,20 +263,20 @@ export class SnapshotDoctor {
 
   async _createScript(
     deferred?: Set<string>
-  ): Promise<{ meta: Metadata; bundle: string }> {
+  ): Promise<{meta: Metadata; bundle: string}> {
     try {
       const deferredArg =
         deferred != null && deferred.size > 0
           ? Array.from(deferred).map((x) => `./${x}`)
           : undefined
 
-      const { meta, bundle } = await createSnapshotScript({
+      const {meta, bundle} = await createSnapshotScript({
         baseDirPath: this.baseDirPath,
         entryFilePath: this.entryFilePath,
         bundlerPath: this.bundlerPath,
         deferred: deferredArg,
       })
-      return { meta, bundle }
+      return {meta, bundle}
     } catch (err) {
       logError('Failed creating initial bundle')
       throw err
@@ -280,7 +284,7 @@ export class SnapshotDoctor {
   }
 
   _findNextStage(healState: HealState) {
-    const { verified, deferred, needDefer } = healState
+    const {verified, deferred, needDefer} = healState
     const visited = verified.size + deferred.size + needDefer.size
     return visited === 0
       ? this._findLeaves(healState.meta)
@@ -289,7 +293,7 @@ export class SnapshotDoctor {
 
   _findLeaves(meta: Metadata) {
     const leaves = []
-    for (const [key, { imports }] of Object.entries(meta.inputs)) {
+    for (const [key, {imports}] of Object.entries(meta.inputs)) {
       if (imports.length === 0) leaves.push(key)
     }
     return leaves
@@ -298,7 +302,7 @@ export class SnapshotDoctor {
   _findVerifiables(healState: HealState) {
     // Finds modules that only depend on previously handled modules
     const verifiables = []
-    for (const [key, { imports }] of Object.entries(healState.meta.inputs)) {
+    for (const [key, {imports}] of Object.entries(healState.meta.inputs)) {
       if (healState.needDefer.has(key)) continue
       if (this._wasHandled(key, healState.verified, healState.deferred))
         continue
@@ -335,18 +339,12 @@ async function heal() {
     entryFilePath,
     baseDirPath,
   })
-  const { deferred, snapshotScript } = await doctor.heal([
-    'node_modules/depd/index.js',
-    // requires and invokes `depd` during module load which is not caught during verification
-    //  TODO: we could check if any deferred is required in during that step and throw if so
-    //  (update blueprint generation)
-    'node_modules/body-parser/index.js',
-  ])
+  const {deferred, snapshotScript} = await doctor.heal()
   fs.writeFileSync(snapshotCache, snapshotScript, 'utf8')
   console.log(deferred)
 }
 
-;(async () => {
+; (async () => {
   try {
     await heal()
   } catch (err) {

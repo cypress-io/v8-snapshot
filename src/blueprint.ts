@@ -7,6 +7,7 @@ function read(part: string, indent = '  ') {
 }
 
 const globals = read('globals')
+const strictGlobals = read('globals-strict')
 const coreUtil = read('core-util')
 const coreEvents = read('core-events')
 const customRequire = read('custom-require')
@@ -18,6 +19,7 @@ export type BlueprintConfig = {
   mainModuleRequirePath: string
   auxiliaryData: string
   customRequireDefinitions: string
+  includeStrictVerifiers: boolean
 }
 export function scriptFromBlueprint(config: BlueprintConfig) {
   const {
@@ -26,6 +28,7 @@ export function scriptFromBlueprint(config: BlueprintConfig) {
     mainModuleRequirePath,
     auxiliaryData,
     customRequireDefinitions,
+    includeStrictVerifiers,
   } = config
 
   // TODO: NODE_ENV needs to be configurable
@@ -70,6 +73,7 @@ function generateSnapshot() {
   //
 
   ${globals}
+  ${includeStrictVerifiers ? strictGlobals : ''}
 
   ${coreUtil}
   ${coreEvents}

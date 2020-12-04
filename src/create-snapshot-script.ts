@@ -73,7 +73,11 @@ export function assembleScript(
   bundle: string,
   meta: Metadata,
   basedir: string,
-  opts: { auxiliaryData?: Record<string, any>; entryPoint?: string } = {}
+  opts: {
+    auxiliaryData?: Record<string, any>
+    entryPoint?: string
+    includeStrictVerifiers?: boolean
+  } = {}
 ) {
   const auxiliaryDataString = JSON.stringify(opts.auxiliaryData || {})
 
@@ -88,12 +92,15 @@ export function assembleScript(
   const indentedBundle = bundle.split('\n').join('\n  ')
   const customRequireDefinitions = requireDefinitions(indentedBundle)
 
+  const includeStrictVerifiers = opts.includeStrictVerifiers ?? false
+
   const config: BlueprintConfig = {
     processPlatform: process.platform,
     processNodeVersion: process.version,
     mainModuleRequirePath: JSON.stringify(mainModuleRequirePath),
     auxiliaryData: auxiliaryDataString,
     customRequireDefinitions,
+    includeStrictVerifiers,
   }
   return scriptFromBlueprint(config)
 }
