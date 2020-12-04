@@ -1,6 +1,7 @@
 import { blueBright, gray, green, yellow } from 'ansi-colors'
 import fs from 'fs'
 import path, { join, resolve } from 'path'
+import crypto from 'crypto'
 
 function canAccessSync(p: string) {
   try {
@@ -9,6 +10,31 @@ function canAccessSync(p: string) {
   } catch (_) {
     return false
   }
+}
+
+export function createHash(s: string) {
+  return crypto.createHash('sha256').update(s).digest('hex')
+}
+
+export async function canAccess(p: string) {
+  try {
+    await fs.promises.access(p)
+    return true
+  } catch (_) {
+    return false
+  }
+}
+
+export async function tryReadFile(p: string) {
+  if (!(await canAccess(p))) return null
+  return fs.promises.readFile(p, 'utf8')
+}
+
+export async function matchFileHash(p: string, hash: string) {
+  const contents = await tryReadFile(p)
+  if (contents == null) throw new Error(`Cannot obtain hash for '${p}`)
+  const currentHash = createHash(contents)
+  return { hash: currentHash, match: hash === currentHash }
 }
 
 export function ensureDirSync(dir: string) {
