@@ -16,6 +16,12 @@ export function createHash(s: string) {
   return crypto.createHash('sha256').update(s).digest('hex')
 }
 
+export async function createHashForFile(p: string) {
+  const contents = await tryReadFile(p)
+  if (contents == null) throw new Error(`Cannot obtain hash for '${p}`)
+  return createHash(contents)
+}
+
 export async function canAccess(p: string) {
   try {
     await fs.promises.access(p)

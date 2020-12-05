@@ -3,7 +3,7 @@ import debug from 'debug'
 import fs from 'fs'
 import path from 'path'
 import { SnapshotDoctor } from './snapshot-doctor'
-import { canAccess, matchFileHash } from './utils'
+import { canAccess, createHashForFile, matchFileHash } from './utils'
 
 const logInfo = debug('snapgen:info')
 
@@ -19,7 +19,7 @@ export async function determineDeferred(
     `Unable to find hash file inside ${projectBaseDir}`
   )
 
-  const jsonPath = path.join(cacheDir, 'excludes.json')
+  const jsonPath = path.join(cacheDir, 'snapshot-meta.json')
 
   const { match, hash, deferred } = await validateExistingDeferred(
     jsonPath,
@@ -38,9 +38,11 @@ export async function determineDeferred(
   })
 
   const { deferred: updatedDeferred } = await doctor.heal()
+  const deferredHashFile = path.relative(projectBaseDir, hashFilePath)
   const cachedDeferred = {
     deferred: updatedDeferred,
-    hash,
+    deferredHashFile,
+    deferredHash: hash,
   }
 
   await fs.promises.writeFile(
@@ -56,10 +58,11 @@ async function validateExistingDeferred(
   hashFilePath: string
 ) {
   if (!(await canAccess(jsonPath))) {
-    return { deferred: [], match: false, hash: '<not found>' }
+    const hash = await createHashForFile(hashFilePath)
+    return { deferred: [], match: false, hash }
   }
-  const { hash, deferred } = require(jsonPath)
-  const res = await matchFileHash(hashFilePath, hash)
+  const { deferredHash, deferred } = require(jsonPath)
+  const res = await matchFileHash(hashFilePath, deferredHash)
   return { deferred, match: res.match, hash: res.hash }
 }
 
