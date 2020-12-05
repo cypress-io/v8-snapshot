@@ -1,0 +1,20 @@
+{
+  "name": "react-electron-example",
+  "version": "1.0.0",
+  "description": "Example app demonstrating how to use v8-snapshot-utils.",
+  "scripts": {
+    "start": "electron app",
+    "install-snapshot": "node ./snapshot/install-snapshot.js",
+    "uninstall-snapshot": "node ./snapshot/uninstall-snapshot.js"
+  },
+  "author": "Thorsten Lorenz <thlorenz@gmx.de>",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "electron": "10.1.2",
+    "electron-mksnapshot": "^10.0.0"
+  }
+}
