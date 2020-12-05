@@ -90,7 +90,6 @@ export function eletronSnapshotPath(root: string) {
         'dist/Electron.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources'
       break
     }
-    case 'win32':
     case 'linux':
     case 'openbsd':
     case 'sunos':

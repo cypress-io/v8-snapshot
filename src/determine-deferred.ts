@@ -69,6 +69,6 @@ async function findHashFile(projectBaseDir: string) {
   const packageJson = path.join(projectBaseDir, 'package.json')
 
   for (const x of [yarnLock, packageLock, packageJson]) {
-    if (canAccess(x)) return x
+    if (await canAccess(x)) return x
   }
 }

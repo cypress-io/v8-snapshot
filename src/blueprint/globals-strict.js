@@ -7,15 +7,14 @@
 // be included as then they'd modify the environment when running the
 // snapshotted application.
 
+// TODO: possibly store original error and use it to throw below or throw a string (for now a workaround was added when
+// logging errors originiting from the vm )
 function cannotAccess(proto, prop) {
   return function () {
-    throw new GLOBAL.Error(
-      `Cannot access ${proto}.${prop} during snapshot creation`
-    )
+    throw new Error(`Cannot access ${proto}.${prop} during snapshot creation`)
   }
 }
 
-// let Error = {}
 Object.defineProperties(Error, {
   captureStackTrace: { value: cannotAccess('Error', 'captureStackTrace') },
   stackTraceLimit: { get: cannotAccess('Error', 'stackTraceLimit') },

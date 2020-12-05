@@ -11,13 +11,19 @@ import { BlueprintConfig, scriptFromBlueprint } from './blueprint'
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
 
-export type CreateSnapshotScriptOpts = {
+export type CreateBundleOpts = {
   baseDirPath: string
   entryFilePath: string
   bundlerPath: string
   deferred?: string[]
-  auxiliaryData?: Record<string, any>
 }
+
+export type CreateSnapshotScriptOpts = CreateBundleOpts & {
+  deferred?: string[]
+  auxiliaryData?: Record<string, any>
+  includeStrictVerifiers?: boolean
+}
+
 export type CreateSnapshotScript = (
   opts: CreateSnapshotScriptOpts
 ) => Promise<{ snapshotScript: string }>
@@ -68,7 +74,17 @@ function getMainModuleRequirePath(meta: Metadata, basedir: string) {
   }
 }
 
-// Modified from electron-link/src/generate-snapshot-script.js
+/**
+ * Assembles a snapshot script for the provided bundle configured for the
+ * provided meta data, basedir and opts.
+ *
+ * @param bundle contents of the bundle created previously
+ * @param meta   related metadata of bundle
+ * @param basedir project root directory
+ * @param opts
+ *
+ * @return the contents of the assembled script
+ */
 export function assembleScript(
   bundle: string,
   meta: Metadata,
@@ -105,10 +121,20 @@ export function assembleScript(
   return scriptFromBlueprint(config)
 }
 
-export function createSnapshotScript(
-  opts: CreateSnapshotScriptOpts
-): Promise<{ snapshotScript: string; meta: Metadata; bundle: string }> {
-  // 1. Create bundle and meta file via the provided bundler written in Go
+/**
+ * Creates bundle and meta file via the provided bundler written in Go
+ *
+ * @param opts
+ * @return the paths and contents of the created bundle and related metadata
+ */
+export async function createBundle(
+  opts: CreateBundleOpts
+): Promise<{
+  metafile: string
+  outfile: string
+  meta: Metadata
+  bundle: string
+}> {
   const bundleTmpDir = path.join(tmpdir(), 'v8-snapshot')
   ensureDirSync(bundleTmpDir)
 
@@ -137,19 +163,31 @@ export function createSnapshotScript(
     throw new Error(`Failed command: "${cmd}"`)
   }
 
-  // 2. Read bundle and meta file in order to construct the snapshot script
-  logDebug('Loading', { outfile, metafile })
-  const bundle = fs.readFileSync(outfile, 'utf8')
+  logDebug('Reading', { outfile, metafile })
+  const bundle = await fs.promises.readFile(outfile, 'utf8')
   const meta = require(metafile)
+  return { outfile, metafile, bundle, meta }
+}
 
-  // 3. Assemble Snapshot Script
+/**
+ * Creates a bundle for the provided entry file and then assembles a
+ * snapshot script from them.
+ *
+ * @param opts
+ * @return the paths and contents of the created bundle and related metadata
+ * as well as the created snapshot script
+ */
+export async function createSnapshotScript(
+  opts: CreateSnapshotScriptOpts
+): Promise<{ snapshotScript: string; meta: Metadata; bundle: string }> {
+  const { bundle, meta } = await createBundle(opts)
+
+  // Assemble Snapshot Script
   logDebug('Assembling snapshot script')
-  const script = assembleScript(
-    bundle,
-    meta,
-    opts.baseDirPath,
-    opts.auxiliaryData
-  )
+  const script = assembleScript(bundle, meta, opts.baseDirPath, {
+    auxiliaryData: opts.auxiliaryData,
+    includeStrictVerifiers: opts.includeStrictVerifiers,
+  })
 
   return Promise.resolve({ snapshotScript: script, meta, bundle })
 }

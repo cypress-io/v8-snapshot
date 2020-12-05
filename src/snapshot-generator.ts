@@ -7,6 +7,7 @@ import { dirname, join } from 'path'
 import { minify } from 'terser'
 import vm from 'vm'
 import { createSnapshotScript } from './create-snapshot-script'
+import { determineDeferred } from './determine-deferred'
 import {
   checkDirSync,
   checkFileSync,
@@ -103,12 +104,27 @@ export class SnapshotGenerator {
   }
 
   async createScript() {
+    let deferred
+    try {
+      deferred = await determineDeferred(
+        this.bundlerPath,
+        this.projectBaseDir,
+        this.snapshotEntryFile,
+        this.cacheDir
+      )
+    } catch (err) {
+      logError('Failed obtaining deferred modules to create script')
+      throw err
+    }
+
     let result
     try {
       result = await createSnapshotScript({
         baseDirPath: this.projectBaseDir,
         entryFilePath: this.snapshotEntryFile,
         bundlerPath: this.bundlerPath,
+        includeStrictVerifiers: false,
+        deferred,
         auxiliaryData: this.auxiliaryData,
       })
     } catch (err) {
