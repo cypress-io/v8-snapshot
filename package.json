@@ -25,6 +25,7 @@
     "debug": "^4.1.1",
     "electron": "^10.1.2",
     "electron-mksnapshot": "^10.0.0",
+    "prettier": "^2.2.1",
     "tslib": "^2.0.1"
   },
   "dependencies": {
