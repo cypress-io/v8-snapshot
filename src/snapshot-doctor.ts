@@ -226,6 +226,7 @@ export class SnapshotDoctor {
     bundle: string,
     healState: HealState
   ): string | undefined {
+    logInfo('Processing current script')
     let snapshotScript
     for (
       let nextStage = this._findNextStage(healState);
@@ -233,6 +234,7 @@ export class SnapshotDoctor {
       nextStage = this._findNextStage(healState)
     ) {
       for (const key of nextStage) {
+        logDebug('Testing entry in isolation "%s"', key)
         snapshotScript = assembleScript(
           bundle,
           healState.meta,
