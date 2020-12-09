@@ -24,17 +24,45 @@ class HealState {
   ) {}
 }
 
+type Entries<T> = {
+  [K in keyof T]: [K, T[K]]
+}[keyof T][]
+
+function circularImports(
+  inputs: Metadata['inputs'],
+  entries: Entries<Metadata['inputs']>
+) {
+  const map: Map<string, Set<string>> = new Map()
+  for (const [key, { imports }] of entries) {
+    const circs = []
+    for (const p of imports.map((x) => x.path)) {
+      const isCircular = inputs[p].imports.some((x) => x.path === key)
+      if (isCircular) circs.push(p)
+    }
+    if (circs.length > 0) map.set(key, new Set(circs))
+  }
+  return map
+}
+
 function sortModulesByLeafness(meta: Metadata) {
   const sorted = []
-  const handled = new Set()
+  const handled: Set<string> = new Set()
   const entries = Object.entries(meta.inputs)
+  const circulars = circularImports(meta.inputs, entries)
+
   while (handled.size < entries.length) {
     const justSorted = []
     // Include modules whose children have been included already
     for (const [key, { imports }] of entries) {
       if (handled.has(key)) continue
+      const circular = circulars.get(key)
       const children = imports.map((x) => x.path)
-      if (children.every((x) => handled.has(x))) {
+
+      if (
+        children.every(
+          (x) => handled.has(x) || (circular != null && circular.has(x))
+        )
+      ) {
         justSorted.push(key)
       }
     }
@@ -78,6 +106,7 @@ export class SnapshotDoctor {
 
   async heal(forceDeferred: string[] = []) {
     const { meta, bundle } = await this._createScript()
+
     const healState = new HealState(meta, new Set(forceDeferred))
 
     let snapshotScript = this._processCurrentScript(bundle, healState)
@@ -256,6 +285,7 @@ export class SnapshotDoctor {
         displayErrors: true,
       })
       healState.verified.add(key)
+      logDebug('Successfully verified ...')
     } catch (err) {
       // Cannot log err as is as it may come from inside the VM which in some cases is the Error we modified
       // and thus throws when we try to access err.name
