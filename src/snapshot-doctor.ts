@@ -270,6 +270,7 @@ export class SnapshotDoctor {
           this.baseDirPath,
           {
             entryPoint: `./${key}`,
+            includeStrictVerifiers: true,
           }
         )
         this._testScript(key, snapshotScript, healState)

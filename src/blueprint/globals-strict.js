@@ -13,11 +13,29 @@ function cannotAccess(proto, prop) {
   }
 }
 
+//
+// Error
+//
 Object.defineProperties(Error, {
   captureStackTrace: { value: cannotAccess('Error', 'captureStackTrace') },
   stackTraceLimit: { get: cannotAccess('Error', 'stackTraceLimit') },
   name: { get: cannotAccess('Error', 'name') },
 })
+
+//
+// Promise
+//
+const promiseProperties = [
+  'all',
+  'allSettled',
+  'race',
+  'reject',
+  'resolve',
+].reduce((acc, key) => {
+  acc[key] = { value: cannotAccess('Promise', key) }
+  return acc
+}, {})
+Object.defineProperties(Promise, promiseProperties)
 
 //
 // </globals-strict>
