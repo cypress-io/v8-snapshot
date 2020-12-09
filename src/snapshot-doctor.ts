@@ -44,11 +44,13 @@ function circularImports(
   return map
 }
 
-function sortModulesByLeafness(meta: Metadata) {
+function sortModulesByLeafness(
+  meta: Metadata,
+  entries: Entries<Metadata['inputs']>,
+  circulars: Map<string, Set<string>>
+) {
   const sorted = []
   const handled: Set<string> = new Set()
-  const entries = Object.entries(meta.inputs)
-  const circulars = circularImports(meta.inputs, entries)
 
   while (handled.size < entries.length) {
     const justSorted = []
@@ -81,8 +83,15 @@ function sortModulesByLeafness(meta: Metadata) {
   return sorted
 }
 
-function sortDeferredByLeafness(meta: Metadata, deferred: Set<string>) {
-  return sortModulesByLeafness(meta).filter((x) => deferred.has(x))
+function sortDeferredByLeafness(
+  meta: Metadata,
+  entries: Entries<Metadata['inputs']>,
+  circulars: Map<string, Set<string>>,
+  deferred: Set<string>
+) {
+  return sortModulesByLeafness(meta, entries, circulars).filter((x) =>
+    deferred.has(x)
+  )
 }
 
 function pathify(deferred: Set<string>) {
@@ -107,22 +116,34 @@ export class SnapshotDoctor {
   async heal(forceDeferred: string[] = []) {
     const { meta, bundle } = await this._createScript()
 
+    const entries = Object.entries(meta.inputs)
+    const circulars = circularImports(meta.inputs, entries)
+    logDebug({ circulars })
+
     const healState = new HealState(meta, new Set(forceDeferred))
 
-    let snapshotScript = this._processCurrentScript(bundle, healState)
+    let snapshotScript = this._processCurrentScript(
+      bundle,
+      healState,
+      circulars
+    )
     while (healState.needDefer.size > 0) {
       for (const x of healState.needDefer) {
         healState.deferred.add(x)
       }
       const { bundle } = await this._createScript(healState.deferred)
       healState.needDefer.clear()
-      snapshotScript = this._processCurrentScript(bundle, healState)
+      snapshotScript = this._processCurrentScript(bundle, healState, circulars)
     }
 
-    const sortedDeferred = sortDeferredByLeafness(meta, healState.deferred)
+    const sortedDeferred = sortDeferredByLeafness(
+      meta,
+      entries,
+      circulars,
+      healState.deferred
+    )
 
     logInfo('Optimizing')
-    logDebug({ deferred: sortedDeferred })
 
     const {
       optimizedDeferred,
@@ -130,7 +151,8 @@ export class SnapshotDoctor {
     } = await this._optimizeDeferred(meta, sortedDeferred, forceDeferred)
 
     logInfo('Optimized')
-    logDebug({ deferred: optimizedDeferred })
+    logDebug({ allDeferred: sortedDeferred, len: sortedDeferred.length })
+    logInfo({ optimizedDeferred, len: optimizedDeferred.size })
 
     return {
       verified: healState.verified,
@@ -253,14 +275,15 @@ export class SnapshotDoctor {
 
   _processCurrentScript(
     bundle: string,
-    healState: HealState
+    healState: HealState,
+    circulars: Map<string, Set<string>>
   ): string | undefined {
     logInfo('Processing current script')
     let snapshotScript
     for (
-      let nextStage = this._findNextStage(healState);
+      let nextStage = this._findNextStage(healState, circulars);
       nextStage.length > 0;
-      nextStage = this._findNextStage(healState)
+      nextStage = this._findNextStage(healState, circulars)
     ) {
       for (const key of nextStage) {
         logDebug('Testing entry in isolation "%s"', key)
@@ -322,12 +345,12 @@ export class SnapshotDoctor {
     }
   }
 
-  _findNextStage(healState: HealState) {
+  _findNextStage(healState: HealState, circulars: Map<string, Set<string>>) {
     const { verified, deferred, needDefer } = healState
     const visited = verified.size + deferred.size + needDefer.size
     return visited === 0
       ? this._findLeaves(healState.meta)
-      : this._findVerifiables(healState)
+      : this._findVerifiables(healState, circulars)
   }
 
   _findLeaves(meta: Metadata) {
@@ -338,7 +361,7 @@ export class SnapshotDoctor {
     return leaves
   }
 
-  _findVerifiables(healState: HealState) {
+  _findVerifiables(healState: HealState, circulars: Map<string, Set<string>>) {
     // Finds modules that only depend on previously handled modules
     const verifiables = []
     for (const [key, { imports }] of Object.entries(healState.meta.inputs)) {
@@ -346,10 +369,13 @@ export class SnapshotDoctor {
       if (this._wasHandled(key, healState.verified, healState.deferred))
         continue
 
-      const allImportsHandled = imports.every((x) =>
-        this._wasHandled(x.path, healState.verified, healState.deferred)
+      const circular = circulars.get(key) ?? new Set()
+      const allImportsHandledOrCircular = imports.every(
+        (x) =>
+          this._wasHandled(x.path, healState.verified, healState.deferred) ||
+          circular.has(x.path)
       )
-      if (allImportsHandled) verifiables.push(key)
+      if (allImportsHandledOrCircular) verifiables.push(key)
     }
     return verifiables
   }
