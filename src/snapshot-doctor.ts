@@ -6,8 +6,9 @@ import {
   assembleScript,
   createBundle,
   CreateSnapshotScriptOpts,
-  Metadata,
 } from './create-snapshot-script'
+import { Entries, Metadata } from './types'
+import { circularImports } from './circular-imports'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
@@ -22,26 +23,6 @@ class HealState {
     readonly verified: Set<string> = new Set(),
     readonly needDefer: Set<string> = new Set()
   ) {}
-}
-
-type Entries<T> = {
-  [K in keyof T]: [K, T[K]]
-}[keyof T][]
-
-function circularImports(
-  inputs: Metadata['inputs'],
-  entries: Entries<Metadata['inputs']>
-) {
-  const map: Map<string, Set<string>> = new Map()
-  for (const [key, { imports }] of entries) {
-    const circs = []
-    for (const p of imports.map((x) => x.path)) {
-      const isCircular = inputs[p].imports.some((x) => x.path === key)
-      if (isCircular) circs.push(p)
-    }
-    if (circs.length > 0) map.set(key, new Set(circs))
-  }
-  return map
 }
 
 function sortModulesByLeafness(

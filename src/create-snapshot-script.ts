@@ -7,6 +7,7 @@ import { tmpdir } from 'os'
 import { ensureDirSync } from './utils'
 import { execSync } from 'child_process'
 import { BlueprintConfig, scriptFromBlueprint } from './blueprint'
+import { Metadata } from './types'
 
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
@@ -27,28 +28,6 @@ export type CreateSnapshotScriptOpts = CreateBundleOpts & {
 export type CreateSnapshotScript = (
   opts: CreateSnapshotScriptOpts
 ) => Promise<{ snapshotScript: string }>
-
-export type Metadata = {
-  inputs: Record<string, { bytes: number; imports: { path: string }[] }>
-  outputs: Record<
-    string,
-    {
-      inputs: Record<
-        string,
-        {
-          bytesInOutput: number
-          fileInfo: {
-            identifierName: string
-            fullPath: string
-            isEntryPoint: boolean
-            replacementFunction: string
-          }
-        }
-      >
-      bytes: number
-    }
-  >
-}
 
 const requireDefinitions = (bundle: string) => `
   //
