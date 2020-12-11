@@ -20,7 +20,7 @@ class HealState {
   constructor(
     readonly meta: Readonly<Metadata>,
     readonly deferred: Set<string> = new Set(),
-    readonly verified: Set<string> = new Set(),
+    readonly healthy: Set<string> = new Set(),
     readonly needDefer: Set<string> = new Set()
   ) {}
 }
@@ -75,9 +75,9 @@ function sortDeferredByLeafness(
   )
 }
 
-function pathify(deferred: Set<string>) {
+function pathify(keys: Set<string>) {
   const xs = []
-  for (const x of deferred) {
+  for (const x of keys) {
     xs.push(`./${x}`)
   }
   return xs
@@ -94,7 +94,7 @@ export class SnapshotDoctor {
     this.bundlerPath = opts.bundlerPath
   }
 
-  async heal(forceDeferred: string[] = []) {
+  async heal(includeHealthyOrphans: boolean, forceDeferred: string[] = []) {
     const { meta, bundle } = await this._createScript()
 
     const entries = Object.entries(meta.inputs)
@@ -124,21 +124,34 @@ export class SnapshotDoctor {
       healState.deferred
     )
 
+    let healthyOrphans: Set<string> = new Set()
+    if (includeHealthyOrphans) {
+      logInfo('Getting Healthy Orphans')
+      healthyOrphans = this._determineHealthyOrphans(meta.inputs, healState)
+      logDebug(healthyOrphans)
+    }
+
     logInfo('Optimizing')
 
     const {
       optimizedDeferred,
       includingImplicitsDeferred,
-    } = await this._optimizeDeferred(meta, sortedDeferred, forceDeferred)
+    } = await this._optimizeDeferred(
+      meta,
+      sortedDeferred,
+      forceDeferred,
+      healthyOrphans
+    )
 
     logInfo('Optimized')
     logDebug({ allDeferred: sortedDeferred, len: sortedDeferred.length })
     logInfo({ optimizedDeferred, len: optimizedDeferred.size })
 
     return {
-      verified: healState.verified,
+      healthy: healState.healthy,
       includingImplicitsDeferred: pathify(includingImplicitsDeferred),
       deferred: pathify(optimizedDeferred),
+      healthyOrphans: pathify(healthyOrphans),
       bundle,
       snapshotScript,
       meta,
@@ -148,7 +161,8 @@ export class SnapshotDoctor {
   async _optimizeDeferred(
     meta: Metadata,
     deferredSortedByLeafness: string[],
-    forceDeferred: string[]
+    forceDeferred: string[],
+    healthyOrphans: Set<string>
   ) {
     const optimizedDeferred: Set<string> = new Set(forceDeferred)
 
@@ -212,21 +226,24 @@ export class SnapshotDoctor {
     const includingImplicitsDeferred = new Set(optimizedDeferred)
 
     // 2. Find children that don't need to be explicitly deferred since they are via their deferred parent
-    const entry = path.relative(this.baseDirPath, this.entryFilePath)
-    for (const key of optimizedDeferred) {
-      if (forceDeferred.includes(key)) continue
-      if (
-        await this._entryWorksWhenDeferring(
-          entry,
-          meta,
-          new Set([...optimizedDeferred].filter((x) => x !== key))
-        )
-      ) {
-        optimizedDeferred.delete(key)
-        logInfo(
-          'Optimize: removing defer of "%s", already deferred implicitly',
-          key
-        )
+    //    unless we're including healthy orphans.
+    if (healthyOrphans.size === 0) {
+      const entry = path.relative(this.baseDirPath, this.entryFilePath)
+      for (const key of optimizedDeferred) {
+        if (forceDeferred.includes(key)) continue
+        if (
+          await this._entryWorksWhenDeferring(
+            entry,
+            meta,
+            new Set([...optimizedDeferred].filter((x) => x !== key))
+          )
+        ) {
+          optimizedDeferred.delete(key)
+          logInfo(
+            'Optimize: removing defer of "%s", already deferred implicitly',
+            key
+          )
+        }
       }
     }
 
@@ -246,6 +263,18 @@ export class SnapshotDoctor {
     const healState = new HealState(meta, deferring)
     this._testScript(key, snapshotScript, healState)
     return !healState.needDefer.has(key)
+  }
+
+  _determineHealthyOrphans(inputs: Metadata['inputs'], healState: HealState) {
+    const healthyOrphans: Set<string> = new Set()
+    for (const deferred of healState.deferred) {
+      const { imports } = inputs[deferred]
+      imports
+        .map((x) => x.path)
+        .filter((p) => healState.healthy.has(p))
+        .forEach((p) => healthyOrphans.add(p))
+    }
+    return healthyOrphans
   }
 
   _getChildren(meta: Metadata, mdl: string) {
@@ -289,8 +318,8 @@ export class SnapshotDoctor {
         filename: `./${key}`,
         displayErrors: true,
       })
-      healState.verified.add(key)
-      logDebug('Successfully verified ...')
+      healState.healthy.add(key)
+      logDebug('Successfully verified as healthy ...')
     } catch (err) {
       // Cannot log err as is as it may come from inside the VM which in some cases is the Error we modified
       // and thus throws when we try to access err.name
@@ -327,8 +356,8 @@ export class SnapshotDoctor {
   }
 
   _findNextStage(healState: HealState, circulars: Map<string, Set<string>>) {
-    const { verified, deferred, needDefer } = healState
-    const visited = verified.size + deferred.size + needDefer.size
+    const { healthy, deferred, needDefer } = healState
+    const visited = healthy.size + deferred.size + needDefer.size
     return visited === 0
       ? this._findLeaves(healState.meta)
       : this._findVerifiables(healState, circulars)
@@ -347,13 +376,12 @@ export class SnapshotDoctor {
     const verifiables = []
     for (const [key, { imports }] of Object.entries(healState.meta.inputs)) {
       if (healState.needDefer.has(key)) continue
-      if (this._wasHandled(key, healState.verified, healState.deferred))
-        continue
+      if (this._wasHandled(key, healState.healthy, healState.deferred)) continue
 
       const circular = circulars.get(key) ?? new Set()
       const allImportsHandledOrCircular = imports.every(
         (x) =>
-          this._wasHandled(x.path, healState.verified, healState.deferred) ||
+          this._wasHandled(x.path, healState.healthy, healState.deferred) ||
           circular.has(x.path)
       )
       if (allImportsHandledOrCircular) verifiables.push(key)
@@ -361,7 +389,7 @@ export class SnapshotDoctor {
     return verifiables
   }
 
-  _wasHandled(key: string, verified: Set<string>, deferred: Set<string>) {
-    return verified.has(key) || deferred.has(key)
+  _wasHandled(key: string, healthy: Set<string>, deferred: Set<string>) {
+    return healthy.has(key) || deferred.has(key)
   }
 }

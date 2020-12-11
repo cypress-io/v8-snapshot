@@ -11,7 +11,8 @@ export async function determineDeferred(
   bundlerPath: string,
   projectBaseDir: string,
   snapshotEntryFile: string,
-  cacheDir: string
+  cacheDir: string,
+  includeHealthyOrphans: boolean
 ) {
   const hashFilePath = await findHashFile(projectBaseDir)
   assert(
@@ -21,11 +22,13 @@ export async function determineDeferred(
 
   const jsonPath = path.join(cacheDir, 'snapshot-meta.json')
 
-  const { match, hash, deferred } = await validateExistingDeferred(
-    jsonPath,
-    hashFilePath
-  )
-  if (match) return deferred
+  const {
+    match,
+    hash,
+    deferred,
+    healthyOrphans,
+  } = await validateExistingDeferred(jsonPath, hashFilePath)
+  if (match) return { deferred, healthyOrphans }
 
   logInfo(
     'Did not find valid excludes for current project state, will determine them ...'
@@ -37,10 +40,14 @@ export async function determineDeferred(
     baseDirPath: projectBaseDir,
   })
 
-  const { deferred: updatedDeferred } = await doctor.heal()
+  const {
+    deferred: updatedDeferred,
+    healthyOrphans: updatedVerifiedOrphans,
+  } = await doctor.heal(includeHealthyOrphans)
   const deferredHashFile = path.relative(projectBaseDir, hashFilePath)
   const cachedDeferred = {
     deferred: updatedDeferred,
+    healthyOrphans: updatedVerifiedOrphans,
     deferredHashFile,
     deferredHash: hash,
   }
@@ -50,7 +57,7 @@ export async function determineDeferred(
     JSON.stringify(cachedDeferred, null, 2),
     'utf8'
   )
-  return updatedDeferred
+  return { deferred: updatedDeferred, healthyOrphans: updatedVerifiedOrphans }
 }
 
 async function validateExistingDeferred(
@@ -61,9 +68,9 @@ async function validateExistingDeferred(
     const hash = await createHashForFile(hashFilePath)
     return { deferred: [], match: false, hash }
   }
-  const { deferredHash, deferred } = require(jsonPath)
+  const { deferredHash, deferred, healthyOrphans } = require(jsonPath)
   const res = await matchFileHash(hashFilePath, deferredHash)
-  return { deferred, match: res.match, hash: res.hash }
+  return { deferred, match: res.match, hash: res.hash, healthyOrphans }
 }
 
 async function findHashFile(projectBaseDir: string) {

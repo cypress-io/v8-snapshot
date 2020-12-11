@@ -30,6 +30,7 @@ type GenerationOpts = {
   skipWriteOnVerificationFailure: boolean
   cacheDir: string
   snapshotBinDir: string
+  includeHealthyOrphans: boolean
   mksnapshotBin?: string
   auxiliaryData?: Record<string, any>
 }
@@ -38,6 +39,7 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
   return {
     verify: true,
     minify: false,
+    includeHealthyOrphans: true,
     skipWriteOnVerificationFailure: false,
     cacheDir: join(projectBaseDir, 'cache'),
     snapshotBinDir: projectBaseDir,
@@ -47,6 +49,7 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
 export class SnapshotGenerator {
   readonly verify: boolean
   readonly minify: boolean
+  readonly includeHealthyOrphans: boolean
   readonly skipWriteOnVerificationFailure: boolean
   readonly cacheDir: string
   readonly snapshotScriptPath: string
@@ -64,6 +67,7 @@ export class SnapshotGenerator {
     const {
       verify,
       minify,
+      includeHealthyOrphans,
       skipWriteOnVerificationFailure,
       cacheDir,
       snapshotBinDir,
@@ -77,6 +81,7 @@ export class SnapshotGenerator {
 
     this.verify = verify
     this.minify = minify
+    this.includeHealthyOrphans = includeHealthyOrphans
     this.skipWriteOnVerificationFailure = skipWriteOnVerificationFailure
     this.cacheDir = cacheDir
     this.snapshotBinDir = snapshotBinDir
@@ -105,13 +110,15 @@ export class SnapshotGenerator {
 
   async createScript() {
     let deferred
+    let healthyOrphans
     try {
-      deferred = await determineDeferred(
+      ;({ deferred, healthyOrphans } = await determineDeferred(
         this.bundlerPath,
         this.projectBaseDir,
         this.snapshotEntryFile,
-        this.cacheDir
-      )
+        this.cacheDir,
+        this.includeHealthyOrphans
+      ))
     } catch (err) {
       logError('Failed obtaining deferred modules to create script')
       throw err
@@ -125,6 +132,7 @@ export class SnapshotGenerator {
         bundlerPath: this.bundlerPath,
         includeStrictVerifiers: false,
         deferred,
+        orphansToInclude: this.includeHealthyOrphans ? healthyOrphans : null,
         auxiliaryData: this.auxiliaryData,
       })
     } catch (err) {

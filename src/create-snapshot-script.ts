@@ -23,13 +23,39 @@ export type CreateSnapshotScriptOpts = CreateBundleOpts & {
   deferred?: string[]
   auxiliaryData?: Record<string, any>
   includeStrictVerifiers?: boolean
+  orphansToInclude?: string[]
 }
 
 export type CreateSnapshotScript = (
   opts: CreateSnapshotScriptOpts
 ) => Promise<{ snapshotScript: string }>
 
-const requireDefinitions = (bundle: string) => `
+const orphanInjectionEntryPoint = '<entry_with_injected_orphans>'
+function injectOrphans(entryPoint: string, orphans: string[]) {
+  const inject = orphans.reduce(
+    (acc, x) => acc + `module.exports['${x}'] = require('${x}')\n`,
+    ''
+  )
+  return `
+  __commonJS['${orphanInjectionEntryPoint}'] = function(exports, module, __dirname, __filename, require) {
+    module.exports = require('${entryPoint}')
+    ${inject}
+  }
+  `
+}
+
+const requireDefinitions = (
+  bundle: string,
+  entryPoint: string,
+  orphansToInclude?: string[]
+) => {
+  const injectedOrphans =
+    orphansToInclude == null
+      ? null
+      : injectOrphans(entryPoint, orphansToInclude)
+
+  return {
+    code: `
   //
   // <esbuild bundle>
   //
@@ -37,9 +63,14 @@ const requireDefinitions = (bundle: string) => `
   //
   // </esbuild bundle>
   //
+  ${injectedOrphans != null ? injectedOrphans : ''}
 
   customRequire.definitions = __commonJS 
-`
+`,
+    mainModuleRequirePath:
+      injectedOrphans == null ? entryPoint : orphanInjectionEntryPoint,
+  }
+}
 
 function getMainModuleRequirePath(meta: Metadata, basedir: string) {
   for (const output of Object.values(meta.outputs)) {
@@ -72,8 +103,10 @@ export function assembleScript(
     auxiliaryData?: Record<string, any>
     entryPoint?: string
     includeStrictVerifiers?: boolean
+    orphansToInclude?: string[]
   } = {}
 ) {
+  const includeStrictVerifiers = opts.includeStrictVerifiers ?? false
   const auxiliaryDataString = JSON.stringify(opts.auxiliaryData || {})
 
   const mainModuleRequirePath =
@@ -85,16 +118,18 @@ export function assembleScript(
   )
 
   const indentedBundle = bundle.split('\n').join('\n  ')
-  const customRequireDefinitions = requireDefinitions(indentedBundle)
-
-  const includeStrictVerifiers = opts.includeStrictVerifiers ?? false
+  const defs = requireDefinitions(
+    indentedBundle,
+    mainModuleRequirePath,
+    opts.orphansToInclude
+  )
 
   const config: BlueprintConfig = {
     processPlatform: process.platform,
     processNodeVersion: process.version,
-    mainModuleRequirePath: JSON.stringify(mainModuleRequirePath),
+    mainModuleRequirePath: JSON.stringify(defs.mainModuleRequirePath),
     auxiliaryData: auxiliaryDataString,
-    customRequireDefinitions,
+    customRequireDefinitions: defs.code,
     includeStrictVerifiers,
   }
   return scriptFromBlueprint(config)
@@ -166,6 +201,7 @@ export async function createSnapshotScript(
   const script = assembleScript(bundle, meta, opts.baseDirPath, {
     auxiliaryData: opts.auxiliaryData,
     includeStrictVerifiers: opts.includeStrictVerifiers,
+    orphansToInclude: opts.orphansToInclude,
   })
 
   return Promise.resolve({ snapshotScript: script, meta, bundle })
