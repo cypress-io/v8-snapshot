@@ -128,7 +128,6 @@ export class SnapshotDoctor {
     if (includeHealthyOrphans) {
       logInfo('Getting Healthy Orphans')
       healthyOrphans = this._determineHealthyOrphans(meta.inputs, healState)
-      logDebug(healthyOrphans)
     }
 
     logInfo('Optimizing')
@@ -143,8 +142,8 @@ export class SnapshotDoctor {
       healthyOrphans
     )
 
-    logInfo('Optimized')
-    logDebug({ allDeferred: sortedDeferred, len: sortedDeferred.length })
+    logInfo({ allDeferred: sortedDeferred, len: sortedDeferred.length })
+    logInfo({ healthyOrphans, len: healthyOrphans.size })
     logInfo({ optimizedDeferred, len: optimizedDeferred.size })
 
     return {
