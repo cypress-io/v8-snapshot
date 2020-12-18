@@ -1,9 +1,7 @@
-module.exports = {
-  lodash: require('lodash'),
-  ramda: require('ramda'),
-  gulpComplexity: require('gulp-complexity'),
-  inquirer: require('inquirer'),
-  gulp: require('gulp'),
-  underscore: require('underscore'),
-  yeoman: require('yeoman-generator'),
-}
+exports.lodash = require('lodash')
+exports.ramda = require('ramda')
+exports.gulpComplexity = require('gulp-complexity')
+exports.inquirer = require('inquirer')
+exports.gulp = require('gulp')
+exports.underscore = require('underscore')
+exports.yeoman = require('yeoman-generator')

@@ -1,6 +1,5 @@
-process.env.DEBUG = 'snapgen:*'
 const path = require('path')
-const { SnapshotGenerator } = require('../../')
+const { SnapshotGenerator, prettyPrintError } = require('../../')
 
 const projectBaseDir = path.join(__dirname, '../')
 const snapshotEntryFile = require.resolve('./snapshot.js')
