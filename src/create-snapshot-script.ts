@@ -72,14 +72,17 @@ const requireDefinitions = (
   }
 }
 
-function getMainModuleRequirePath(meta: Metadata, basedir: string) {
-  for (const output of Object.values(meta.outputs)) {
-    for (const input of Object.values(output.inputs)) {
-      const { fullPath, isEntryPoint } = input.fileInfo
-      const relPath = path.relative(basedir, fullPath)
-      if (isEntryPoint) {
-        return `./${relPath}`
-      }
+function getMainModuleRequirePath(
+  meta: Metadata,
+  basedir: string,
+  entryFullPath: string
+) {
+  for (const input of Object.values(meta.inputs)) {
+    const { fullPath } = input.fileInfo
+    const isEntryPoint = fullPath === entryFullPath
+    const relPath = path.relative(basedir, fullPath)
+    if (isEntryPoint) {
+      return `./${relPath}`
     }
   }
 }
@@ -99,6 +102,7 @@ export function assembleScript(
   bundle: string,
   meta: Metadata,
   basedir: string,
+  entryFilePath: string,
   opts: {
     auxiliaryData?: Record<string, any>
     entryPoint?: string
@@ -110,7 +114,7 @@ export function assembleScript(
   const auxiliaryDataString = JSON.stringify(opts.auxiliaryData || {})
 
   const mainModuleRequirePath =
-    opts.entryPoint ?? getMainModuleRequirePath(meta, basedir)
+    opts.entryPoint ?? getMainModuleRequirePath(meta, basedir, entryFilePath)
 
   assert(
     mainModuleRequirePath != null,
@@ -198,11 +202,17 @@ export async function createSnapshotScript(
 
   // Assemble Snapshot Script
   logDebug('Assembling snapshot script')
-  const script = assembleScript(bundle, meta, opts.baseDirPath, {
-    auxiliaryData: opts.auxiliaryData,
-    includeStrictVerifiers: opts.includeStrictVerifiers,
-    orphansToInclude: opts.orphansToInclude,
-  })
+  const script = assembleScript(
+    bundle,
+    meta,
+    opts.baseDirPath,
+    opts.entryFilePath,
+    {
+      auxiliaryData: opts.auxiliaryData,
+      includeStrictVerifiers: opts.includeStrictVerifiers,
+      orphansToInclude: opts.orphansToInclude,
+    }
+  )
 
   return Promise.resolve({ snapshotScript: script, meta, bundle })
 }

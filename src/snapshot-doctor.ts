@@ -255,10 +255,16 @@ export class SnapshotDoctor {
     deferring: Set<string>
   ) {
     const { bundle } = await this._createScript(deferring)
-    const snapshotScript = assembleScript(bundle, meta, this.baseDirPath, {
-      entryPoint: `./${key}`,
-      includeStrictVerifiers: true,
-    })
+    const snapshotScript = assembleScript(
+      bundle,
+      meta,
+      this.baseDirPath,
+      this.entryFilePath,
+      {
+        entryPoint: `./${key}`,
+        includeStrictVerifiers: true,
+      }
+    )
     const healState = new HealState(meta, deferring)
     this._testScript(key, snapshotScript, healState)
     return !healState.needDefer.has(key)
@@ -300,6 +306,7 @@ export class SnapshotDoctor {
           bundle,
           healState.meta,
           this.baseDirPath,
+          this.entryFilePath,
           {
             entryPoint: `./${key}`,
             includeStrictVerifiers: true,

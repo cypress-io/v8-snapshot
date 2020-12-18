@@ -3,23 +3,14 @@ export type Entries<T> = {
 }[keyof T][]
 
 export type Metadata = {
-  inputs: Record<string, { bytes: number; imports: { path: string }[] }>
-  outputs: Record<
+  inputs: Record<
     string,
     {
-      inputs: Record<
-        string,
-        {
-          bytesInOutput: number
-          fileInfo: {
-            identifierName: string
-            fullPath: string
-            isEntryPoint: boolean
-            replacementFunction: string
-          }
-        }
-      >
       bytes: number
+      fileInfo: {
+        fullPath: string
+      }
+      imports: { path: string }[]
     }
   >
 }
