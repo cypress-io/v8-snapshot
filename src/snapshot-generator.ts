@@ -11,7 +11,8 @@ import { determineDeferred } from './determine-deferred'
 import {
   checkDirSync,
   checkFileSync,
-  eletronSnapshotPath,
+  electronSnapshotFilenames,
+  electronSnapshotPath,
   ensureDirSync,
   fileExistsSync,
   findMksnapshot,
@@ -21,8 +22,7 @@ const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
 
-const SNAPSHOT_BACKUP = 'v8_context_snapshot.orig.bin'
-const SNAPSHOT_BIN = 'v8_context_snapshot.bin'
+const MK_SNAPSHOT_BIN_FILENAME = 'v8_context_snapshot.bin'
 
 type GenerationOpts = {
   verify: boolean
@@ -54,7 +54,10 @@ export class SnapshotGenerator {
   readonly cacheDir: string
   readonly snapshotScriptPath: string
   readonly mksnapshotBin: string
+  readonly mksnapshotBinFilename: string
   readonly snapshotBinDir: string
+  readonly snapshotBinFilename: string
+  readonly snapshotBackupFilename: string
   readonly auxiliaryData?: Record<string, any>
   snapshotScript?: string
 
@@ -87,6 +90,13 @@ export class SnapshotGenerator {
     this.snapshotBinDir = snapshotBinDir
     this.snapshotScriptPath = join(cacheDir, 'snapshot.js')
     this.auxiliaryData = opts.auxiliaryData
+
+    const { snapshotBin, snapshotBackup } = electronSnapshotFilenames(
+      projectBaseDir
+    )
+    this.snapshotBinFilename = snapshotBin
+    this.snapshotBackupFilename = snapshotBackup
+    this.mksnapshotBinFilename = MK_SNAPSHOT_BIN_FILENAME
 
     if (opts.mksnapshotBin == null) {
       logDebug('No mksnapshot binary provided, attempting to find it')
@@ -188,7 +198,10 @@ export class SnapshotGenerator {
     logDebug(cmd)
     try {
       execFileSync(this.mksnapshotBin, args)
-      const createdSnapshotBin = join(this.snapshotBinDir, SNAPSHOT_BIN)
+      const createdSnapshotBin = join(
+        this.snapshotBinDir,
+        this.mksnapshotBinFilename
+      )
       if (!fileExistsSync(createdSnapshotBin)) {
         logError(
           `Cannot find ${createdSnapshotBin} which should've been created.\n` +
@@ -214,17 +227,28 @@ export class SnapshotGenerator {
       this.snapshotScript != null,
       'Run `createScript` and `makeSnapshot` first to create snapshot'
     )
-    const createdSnapshotBin = join(this.snapshotBinDir, SNAPSHOT_BIN)
+    const createdSnapshotBin = join(
+      this.snapshotBinDir,
+      this.mksnapshotBinFilename
+    )
     assert(
       fileExistsSync(createdSnapshotBin),
       'Run `makeSnapshot` first to create ' + createdSnapshotBin
     )
 
-    const electronSnapshotBin = eletronSnapshotPath(this.projectBaseDir)
+    const electronSnapshotBin = electronSnapshotPath(this.projectBaseDir)
     const electronSnapshotDir = dirname(electronSnapshotBin)
     checkDirSync(electronSnapshotDir)
 
-    const originalSnapshotBin = join(electronSnapshotDir, SNAPSHOT_BACKUP)
+    const originalSnapshotBin = join(
+      electronSnapshotDir,
+      this.snapshotBackupFilename
+    )
+
+    console.log({
+      electronSnapshotBin,
+      originalSnapshotBin,
+    })
 
     if (!fileExistsSync(originalSnapshotBin)) {
       logInfo(
@@ -258,11 +282,13 @@ export class SnapshotGenerator {
 }
 
 export function uninstallSnapshot(projectBaseDir: string) {
-  const electronSnapshotBin = eletronSnapshotPath(projectBaseDir)
+  const electronSnapshotBin = electronSnapshotPath(projectBaseDir)
   const electronSnapshotDir = dirname(electronSnapshotBin)
   checkDirSync(electronSnapshotDir)
 
-  const originalSnapshotBin = join(electronSnapshotDir, SNAPSHOT_BACKUP)
+  const { snapshotBackup } = electronSnapshotFilenames(projectBaseDir)
+  const originalSnapshotBin = join(electronSnapshotDir, snapshotBackup)
+
   assert(
     fileExistsSync(originalSnapshotBin),
     'cannot find original electron snapshot'

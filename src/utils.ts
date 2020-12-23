@@ -87,7 +87,28 @@ export function findMksnapshot(root: string) {
   return p
 }
 
-export function eletronSnapshotPath(root: string) {
+const SNAPSHOT_BACKUP_OLD = 'v8_context_snapshot.orig.bin'
+const SNAPSHOT_BIN_OLD = 'v8_context_snapshot.bin'
+const SNAPSHOT_BACKUP = 'v8_context_snapshot.x86_64.orig.bin'
+const SNAPSHOT_BIN = 'v8_context_snapshot.x86_64.bin'
+
+export function electronSnapshotFilenames(root: string) {
+  const electron = resolve(root, 'node_modules', 'electron')
+  const { version } = require(join(electron, 'package.json'))
+
+  return parseInt(version.split('.')[0]) >= 11
+    ? {
+        snapshotBin: SNAPSHOT_BIN,
+        snapshotBackup: SNAPSHOT_BACKUP,
+      }
+    : {
+        snapshotBin: SNAPSHOT_BIN_OLD,
+        snapshotBackup: SNAPSHOT_BACKUP_OLD,
+      }
+}
+
+export function electronSnapshotPath(root: string) {
+  const { snapshotBin } = electronSnapshotFilenames(root)
   const electron = resolve(root, 'node_modules', 'electron')
   let location
   switch (process.platform) {
@@ -112,7 +133,7 @@ export function eletronSnapshotPath(root: string) {
   }
 
   const snapshotLocation = join(electron, location)
-  return join(snapshotLocation, 'v8_context_snapshot.bin')
+  return join(snapshotLocation, snapshotBin)
 }
 // at Object.__commonJS../node_modules/mute-stream/mute.js (/Volumes/d/dev/cy/perf-tr1/v8-snapshot-utils/example-multi/cache/snapshot.js:10555:43)
 const commonJsModuleRx = /(at Object.__commonJS\.)([^(]+)([^ :]+) *:(\d+)(.+)/
