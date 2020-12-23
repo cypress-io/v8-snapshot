@@ -15,7 +15,7 @@
     "tmpfile": "^0.2.0"
   },
   "devDependencies": {
-    "electron": "10.1.2",
-    "electron-mksnapshot": "^10.0.0"
+    "electron": "11.0.1",
+    "electron-mksnapshot": "^11.0.0"
   }
 }
