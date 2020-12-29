@@ -8,13 +8,17 @@ const snapshotUtilsRoot = path.join(__dirname, '..')
 const logInfo = debug('snapgen:info')
 const logError = debug('snapgen:error')
 
+type PathsMapper = (s: string) => string
+const identityMapper: PathsMapper = (s: string) => s
+
 class SnapshotEntryGeneratorViaWalk {
   constructor(
     readonly bundlerPath: string,
     readonly entryFile: string,
     readonly projectBaseDir: string,
     readonly fullPathToSnapshotEntry: string,
-    readonly nodeModulesOnly: boolean
+    readonly nodeModulesOnly: boolean,
+    readonly pathsMapper: PathsMapper
   ) {}
 
   async createSnapshotScript() {
@@ -32,9 +36,10 @@ class SnapshotEntryGeneratorViaWalk {
       fullPaths = fullPaths.filter((x) => x.includes('node_modules'))
     }
 
-    return fullPaths.map((x) =>
-      path.relative(path.dirname(this.fullPathToSnapshotEntry), x)
-    )
+    return fullPaths
+      .map((x) => path.relative(this.projectBaseDir, x))
+      .map((x) => x.replace(/^node_modules\//, ''))
+      .map(this.pathsMapper)
   }
 
   private async _getMetadata() {
@@ -50,14 +55,17 @@ class SnapshotEntryGeneratorViaWalk {
 
 const DEFAULT_GENERATE_CONFIG: Partial<GenerateSnapshotEntryFromEntryDepsConfig> & {
   nodeModulesOnly: boolean
+  pathsMapper: PathsMapper
 } = {
   nodeModulesOnly: true,
+  pathsMapper: identityMapper,
 }
 
 type GenerateSnapshotEntryFromEntryDepsConfig = {
   bundlerPath: string
   entryFile: string
   nodeModulesOnly?: boolean
+  pathsMapper?: PathsMapper
 }
 
 export async function generateSnapshotEntryFromEntryDeps(
@@ -71,7 +79,8 @@ export async function generateSnapshotEntryFromEntryDeps(
     fullConf.entryFile,
     projectBaseDir,
     fullPathToSnapshotEntry,
-    fullConf.nodeModulesOnly
+    fullConf.nodeModulesOnly,
+    fullConf.pathsMapper
   )
   try {
     const script = await generator.createSnapshotScript()
