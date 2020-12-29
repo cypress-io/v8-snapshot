@@ -1,6 +1,5 @@
 import { strict as assert } from 'assert'
 import { execFileSync } from 'child_process'
-// @ts-ignore
 import debug from 'debug'
 import fs from 'fs'
 import { dirname, join } from 'path'

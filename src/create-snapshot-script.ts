@@ -170,7 +170,7 @@ export async function createBundle(
 
   logDebug('Running "%s"', cmd)
   try {
-    execSync(cmd, { stdio: ['pipe', 'pipe', 'inherit'] })
+    execSync(cmd, { stdio: ['pipe', 'pipe', 'inherit'], cwd: basedir })
   } catch (err) {
     if (err.stderr != null) {
       logError(err.stderr.toString())
