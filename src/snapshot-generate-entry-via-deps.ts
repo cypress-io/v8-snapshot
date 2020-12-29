@@ -4,7 +4,7 @@ import { promises as fs } from 'fs'
 import { createBundle, CreateBundleOpts } from './create-snapshot-script'
 import { Metadata } from './types'
 
-const snapshotUtilsRoot = path.join(__dirname, '..')
+const snapshotUtils = require('../package.json').name
 const logInfo = debug('snapgen:info')
 const logError = debug('snapgen:error')
 
@@ -30,15 +30,15 @@ class SnapshotEntryGeneratorViaWalk {
   private _resolveRelativePaths(meta: Metadata) {
     let fullPaths = Object.values(meta.inputs)
       .map((x) => x.fileInfo.fullPath)
-      .filter((x) => !x.startsWith(snapshotUtilsRoot))
+      .filter((x) => !x.includes(`node_modules/${snapshotUtils}/`))
 
     if (this.nodeModulesOnly) {
       fullPaths = fullPaths.filter((x) => x.includes('node_modules'))
     }
 
     return fullPaths
-      .map((x) => path.relative(this.projectBaseDir, x))
-      .map((x) => x.replace(/^node_modules\//, ''))
+      .map((x) => path.relative(path.dirname(this.fullPathToSnapshotEntry), x))
+      .map((x) => x.replace(/^node_modules\//, './node_modules/'))
       .map(this.pathsMapper)
   }
 
