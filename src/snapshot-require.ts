@@ -52,7 +52,8 @@ export function snapshotRequire(projectBaseDir: string) {
       checked_window,
       checked_document,
       console,
-      global.require
+      // TODO: was global.require which was `undefined`, how will this work for relative `require` calls?
+      require
     )
   }
 }

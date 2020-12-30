@@ -35,8 +35,12 @@ function customRequire(modulePath) {
       module.exports = coreStubs[modulePath]
       // we don't cache core modules but only serve stubs to not break snapsshotting
     } else {
-      module.exports = require(modulePath)
-      customRequire.cache[modulePath] = module
+      try {
+        module.exports = require(modulePath)
+        customRequire.cache[modulePath] = module
+      } catch (err) {
+        console.error('Failed to require', modulePath)
+      }
     }
   }
 
