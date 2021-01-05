@@ -1,12 +1,17 @@
 import path from 'path'
+import debug from 'debug'
+
+const logInfo = debug('snapshot:info')
+const logDebug = debug('snapshot:debug')
 
 export function snapshotRequire(projectBaseDir: string) {
   // @ts-ignore global snapshotResult
   if (typeof (snapshotResult as any) !== 'undefined') {
     // @ts-ignore global snapshotResult
-    console.log('snapshotResult available!', snapshotResult)
-    // @ts-ignore global snapshotResult
-    console.log(Object.keys(snapshotResult.customRequire.cache))
+    const sr = snapshotResult
+    const keys = Object.keys(sr.customRequire.cache)
+    logInfo('snapshotResult available containing %d modules!', keys.length)
+    logDebug(keys)
 
     const Module = require('module')
 
@@ -28,10 +33,10 @@ export function snapshotRequire(projectBaseDir: string) {
       let cachedModule = snapshotResult.customRequire.cache[relativeFilePath]
       // @ts-ignore global snapshotResult
       if (snapshotResult.customRequire.cache[relativeFilePath]) {
-        console.log('Snapshot cache hit:', relativeFilePath)
+        logDebug('Snapshot cache hit:', relativeFilePath)
       }
       if (!cachedModule) {
-        console.log('Uncached module:', moduleUri, relativeFilePath)
+        logDebug('Uncached module:', moduleUri, relativeFilePath)
         cachedModule = { exports: Module._load(moduleUri, this, false) }
         // @ts-ignore global snapshotResult
         snapshotResult.customRequire.cache[relativeFilePath] = cachedModule

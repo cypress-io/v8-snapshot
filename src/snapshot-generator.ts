@@ -244,11 +244,6 @@ export class SnapshotGenerator {
       this.snapshotBackupFilename
     )
 
-    console.log({
-      electronSnapshotBin,
-      originalSnapshotBin,
-    })
-
     if (!fileExistsSync(originalSnapshotBin)) {
       logInfo(
         `Backing up original electron snapshot to '${originalSnapshotBin}'`
