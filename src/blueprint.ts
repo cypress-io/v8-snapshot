@@ -62,6 +62,17 @@ function generateSnapshot() {
       value: { node: '${processNodeVersion}' },
       enumerable: false,
     },
+    // HACK(thlorenz): it seems this is a valid way to defer access to the _actual_ process Object?
+    // This makes cases work that check for 'typeof process.nextTick === 'function'' or similar and
+    // is replaced by the _real_ process 'nextTick' at runtime.
+    // Need to ensure that either no code holds on to the 'nextTick' instance and/or that those cases
+    // don't break.
+    nextTick: {
+      value: (cb, ...args) => { 
+        throw new Error('CANNOT USE FAKE TICK FUNCTION')
+      },
+      enumerable: false,
+    }
   })
 
   function get_process() {
