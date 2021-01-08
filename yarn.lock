@@ -717,6 +717,11 @@ util-deprecate@~1.0.1:
   resolved "https://registry.yarnpkg.com/util-deprecate/-/util-deprecate-1.0.2.tgz#450d4dc9fa70de732762fbd2d4a28981419a0ccf"
   integrity sha1-RQ1Nyfpw3nMnYvvS1KKJgUGaDM8=
 
+worker-nodes@^2.3.0:
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/worker-nodes/-/worker-nodes-2.3.0.tgz#10da327496ba1916abe444a7a1fb5d015a7d0c05"
+  integrity sha512-WJcS5HdRSSoXoB87njBvtDZ8atmjkpJHjHSfOBagSAMay71S6izHeG1JCPbHD396V/6659skavvE3aFB3y9DQw==
+
 wrappy@1:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/wrappy/-/wrappy-1.0.2.tgz#b5243d8f3ec1aa35f1364605bc0d1036e30ab69f"

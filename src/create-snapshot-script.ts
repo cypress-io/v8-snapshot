@@ -13,6 +13,8 @@ const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
 
 export type CreateBundleOpts = {
+  bundleFile?: string
+  metaFile?: string
   baseDirPath: string
   entryFilePath: string
   bundlerPath: string
@@ -20,7 +22,6 @@ export type CreateBundleOpts = {
 }
 
 export type CreateSnapshotScriptOpts = CreateBundleOpts & {
-  deferred?: string[]
   auxiliaryData?: Record<string, any>
   includeStrictVerifiers?: boolean
   orphansToInclude?: string[]
@@ -72,19 +73,13 @@ const requireDefinitions = (
   }
 }
 
-function getMainModuleRequirePath(
-  meta: Metadata,
-  basedir: string,
-  entryFullPath: string
-) {
-  for (const input of Object.values(meta.inputs)) {
-    const { fullPath } = input.fileInfo
-    const isEntryPoint = fullPath === entryFullPath
-    const relPath = path.relative(basedir, fullPath)
-    if (isEntryPoint) {
-      return `./${relPath}`
-    }
-  }
+function getMainModuleRequirePath(basedir: string, entryFullPath: string) {
+  logDebug('Obtaining main module require path given', {
+    basedir,
+    entryFullPath,
+  })
+  const relPath = path.relative(basedir, entryFullPath)
+  return `./${relPath}`
 }
 
 /**
@@ -92,7 +87,6 @@ function getMainModuleRequirePath(
  * provided meta data, basedir and opts.
  *
  * @param bundle contents of the bundle created previously
- * @param meta   related metadata of bundle
  * @param basedir project root directory
  * @param opts
  *
@@ -100,7 +94,6 @@ function getMainModuleRequirePath(
  */
 export function assembleScript(
   bundle: string,
-  meta: Metadata,
   basedir: string,
   entryFilePath: string,
   opts: {
@@ -114,7 +107,7 @@ export function assembleScript(
   const auxiliaryDataString = JSON.stringify(opts.auxiliaryData || {})
 
   const mainModuleRequirePath =
-    opts.entryPoint ?? getMainModuleRequirePath(meta, basedir, entryFilePath)
+    opts.entryPoint ?? getMainModuleRequirePath(basedir, entryFilePath)
 
   assert(
     mainModuleRequirePath != null,
@@ -141,11 +134,12 @@ export function assembleScript(
 
 /**
  * Creates bundle and meta file via the provided bundler written in Go
+ * and reads and returns its contents asynchronously.
  *
  * @param opts
- * @return the paths and contents of the created bundle and related metadata
+ * @return promise of the paths and contents of the created bundle and related metadata
  */
-export async function createBundle(
+export async function createBundleAsync(
   opts: CreateBundleOpts
 ): Promise<{
   metafile: string
@@ -153,11 +147,64 @@ export async function createBundle(
   meta: Metadata
   bundle: string
 }> {
+  const { outfile, metafile } = createBundle(opts)
+  logDebug('Reading', { outfile, metafile })
+  const bundle = await fs.promises.readFile(outfile, 'utf8')
+  const meta = require(metafile)
+  return { outfile, metafile, bundle, meta }
+}
+
+/**
+ * Creates bundle and meta file via the provided bundler written in Go
+ * and reads and returns its contents synchronously.
+ *
+ * @param opts
+ * @return the paths and contents of the created bundle and related metadata
+ */
+export function createBundleSync(
+  opts: CreateBundleOpts
+): {
+  metafile: string
+  outfile: string
+  meta: Metadata
+  bundle: string
+} {
+  const { outfile, metafile } = createBundle(opts)
+  logDebug('Reading', { outfile, metafile })
+  const bundle = fs.readFileSync(outfile, 'utf8')
+  const meta = require(metafile)
+  return { outfile, metafile, bundle, meta }
+}
+
+/**
+ * Creates a bundle for the provided entry file and then assembles a
+ * snapshot script from them.
+ *
+ * @param opts
+ * @return the paths and contents of the created bundle and related metadata
+ * as well as the created snapshot script
+ */
+export async function createSnapshotScript(
+  opts: CreateSnapshotScriptOpts
+): Promise<{ snapshotScript: string; meta: Metadata; bundle: string }> {
+  const { bundle, meta } = await createBundleAsync(opts)
+
+  logDebug('Assembling snapshot script')
+  const script = assembleScript(bundle, opts.baseDirPath, opts.entryFilePath, {
+    auxiliaryData: opts.auxiliaryData,
+    includeStrictVerifiers: opts.includeStrictVerifiers,
+    orphansToInclude: opts.orphansToInclude,
+  })
+
+  return Promise.resolve({ snapshotScript: script, meta, bundle })
+}
+
+function createBundle(opts: CreateBundleOpts) {
   const bundleTmpDir = path.join(tmpdir(), 'v8-snapshot')
   ensureDirSync(bundleTmpDir)
 
-  const outfile = path.join(bundleTmpDir, 'bundle.js')
-  const metafile = path.join(bundleTmpDir, 'meta.json')
+  const outfile = path.join(bundleTmpDir, opts.bundleFile || 'bundle.js')
+  const metafile = path.join(bundleTmpDir, opts.metaFile || 'meta.json')
   const basedir = path.resolve(process.cwd(), opts.baseDirPath)
 
   const cmd =
@@ -181,38 +228,5 @@ export async function createBundle(
     throw new Error(`Failed command: "${cmd}"`)
   }
 
-  logDebug('Reading', { outfile, metafile })
-  const bundle = await fs.promises.readFile(outfile, 'utf8')
-  const meta = require(metafile)
-  return { outfile, metafile, bundle, meta }
-}
-
-/**
- * Creates a bundle for the provided entry file and then assembles a
- * snapshot script from them.
- *
- * @param opts
- * @return the paths and contents of the created bundle and related metadata
- * as well as the created snapshot script
- */
-export async function createSnapshotScript(
-  opts: CreateSnapshotScriptOpts
-): Promise<{ snapshotScript: string; meta: Metadata; bundle: string }> {
-  const { bundle, meta } = await createBundle(opts)
-
-  // Assemble Snapshot Script
-  logDebug('Assembling snapshot script')
-  const script = assembleScript(
-    bundle,
-    meta,
-    opts.baseDirPath,
-    opts.entryFilePath,
-    {
-      auxiliaryData: opts.auxiliaryData,
-      includeStrictVerifiers: opts.includeStrictVerifiers,
-      orphansToInclude: opts.orphansToInclude,
-    }
-  )
-
-  return Promise.resolve({ snapshotScript: script, meta, bundle })
+  return { outfile, metafile }
 }

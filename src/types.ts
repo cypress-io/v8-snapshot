@@ -14,3 +14,21 @@ export type Metadata = {
     }
   >
 }
+
+export type ProcessScriptOpts = {
+  bundle?: string
+  bundleHash?: string
+  bundlePath?: string
+  baseDirPath: string
+  entryFilePath: string
+  entryPoint: string
+}
+
+export type ProcessScriptResult = {
+  outcome: 'failed:assembleScript' | 'failed:verifyScript' | 'completed'
+  error?: Error
+}
+export type BundleAndProcessScriptResult = {
+  outcome: 'failed:bundleScript' | ProcessScriptResult['outcome']
+  error?: Error
+}

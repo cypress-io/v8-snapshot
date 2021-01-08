@@ -4,8 +4,8 @@ import debug from 'debug'
 import fs from 'fs'
 import { dirname, join } from 'path'
 import { minify } from 'terser'
-import vm from 'vm'
 import { createSnapshotScript } from './create-snapshot-script'
+import { SnapshotVerifier } from './snapshot-verifier'
 import { determineDeferred } from './determine-deferred'
 import {
   checkDirSync,
@@ -58,6 +58,7 @@ export class SnapshotGenerator {
   readonly snapshotBinFilename: string
   readonly snapshotBackupFilename: string
   readonly auxiliaryData?: Record<string, any>
+  private readonly _snapshotVerifier: SnapshotVerifier
   snapshotScript?: string
 
   constructor(
@@ -81,6 +82,7 @@ export class SnapshotGenerator {
     ensureDirSync(cacheDir)
     ensureDirSync(snapshotBinDir)
 
+    this._snapshotVerifier = new SnapshotVerifier()
     this.verify = verify
     this.minify = minify
     this.includeHealthyOrphans = includeHealthyOrphans
@@ -268,10 +270,7 @@ export class SnapshotGenerator {
 
   private _verifyScript() {
     assert(this.snapshotScript != null, 'need snapshotScript to be set')
-    vm.runInNewContext(this.snapshotScript, undefined, {
-      filename: this.snapshotScriptPath,
-      displayErrors: true,
-    })
+    this._snapshotVerifier.verify(this.snapshotScript, this.snapshotScriptPath)
   }
 }
 

@@ -1,7 +1,7 @@
 import debug from 'debug'
 import path from 'path'
 import { promises as fs } from 'fs'
-import { createBundle, CreateBundleOpts } from './create-snapshot-script'
+import { createBundleAsync, CreateBundleOpts } from './create-snapshot-script'
 import { Metadata } from './types'
 
 const snapshotUtils = require('../package.json').name
@@ -48,7 +48,7 @@ class SnapshotEntryGeneratorViaWalk {
       baseDirPath: this.projectBaseDir,
       entryFilePath: this.entryFile,
     }
-    const { meta } = await createBundle(opts)
+    const { meta } = await createBundleAsync(opts)
     return meta
   }
 }
