@@ -32,6 +32,7 @@ type GenerationOpts = {
   includeHealthyOrphans: boolean
   mksnapshotBin?: string
   auxiliaryData?: Record<string, any>
+  norewrite?: string[]
 }
 
 function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
@@ -46,19 +47,20 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
 }
 
 export class SnapshotGenerator {
-  readonly verify: boolean
-  readonly minify: boolean
-  readonly includeHealthyOrphans: boolean
-  readonly skipWriteOnVerificationFailure: boolean
-  readonly cacheDir: string
-  readonly snapshotScriptPath: string
-  readonly mksnapshotBin: string
-  readonly mksnapshotBinFilename: string
-  readonly snapshotBinDir: string
-  readonly snapshotBinFilename: string
-  readonly snapshotBackupFilename: string
-  readonly auxiliaryData?: Record<string, any>
+  private readonly verify: boolean
+  private readonly minify: boolean
+  private readonly includeHealthyOrphans: boolean
+  private readonly skipWriteOnVerificationFailure: boolean
+  private readonly cacheDir: string
+  private readonly snapshotScriptPath: string
+  private readonly mksnapshotBin: string
+  private readonly mksnapshotBinFilename: string
+  private readonly snapshotBinDir: string
+  private readonly snapshotBackupFilename: string
+  private readonly auxiliaryData?: Record<string, any>
+  private readonly norewrite: string[] | undefined
   private readonly _snapshotVerifier: SnapshotVerifier
+  readonly snapshotBinFilename: string
   snapshotScript?: string
 
   constructor(
@@ -74,6 +76,7 @@ export class SnapshotGenerator {
       skipWriteOnVerificationFailure,
       cacheDir,
       snapshotBinDir,
+      norewrite,
     }: GenerationOpts = Object.assign(
       getDefaultGenerationOpts(projectBaseDir),
       opts
@@ -85,6 +88,7 @@ export class SnapshotGenerator {
     this._snapshotVerifier = new SnapshotVerifier()
     this.verify = verify
     this.minify = minify
+    this.norewrite = norewrite
     this.includeHealthyOrphans = includeHealthyOrphans
     this.skipWriteOnVerificationFailure = skipWriteOnVerificationFailure
     this.cacheDir = cacheDir
@@ -143,6 +147,7 @@ export class SnapshotGenerator {
         bundlerPath: this.bundlerPath,
         includeStrictVerifiers: false,
         deferred,
+        norewrite: this.norewrite,
         orphansToInclude: this.includeHealthyOrphans ? healthyOrphans : null,
         auxiliaryData: this.auxiliaryData,
       })

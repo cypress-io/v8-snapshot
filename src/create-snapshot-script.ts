@@ -19,6 +19,7 @@ export type CreateBundleOpts = {
   entryFilePath: string
   bundlerPath: string
   deferred?: string[]
+  norewrite?: string[]
 }
 
 export type CreateSnapshotScriptOpts = CreateBundleOpts & {
@@ -213,6 +214,9 @@ function createBundle(opts: CreateBundleOpts) {
     ` --basedir=${basedir}` +
     ` --metafile=${metafile}` +
     (opts.deferred != null ? ` --deferred='${opts.deferred.join(',')}'` : '') +
+    (opts.norewrite != null
+      ? ` --norewrite='${opts.norewrite.join(',')}'`
+      : '') +
     ` ${opts.entryFilePath}`
 
   logDebug('Running "%s"', cmd)

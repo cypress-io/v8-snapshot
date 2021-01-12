@@ -91,12 +91,14 @@ export class SnapshotDoctor {
   readonly baseDirPath: string
   readonly entryFilePath: string
   readonly bundlerPath: string
+  readonly norewrite?: string[]
   private readonly _scriptProcessor: AsyncScriptProcessor | SyncScriptProcessor
 
   constructor(opts: SnapshotDoctorOpts) {
     this.baseDirPath = opts.baseDirPath
     this.entryFilePath = opts.entryFilePath
     this.bundlerPath = opts.bundlerPath
+    this.norewrite = opts.norewrite
     this._scriptProcessor =
       opts.processSync != null && opts.processSync
         ? new SyncScriptProcessor()
@@ -411,6 +413,7 @@ export class SnapshotDoctor {
         entryFilePath: this.entryFilePath,
         bundlerPath: this.bundlerPath,
         deferred: deferredArg,
+        norewrite: this.norewrite,
       })
       return { meta, bundle, metaPath: metafile, bundlePath: outfile }
     } catch (err) {
