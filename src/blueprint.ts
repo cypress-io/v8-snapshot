@@ -8,8 +8,6 @@ function read(part: string, indent = '  ') {
 
 const globals = read('globals')
 const strictGlobals = read('globals-strict')
-const coreUtil = read('core-util')
-const coreEvents = read('core-events')
 const customRequire = read('custom-require')
 const setGlobals = read('set-globals')
 
@@ -33,6 +31,7 @@ export function scriptFromBlueprint(config: BlueprintConfig) {
 
   // TODO: NODE_ENV needs to be configurable
   return `
+// vim: set ft=text:
 var snapshotAuxiliaryData = ${auxiliaryData}
 
 function generateSnapshot() {
@@ -75,12 +74,7 @@ function generateSnapshot() {
   ${globals}
   ${includeStrictVerifiers ? strictGlobals : ''}
 
-  ${coreUtil}
-  ${coreEvents}
-
   const coreStubs = {
-    util: coreUtil(),
-    events: coreEvents(),
   }
 
   ${customRequire}

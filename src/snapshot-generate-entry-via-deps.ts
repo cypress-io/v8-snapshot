@@ -30,7 +30,7 @@ class SnapshotEntryGeneratorViaWalk {
   private _resolveRelativePaths(meta: Metadata) {
     let fullPaths = Object.values(meta.inputs)
       .map((x) => x.fileInfo.fullPath)
-      .filter((x) => !x.includes(`node_modules/${snapshotUtils}/`))
+      .filter((x) => !x.includes(`/${snapshotUtils}/`))
 
     if (this.nodeModulesOnly) {
       fullPaths = fullPaths.filter((x) => x.includes('node_modules'))
