@@ -17,6 +17,7 @@ const logError = debug('snapgen:error')
 
 export type SnapshotDoctorOpts = Omit<CreateSnapshotScriptOpts, 'deferred'> & {
   processSync?: boolean
+  maxWorkers?: number
 }
 
 class HealState {
@@ -102,7 +103,7 @@ export class SnapshotDoctor {
     this._scriptProcessor =
       opts.processSync != null && opts.processSync
         ? new SyncScriptProcessor()
-        : new AsyncScriptProcessor()
+        : new AsyncScriptProcessor(opts)
   }
 
   async heal(includeHealthyOrphans: boolean, forceDeferred: string[] = []) {

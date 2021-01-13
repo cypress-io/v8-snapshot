@@ -13,11 +13,24 @@ const workerScript = require.resolve('./process-script.worker')
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
 
+type AsyncScriptProcessorOpts = {
+  maxWorkers?: number
+}
+
+const DEFAULT_ASYNC_SCRIPT_PROCESSOR_OPTS = {
+  maxWorkers: os.cpus().length,
+}
+
 export class AsyncScriptProcessor {
   private readonly _workers: WorkerNodesInstance
-  constructor() {
+  constructor(args: AsyncScriptProcessorOpts) {
     logInfo('Initializing async script processor')
-    const maxWorkers = os.cpus().length
+    const processorOpts = Object.assign(
+      {},
+      DEFAULT_ASYNC_SCRIPT_PROCESSOR_OPTS,
+      args
+    )
+    const { maxWorkers } = processorOpts
     const minWorkers = maxWorkers / 2
 
     const opts = {

@@ -33,6 +33,7 @@ type GenerationOpts = {
   mksnapshotBin?: string
   auxiliaryData?: Record<string, any>
   norewrite?: string[]
+  maxWorkers?: number
 }
 
 function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
@@ -59,6 +60,7 @@ export class SnapshotGenerator {
   private readonly snapshotBackupFilename: string
   private readonly auxiliaryData?: Record<string, any>
   private readonly norewrite: string[] | undefined
+  private readonly maxWorkers?: number
   private readonly _snapshotVerifier: SnapshotVerifier
   readonly snapshotBinFilename: string
   snapshotScript?: string
@@ -77,6 +79,7 @@ export class SnapshotGenerator {
       cacheDir,
       snapshotBinDir,
       norewrite,
+      maxWorkers,
     }: GenerationOpts = Object.assign(
       getDefaultGenerationOpts(projectBaseDir),
       opts
@@ -95,6 +98,7 @@ export class SnapshotGenerator {
     this.snapshotBinDir = snapshotBinDir
     this.snapshotScriptPath = join(cacheDir, 'snapshot.js')
     this.auxiliaryData = opts.auxiliaryData
+    this.maxWorkers = maxWorkers
 
     const { snapshotBin, snapshotBackup } = electronSnapshotFilenames(
       projectBaseDir
@@ -132,7 +136,8 @@ export class SnapshotGenerator {
         this.projectBaseDir,
         this.snapshotEntryFile,
         this.cacheDir,
-        this.includeHealthyOrphans
+        this.includeHealthyOrphans,
+        { maxWorkers: this.maxWorkers }
       ))
     } catch (err) {
       logError('Failed obtaining deferred modules to create script')
