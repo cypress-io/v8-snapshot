@@ -1,47 +1,98 @@
-import path from 'path'
 import debug from 'debug'
+import { SnapshotModuleLoader } from './snapshot-module-loader'
 
 const logInfo = debug('snapshot:info')
 const logDebug = debug('snapshot:debug')
+const logTrace = debug('snapshot:trace')
 
-export function snapshotRequire(projectBaseDir: string) {
+export function snapshotRequire(projectBaseDir: string, diagnostics: boolean) {
   // @ts-ignore global snapshotResult
   if (typeof (snapshotResult as any) !== 'undefined') {
     // @ts-ignore global snapshotResult
     const sr = snapshotResult
-    const keys = Object.keys(sr.customRequire.cache)
-    logInfo('snapshotResult available containing %d modules!', keys.length)
-    logDebug(keys)
+    const cacheKeys = Object.keys(sr.customRequire.cache)
+    const defKeys = Object.keys(sr.customRequire.definitions)
+    logInfo(
+      'snapshotResult available caching %d, defining %d modules!',
+      cacheKeys.length,
+      defKeys.length
+    )
+    logInfo({ projectBaseDir })
 
     const Module = require('module')
+    const origLoad = Module._load
 
-    Module.prototype.require = function (moduleUri: string) {
-      // Short circuit core modules to load them from the engine
+    const moduleLoader = new SnapshotModuleLoader(
+      // @ts-ignore global snapshotResult
+      snapshotResult,
+      Module,
+      origLoad,
+      projectBaseDir,
+      diagnostics
+    )
+
+    Module._load = function (
+      moduleUri: string,
+      parent: typeof Module,
+      isMain: boolean
+    ) {
       if (Module.builtinModules.includes(moduleUri)) {
-        return Module._load(moduleUri, this, false)
+        return origLoad(moduleUri, parent, isMain)
       }
 
-      const absoluteFilePath = Module._resolveFilename(moduleUri, this, false)
-      let relativeFilePath = path.relative(projectBaseDir, absoluteFilePath)
-      if (!relativeFilePath.startsWith('./')) {
-        relativeFilePath = `./${relativeFilePath}`
+      const {
+        exports,
+        origin,
+        resolved,
+        fullPath,
+        relPath,
+      } = moduleLoader.tryLoad(moduleUri, parent, isMain)
+
+      switch (resolved) {
+        case 'module': {
+          logTrace(
+            'Resolved "%s" via %s (%s | %s)',
+            moduleUri,
+            resolved,
+            relPath,
+            fullPath
+          )
+          break
+        }
+        case 'path': {
+          logDebug(
+            'Resolved "%s" via %s (%s | %s)',
+            moduleUri,
+            resolved,
+            relPath,
+            fullPath
+          )
+          break
+        }
       }
-      if (process.platform === 'win32') {
-        relativeFilePath = relativeFilePath.replace(/\\/g, '/')
+
+      switch (origin) {
+        case 'Module._load': {
+          logDebug(
+            'Loaded "%s" via %s resolved as (%s | %s)',
+            moduleUri,
+            origin,
+            relPath,
+            fullPath
+          )
+          break
+        }
+        case 'cache': {
+          logTrace('Loaded "%s" via %s', moduleUri, origin)
+          break
+        }
+        case 'definitions': {
+          logTrace('Loaded "%s" via %s', moduleUri, origin)
+          break
+        }
       }
-      // @ts-ignore global snapshotResult
-      let cachedModule = snapshotResult.customRequire.cache[relativeFilePath]
-      // @ts-ignore global snapshotResult
-      if (snapshotResult.customRequire.cache[relativeFilePath]) {
-        logDebug('Snapshot cache hit:', relativeFilePath)
-      }
-      if (!cachedModule) {
-        logDebug('Uncached module:', moduleUri, relativeFilePath)
-        cachedModule = { exports: Module._load(moduleUri, this, false) }
-        // @ts-ignore global snapshotResult
-        snapshotResult.customRequire.cache[relativeFilePath] = cachedModule
-      }
-      return cachedModule.exports
+
+      return exports
     }
 
     // The below aren't available in all environments
