@@ -1,9 +1,5 @@
 const { app, BrowserWindow } = require('electron')
 
-if (typeof snapshotResult !== 'undefined') {
-  console.log('snapshot result:\n', snapshotResult)
-}
-
 function createWindow() {
   const win = new BrowserWindow({
     width: 800,
@@ -14,6 +10,27 @@ function createWindow() {
   })
   win.loadFile('index.html')
   win.toggleDevTools()
+
+  loadExpress()
+  launchExpress()
 }
 
 app.whenReady().then(createWindow)
+
+let express
+
+function loadExpress() {
+  console.time('init-express')
+  console.time('load-express')
+  express = require('express')
+  console.timeEnd('load-express')
+}
+
+function launchExpress() {
+  const app = express()
+  const port = 3000
+  app.listen(port, () => {
+    console.log(`Example app listening at http://localhost:${port}`)
+    console.timeEnd('init-express')
+  })
+}

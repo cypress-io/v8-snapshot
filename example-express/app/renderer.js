@@ -1,20 +1,25 @@
 console.time('entire-startup')
 
-const path = require('path')
-const projectBaseDir = path.resolve(__dirname, '..')
-const _ = require('../../').snapshotRequire(projectBaseDir)
+let express
 
-console.time('init-express')
-console.time('load-express')
-const express = require('express')
-console.timeEnd('load-express')
+// loadExpress()
+// launchExpress()()
 
-console.time('start-express-after-loaded')
-const app = express()
-const port = 3000
-app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`)
-  console.timeEnd('start-express-after-loaded')
-  console.timeEnd('init-express')
-  console.timeEnd('entire-startup')
-})
+function loadExpress() {
+  console.time('init-express')
+  console.time('load-express')
+  express = require('express')
+  console.timeEnd('load-express')
+}
+
+function launchExpress() {
+  console.time('start-express-after-loaded')
+  const app = express()
+  const port = 3000
+  app.listen(port, () => {
+    console.log(`Example app listening at http://localhost:${port}`)
+    console.timeEnd('start-express-after-loaded')
+    console.timeEnd('init-express')
+    console.timeEnd('entire-startup')
+  })
+}
