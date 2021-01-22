@@ -1,11 +1,9 @@
 import debug from 'debug'
-import { SnapshotModuleLoader } from './snapshot-module-loader'
+import { packherdRequire } from 'packherd'
 
 const logInfo = debug('snapshot:info')
-const logDebug = debug('snapshot:debug')
-const logTrace = debug('snapshot:trace')
 
-export function snapshotRequire(projectBaseDir: string, diagnostics: boolean) {
+export function snapshotRequire(entryFile: string, diagnostics: boolean) {
   // @ts-ignore global snapshotResult
   if (typeof (snapshotResult as any) !== 'undefined') {
     // @ts-ignore global snapshotResult
@@ -17,83 +15,10 @@ export function snapshotRequire(projectBaseDir: string, diagnostics: boolean) {
       cacheKeys.length,
       defKeys.length
     )
-    logInfo({ projectBaseDir })
-
-    const Module = require('module')
-    const origLoad = Module._load
-
-    const moduleLoader = new SnapshotModuleLoader(
-      // @ts-ignore global snapshotResult
-      snapshotResult,
-      Module,
-      origLoad,
-      projectBaseDir,
-      diagnostics
-    )
-
-    Module._load = function (
-      moduleUri: string,
-      parent: typeof Module,
-      isMain: boolean
-    ) {
-      if (Module.builtinModules.includes(moduleUri)) {
-        return origLoad(moduleUri, parent, isMain)
-      }
-
-      const {
-        exports,
-        origin,
-        resolved,
-        fullPath,
-        relPath,
-      } = moduleLoader.tryLoad(moduleUri, parent, isMain)
-
-      switch (resolved) {
-        case 'module': {
-          logTrace(
-            'Resolved "%s" via %s (%s | %s)',
-            moduleUri,
-            resolved,
-            relPath,
-            fullPath
-          )
-          break
-        }
-        case 'path': {
-          logDebug(
-            'Resolved "%s" via %s (%s | %s)',
-            moduleUri,
-            resolved,
-            relPath,
-            fullPath
-          )
-          break
-        }
-      }
-
-      switch (origin) {
-        case 'Module._load': {
-          logDebug(
-            'Loaded "%s" via %s resolved as (%s | %s)',
-            moduleUri,
-            origin,
-            relPath,
-            fullPath
-          )
-          break
-        }
-        case 'cache': {
-          logTrace('Loaded "%s" via %s', moduleUri, origin)
-          break
-        }
-        case 'definitions': {
-          logTrace('Loaded "%s" via %s', moduleUri, origin)
-          break
-        }
-      }
-
-      return exports
-    }
+    packherdRequire(sr.customRequire.cache, entryFile, {
+      diagnostics,
+      exportsObjects: true,
+    })
 
     // The below aren't available in all environments
     const checked_process: any = typeof process !== 'undefined' ? process : {}
