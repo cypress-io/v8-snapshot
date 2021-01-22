@@ -1,8 +1,6 @@
-import fs from 'fs'
-import { strict as assert } from 'assert'
 import {
   assembleScript,
-  createBundleSync,
+  createBundleAsync,
   CreateSnapshotScriptOpts,
 } from './create-snapshot-script'
 import { SnapshotVerifier } from './snapshot-verifier'
@@ -11,50 +9,13 @@ import {
   ProcessScriptOpts,
   ProcessScriptResult,
 } from './types'
-import { createHash } from './utils'
-
-import debug from 'debug'
-const logInfo = debug('snapgen:info')
 
 const snapshotVerifier = new SnapshotVerifier()
 
-const bundleState: { contents?: string; hash?: string } = {
-  contents: undefined,
-  hash: undefined,
-}
-
-function getBundle(bundle?: string, bundlePath?: string, bundleHash?: string) {
-  if (bundle != null) return bundle
-
-  assert(
-    bundlePath != null,
-    'either bundle content or path need to be provided'
-  )
-  assert(
-    bundleHash != null,
-    'either bundle content or hash need to be provided'
-  )
-  if (
-    bundleState.hash == null ||
-    bundleState.contents == null ||
-    bundleState.hash !== bundleHash
-  ) {
-    logInfo('AsyncScriptProcessor is reading updated bundle file')
-    const contents = fs.readFileSync(bundlePath, 'utf8')
-    const hash = createHash(contents)
-    assert(hash === bundleHash, 'bundle should not change while processing')
-
-    bundleState.contents = contents
-    bundleState.hash = hash
-  }
-
-  return bundleState.contents
-}
-
-export function createAndProcessScript(
+export async function createAndProcessScript(
   opts: CreateSnapshotScriptOpts,
   entryPoint: string
-): BundleAndProcessScriptResult {
+): Promise<BundleAndProcessScriptResult> {
   const {
     bundleFile,
     metaFile,
@@ -65,7 +26,7 @@ export function createAndProcessScript(
   } = opts
   let processOpts: ProcessScriptOpts | undefined
   try {
-    const { bundle } = createBundleSync({
+    const { bundle } = await createBundleAsync({
       bundleFile,
       metaFile,
       baseDirPath,
@@ -88,17 +49,13 @@ export function createAndProcessScript(
 
 export function processScript({
   bundle,
-  bundlePath,
-  bundleHash,
   baseDirPath,
   entryFilePath,
   entryPoint,
 }: ProcessScriptOpts): ProcessScriptResult {
-  const bundleContent = getBundle(bundle, bundlePath, bundleHash)
-
   let snapshotScript
   try {
-    snapshotScript = assembleScript(bundleContent, baseDirPath, entryFilePath, {
+    snapshotScript = assembleScript(bundle, baseDirPath, entryFilePath, {
       entryPoint,
       includeStrictVerifiers: true,
     })

@@ -16,9 +16,7 @@ export type Metadata = {
 }
 
 export type ProcessScriptOpts = {
-  bundle?: string
-  bundleHash?: string
-  bundlePath?: string
+  bundle: string
   baseDirPath: string
   entryFilePath: string
   entryPoint: string

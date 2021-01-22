@@ -9,7 +9,6 @@ import {
 import { AsyncScriptProcessor } from './process-script.async'
 import { SyncScriptProcessor } from './process-script.sync'
 import { Entries, Metadata } from './types'
-import { createHash } from './utils'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
@@ -107,7 +106,7 @@ export class SnapshotDoctor {
   }
 
   async heal(includeHealthyOrphans: boolean, forceDeferred: string[] = []) {
-    const { meta, bundle, bundlePath } = await this._createScript()
+    const { meta, bundle } = await this._createScript()
 
     const entries = Object.entries(meta.inputs)
     const circulars = circularImports(meta.inputs, entries)
@@ -115,16 +114,14 @@ export class SnapshotDoctor {
 
     const healState = new HealState(meta, new Set(forceDeferred))
 
-    await this._processCurrentScript(bundle, bundlePath, healState, circulars)
+    await this._processCurrentScript(bundle, healState, circulars)
     while (healState.needDefer.size > 0) {
       for (const x of healState.needDefer) {
         healState.deferred.add(x)
       }
-      const { bundle, bundlePath } = await this._createScript(
-        healState.deferred
-      )
+      const { bundle } = await this._createScript(healState.deferred)
       healState.needDefer.clear()
-      await this._processCurrentScript(bundle, bundlePath, healState, circulars)
+      await this._processCurrentScript(bundle, healState, circulars)
     }
 
     const sortedDeferred = sortDeferredByLeafness(
@@ -301,14 +298,9 @@ export class SnapshotDoctor {
   }
 
   async _entryWorksWhenDeferring(key: string, deferring: Set<string>) {
-    const keyHash = createHash(key)
-    const bundleFile = `bundle.${keyHash}.js`
-    const metaFile = `meta.${keyHash}.json`
     const entryPoint = `./${key}`
     const deferred = Array.from(deferring).map((x) => `./${x}`)
     const opts: CreateSnapshotScriptOpts = {
-      bundleFile,
-      metaFile,
       baseDirPath: this.baseDirPath,
       entryFilePath: this.entryFilePath,
       bundlerPath: this.bundlerPath,
@@ -349,12 +341,10 @@ export class SnapshotDoctor {
 
   private async _processCurrentScript(
     bundle: string,
-    bundlePath: string,
     healState: HealState,
     circulars: Map<string, Set<string>>
   ) {
     logInfo('Preparing to process current script')
-    const bundleHash = createHash(bundle)
     for (
       let nextStage = this._findNextStage(healState, circulars);
       nextStage.length > 0;
@@ -364,8 +354,6 @@ export class SnapshotDoctor {
         logDebug('Testing entry in isolation "%s"', key)
         const result = await this._scriptProcessor.processScript({
           bundle,
-          bundlePath,
-          bundleHash,
           baseDirPath: this.baseDirPath,
           entryFilePath: this.entryFilePath,
           entryPoint: `./${key}`,
@@ -400,8 +388,6 @@ export class SnapshotDoctor {
   ): Promise<{
     meta: Metadata
     bundle: string
-    bundlePath: string
-    metaPath: string
   }> {
     try {
       const deferredArg =
@@ -409,14 +395,14 @@ export class SnapshotDoctor {
           ? Array.from(deferred).map((x) => `./${x}`)
           : undefined
 
-      const { meta, bundle, metafile, outfile } = await createBundleAsync({
+      const { meta, bundle } = await createBundleAsync({
         baseDirPath: this.baseDirPath,
         entryFilePath: this.entryFilePath,
         bundlerPath: this.bundlerPath,
         deferred: deferredArg,
         norewrite: this.norewrite,
       })
-      return { meta, bundle, metaPath: metafile, bundlePath: outfile }
+      return { meta, bundle }
     } catch (err) {
       logError('Failed creating initial bundle')
       throw err

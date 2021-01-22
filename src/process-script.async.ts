@@ -45,7 +45,7 @@ export class AsyncScriptProcessor {
     this._workers = new WorkerNodes(workerScript, opts)
   }
 
-  async createAndProcessScript(
+  createAndProcessScript(
     opts: CreateSnapshotScriptOpts,
     entryPoint: string
   ): Promise<BundleAndProcessScriptResult> {
@@ -53,8 +53,14 @@ export class AsyncScriptProcessor {
   }
 
   async processScript(opts: ProcessScriptOpts): Promise<ProcessScriptResult> {
-    // don't send large strings across
-    opts.bundle = undefined
+    // TODO(thlorenz): here we previously removed the bundle as we were worried
+    // about sending large strings across the wire.
+    // We used a hash to determine if the worker needed to load the bundle from the
+    // file system or not.
+    // If this becomes a bottleneck we should have the doctor write the file to disk
+    // and attach the bundle path. Then iff it is set we remove the bundle and thus
+    // the worker will know that it has to read the file instead and proceed as previously
+    // WRT to hashing.
     return this._workers.call.processScript(opts)
   }
 

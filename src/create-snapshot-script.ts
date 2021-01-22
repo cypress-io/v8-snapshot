@@ -1,13 +1,14 @@
-// @ts-ignore
 import debug from 'debug'
 import { strict as assert } from 'assert'
-import fs from 'fs'
 import path from 'path'
-import { tmpdir } from 'os'
-import { ensureDirSync } from './utils'
 import { execSync } from 'child_process'
 import { BlueprintConfig, scriptFromBlueprint } from './blueprint'
 import { Metadata } from './types'
+import {
+  CreateBundle,
+  packherd,
+  CreateBundleOpts as PackherdCreateBundleOpts,
+} from 'packherd'
 
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
@@ -143,38 +144,10 @@ export function assembleScript(
 export async function createBundleAsync(
   opts: CreateBundleOpts
 ): Promise<{
-  metafile: string
-  outfile: string
   meta: Metadata
   bundle: string
 }> {
-  const { outfile, metafile } = createBundle(opts)
-  logDebug('Reading', { outfile, metafile })
-  const bundle = await fs.promises.readFile(outfile, 'utf8')
-  const meta = require(metafile)
-  return { outfile, metafile, bundle, meta }
-}
-
-/**
- * Creates bundle and meta file via the provided bundler written in Go
- * and reads and returns its contents synchronously.
- *
- * @param opts
- * @return the paths and contents of the created bundle and related metadata
- */
-export function createBundleSync(
-  opts: CreateBundleOpts
-): {
-  metafile: string
-  outfile: string
-  meta: Metadata
-  bundle: string
-} {
-  const { outfile, metafile } = createBundle(opts)
-  logDebug('Reading', { outfile, metafile })
-  const bundle = fs.readFileSync(outfile, 'utf8')
-  const meta = require(metafile)
-  return { outfile, metafile, bundle, meta }
+  return createBundle(opts)
 }
 
 /**
@@ -200,7 +173,55 @@ export async function createSnapshotScript(
   return Promise.resolve({ snapshotScript: script, meta, bundle })
 }
 
-function createBundle(opts: CreateBundleOpts) {
+function outfileText(outfile: { contents: string }) {
+  return Buffer.from(outfile.contents, 'hex').toString('utf8')
+}
+
+const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
+  opts: CreateBundleOpts
+) => (popts: PackherdCreateBundleOpts) => {
+  const basedir = path.resolve(process.cwd(), opts.baseDirPath)
+  const cmd =
+    opts.bundlerPath +
+    ` --basedir=${basedir}` +
+    (opts.deferred != null ? ` --deferred='${opts.deferred.join(',')}'` : '') +
+    (opts.norewrite != null
+      ? ` --norewrite='${opts.norewrite.join(',')}'`
+      : '') +
+    ` ${popts.entryFilePath}`
+
+  logDebug('Running "%s"', cmd)
+
+  const _MB = 1024 * 1024
+  try {
+    const stdout = execSync(cmd, { maxBuffer: 200 * _MB, cwd: basedir })
+    const { warnings, outfiles } = JSON.parse(stdout.toString())
+
+    assert(outfiles.length >= 2, 'need at least two outfiles, bundle and meta')
+    const bundle = { text: outfileText(outfiles[0]) }
+    const meta = { text: outfileText(outfiles[1]) }
+    return Promise.resolve({ warnings, outputFiles: [bundle, meta] })
+  } catch (err) {
+    if (err.stderr != null) {
+      logError(err.stderr.toString())
+    }
+    if (err.stdout != null) {
+      logDebug(err.stdout.toString())
+    }
+    return Promise.reject(new Error(`Failed command: "${cmd}"`))
+  }
+}
+
+async function createBundle(opts: CreateBundleOpts) {
+  const { bundle, meta } = await packherd({
+    entryFile: opts.entryFilePath,
+    nodeModulesOnly: true,
+    createBundle: makePackherdCreateBundle(opts),
+  })
+  return { bundle, meta }
+}
+
+/*
   const bundleTmpDir = path.join(tmpdir(), 'v8-snapshot')
   ensureDirSync(bundleTmpDir)
 
@@ -233,4 +254,4 @@ function createBundle(opts: CreateBundleOpts) {
   }
 
   return { outfile, metafile }
-}
+  */
