@@ -22,6 +22,10 @@ export async function createHashForFile(p: string) {
   return createHash(contents)
 }
 
+export function bundleFileNameFromHash(hash: string) {
+  return `bundle.${hash}.js`
+}
+
 export async function canAccess(p: string) {
   try {
     await fs.promises.access(p)

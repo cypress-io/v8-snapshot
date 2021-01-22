@@ -14,8 +14,6 @@ const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
 
 export type CreateBundleOpts = {
-  bundleFile?: string
-  metaFile?: string
   baseDirPath: string
   entryFilePath: string
   bundlerPath: string

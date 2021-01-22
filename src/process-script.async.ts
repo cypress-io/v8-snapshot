@@ -1,4 +1,5 @@
 import debug from 'debug'
+import { strict as assert } from 'assert'
 import os from 'os'
 import WorkerNodes from 'worker-nodes'
 import { CreateSnapshotScriptOpts } from './create-snapshot-script'
@@ -53,14 +54,14 @@ export class AsyncScriptProcessor {
   }
 
   async processScript(opts: ProcessScriptOpts): Promise<ProcessScriptResult> {
-    // TODO(thlorenz): here we previously removed the bundle as we were worried
-    // about sending large strings across the wire.
-    // We used a hash to determine if the worker needed to load the bundle from the
-    // file system or not.
-    // If this becomes a bottleneck we should have the doctor write the file to disk
-    // and attach the bundle path. Then iff it is set we remove the bundle and thus
-    // the worker will know that it has to read the file instead and proceed as previously
-    // WRT to hashing.
+    if (opts.bundlePath != null) {
+      // Avoid sending large payloads across the wire
+      assert(
+        opts.bundleHash != null,
+        'bundleHash needs to be set when providing bundlePath'
+      )
+      opts.bundle = undefined
+    }
     return this._workers.call.processScript(opts)
   }
 

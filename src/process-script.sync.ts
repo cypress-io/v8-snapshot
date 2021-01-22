@@ -27,8 +27,6 @@ export class SyncScriptProcessor {
   ): Promise<BundleAndProcessScriptResult> {
     return new Promise(async (resolve) => {
       const {
-        bundleFile,
-        metaFile,
         baseDirPath,
         entryFilePath,
         bundlerPath,
@@ -38,8 +36,6 @@ export class SyncScriptProcessor {
       let processOpts: ProcessScriptOpts | undefined
       try {
         const { bundle } = await createBundleAsync({
-          bundleFile,
-          metaFile,
           baseDirPath,
           entryFilePath,
           bundlerPath,

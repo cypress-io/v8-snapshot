@@ -1,5 +1,7 @@
 import { strict as assert } from 'assert'
 import debug from 'debug'
+import fs from 'fs'
+import { tmpdir } from 'os'
 import path from 'path'
 import { circularImports } from './circular-imports'
 import {
@@ -9,6 +11,7 @@ import {
 import { AsyncScriptProcessor } from './process-script.async'
 import { SyncScriptProcessor } from './process-script.sync'
 import { Entries, Metadata } from './types'
+import { bundleFileNameFromHash, createHash, ensureDirSync } from './utils'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
@@ -339,12 +342,24 @@ export class SnapshotDoctor {
     return healthyOrphans
   }
 
+  private async _writeBundle(bundle: string) {
+    const bundleTmpDir = path.join(tmpdir(), 'v8-snapshot')
+    ensureDirSync(bundleTmpDir)
+    const bundleHash = createHash(bundle)
+    const filename = bundleFileNameFromHash(bundleHash)
+    const bundlePath = path.join(bundleTmpDir, filename)
+    await fs.promises.writeFile(bundlePath, bundle, 'utf8')
+    return { bundleHash, bundlePath }
+  }
+
   private async _processCurrentScript(
     bundle: string,
     healState: HealState,
     circulars: Map<string, Set<string>>
   ) {
     logInfo('Preparing to process current script')
+    const { bundleHash, bundlePath } = await this._writeBundle(bundle)
+    logDebug('Stored bundle file (%s)', bundleHash)
     for (
       let nextStage = this._findNextStage(healState, circulars);
       nextStage.length > 0;
@@ -354,6 +369,8 @@ export class SnapshotDoctor {
         logDebug('Testing entry in isolation "%s"', key)
         const result = await this._scriptProcessor.processScript({
           bundle,
+          bundlePath,
+          bundleHash,
           baseDirPath: this.baseDirPath,
           entryFilePath: this.entryFilePath,
           entryPoint: `./${key}`,
