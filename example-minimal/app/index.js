@@ -1,5 +1,8 @@
 const { app, BrowserWindow } = require('electron')
 
+const isObject = require('isobject')
+const tmpfile = require('tmpfile')
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 800,
@@ -10,6 +13,12 @@ function createWindow() {
   })
   win.loadFile('index.html')
   win.toggleDevTools()
+
+  console.log(isObject(tmpfile))
 }
 
-app.whenReady().then(createWindow)
+if (app != null) {
+  app.whenReady().then(createWindow)
+} else {
+  console.log(isObject(tmpfile))
+}
