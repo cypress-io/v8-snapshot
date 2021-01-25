@@ -1,5 +1,7 @@
 const { app, BrowserWindow } = require('electron')
 
+let express
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 800,
@@ -15,9 +17,12 @@ function createWindow() {
   launchExpress()
 }
 
-app.whenReady().then(createWindow)
-
-let express
+if (app != null) {
+  app.whenReady().then(createWindow)
+} else {
+  loadExpress()
+  launchExpress()
+}
 
 function loadExpress() {
   console.time('init-express')
