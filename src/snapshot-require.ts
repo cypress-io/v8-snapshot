@@ -8,7 +8,12 @@ const getModuleKey: GetModuleKey = (moduleUri, relPath) => {
   // TODO(thlorenz): this works for cases for which the root of the app
   // is up to one level below node_modules.
   // We need to investigate other cases.
-  const key = relPath.replace(/^..\//, './')
+
+  if (/^[a-zA-Z]/.test(relPath)) {
+    // Change things like `node_modules/...` to `./node_modules/...`
+    relPath = `./${relPath}`
+  }
+  const key = relPath.replace(/^\.\.\//, './')
   logTrace('key "%s" for [ %s | %s ]', key, relPath, moduleUri)
   return key
 }
