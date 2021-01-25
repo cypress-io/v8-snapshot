@@ -18,7 +18,26 @@ const getModuleKey: GetModuleKey = (moduleUri, relPath) => {
   return key
 }
 
-export function snapshotRequire(entryFile: string, diagnostics: boolean) {
+export type SnapshotRequireOpts = {
+  useCache?: boolean
+  diagnostics?: boolean
+}
+
+const DEFAULT_SNAPSHOT_REQUIRE_OPTS = {
+  useCache: true,
+  diagnostics: false,
+}
+
+export function snapshotRequire(
+  entryFile: string,
+  opts: SnapshotRequireOpts = {}
+) {
+  const { useCache, diagnostics } = Object.assign(
+    {},
+    DEFAULT_SNAPSHOT_REQUIRE_OPTS,
+    opts
+  )
+
   // @ts-ignore global snapshotResult
   if (typeof (snapshotResult as any) !== 'undefined') {
     // @ts-ignore global snapshotResult
@@ -26,19 +45,16 @@ export function snapshotRequire(entryFile: string, diagnostics: boolean) {
     const cacheKeys = Object.keys(sr.customRequire.cache)
     const defKeys = Object.keys(sr.customRequire.definitions)
     logInfo(
-      'snapshotResult available caching %d, defining %d modules!',
+      'Caching %d, defining %d modules! %s cache',
       cacheKeys.length,
-      defKeys.length
+      defKeys.length,
+      useCache ? 'Using' : 'Not using'
     )
-    /* packherdRequire(sr.customRequire.cache, entryFile, {
-      diagnostics,
-      exportsObjects: true,
-      getModuleKey,
-    }) */
 
-    packherdRequire(sr.customRequire.definitions, entryFile, {
+    packherdRequire(entryFile, {
       diagnostics,
-      exportsObjects: false,
+      moduleDefinitions: sr.customRequire.definitions,
+      moduleExports: useCache ? sr.customRequire.cache : null,
       getModuleKey,
     })
 
