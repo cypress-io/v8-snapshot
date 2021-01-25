@@ -32,7 +32,14 @@ function loadExpress() {
 }
 
 function launchExpress() {
+  // Requiring some module that is NOT inside the cache
+  const router = require('express/lib/router/route.js')
+  // Requiring some module that IS inside the cache
+  const accepts = require('accepts')
+
   const app = express()
+  app.get('/', (req, res) => res.send('hello world'))
+
   const port = 3000
   app.listen(port, () => {
     console.log(`Example app listening at http://localhost:${port}`)
