@@ -1,7 +1,17 @@
 import debug from 'debug'
-import { packherdRequire } from 'packherd'
+import { GetModuleKey, packherdRequire } from 'packherd'
 
 const logInfo = debug('snapshot:info')
+const logTrace = debug('snapshot:trace')
+
+const getModuleKey: GetModuleKey = (moduleUri, relPath) => {
+  // TODO(thlorenz): this works for cases for which the root of the app
+  // is up to one level below node_modules.
+  // We need to investigate other cases.
+  const key = relPath.replace(/^..\//, './')
+  logTrace('key "%s" for [ %s | %s ]', key, relPath, moduleUri)
+  return key
+}
 
 export function snapshotRequire(entryFile: string, diagnostics: boolean) {
   // @ts-ignore global snapshotResult
@@ -15,9 +25,16 @@ export function snapshotRequire(entryFile: string, diagnostics: boolean) {
       cacheKeys.length,
       defKeys.length
     )
-    packherdRequire(sr.customRequire.cache, entryFile, {
+    /* packherdRequire(sr.customRequire.cache, entryFile, {
       diagnostics,
       exportsObjects: true,
+      getModuleKey,
+    }) */
+
+    packherdRequire(sr.customRequire.definitions, entryFile, {
+      diagnostics,
+      exportsObjects: false,
+      getModuleKey,
     })
 
     // The below aren't available in all environments
