@@ -34,12 +34,12 @@ export type CreateSnapshotScript = (
 const orphanInjectionEntryPoint = '<entry_with_injected_orphans>'
 function injectOrphans(entryPoint: string, orphans: string[]) {
   const inject = orphans.reduce(
-    (acc, x) => acc + `// module.exports['${x}'] = require('${x}')\n`,
+    (acc, x) => acc + `module.exports['${x}'] = require('${x}')\n`,
     ''
   )
   return `
   __commonJS['${orphanInjectionEntryPoint}'] = function(exports, module, __dirname, __filename, require) {
-    // module.exports = require('${entryPoint}')
+    module.exports = require('${entryPoint}')
     ${inject}
   }
   `
