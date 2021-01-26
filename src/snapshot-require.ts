@@ -1,5 +1,6 @@
 import debug from 'debug'
 import { GetModuleKey, packherdRequire } from 'packherd'
+import { Snapshot } from './types'
 
 const logInfo = debug('snapshot:info')
 const logTrace = debug('snapshot:trace')
@@ -21,6 +22,7 @@ const getModuleKey: GetModuleKey = (moduleUri, relPath) => {
 export type SnapshotRequireOpts = {
   useCache?: boolean
   diagnostics?: boolean
+  snapshotOverride?: Snapshot
 }
 
 const DEFAULT_SNAPSHOT_REQUIRE_OPTS = {
@@ -37,11 +39,12 @@ export function snapshotRequire(
     DEFAULT_SNAPSHOT_REQUIRE_OPTS,
     opts
   )
-
-  // @ts-ignore global snapshotResult
-  if (typeof (snapshotResult as any) !== 'undefined') {
+  const sr: Snapshot =
+    opts.snapshotOverride ||
     // @ts-ignore global snapshotResult
-    const sr = snapshotResult
+    (typeof snapshotResult !== 'undefined' ? snapshotResult : undefined)
+
+  if (typeof sr !== 'undefined') {
     const cacheKeys = Object.keys(sr.customRequire.cache)
     const defKeys = Object.keys(sr.customRequire.definitions)
     logInfo(
@@ -54,7 +57,7 @@ export function snapshotRequire(
     packherdRequire(entryFile, {
       diagnostics,
       moduleDefinitions: sr.customRequire.definitions,
-      moduleExports: useCache ? sr.customRequire.cache : null,
+      moduleExports: useCache ? sr.customRequire.cache : undefined,
       getModuleKey,
     })
 
@@ -65,14 +68,17 @@ export function snapshotRequire(
       typeof document !== 'undefined' ? document : {}
 
     // @ts-ignore global snapshotResult
-    snapshotResult.setGlobals(
-      global,
-      checked_process,
-      checked_window,
-      checked_document,
-      console,
-      // TODO: was global.require which was `undefined`, how will this work for relative `require` calls?
-      require
-    )
+    if (typeof snapshotResult !== 'undefined') {
+      // @ts-ignore global snapshotResult
+      snapshotResult.setGlobals(
+        global,
+        checked_process,
+        checked_window,
+        checked_document,
+        console,
+        // TODO: was global.require which was `undefined`, how will this work for relative `require` calls?
+        require
+      )
+    }
   }
 }

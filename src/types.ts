@@ -74,3 +74,10 @@ export type ModuleBuildin = typeof import('module') & {
   ): NodeModule
   _cache: Record<string, NodeModule>
 }
+
+export type Snapshot = {
+  customRequire: {
+    definitions: Record<string, NodeRequireFunction>
+    cache: Record<string, NodeModule>
+  }
+}
