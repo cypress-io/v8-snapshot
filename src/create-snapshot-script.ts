@@ -168,7 +168,7 @@ export async function createSnapshotScript(
     orphansToInclude: opts.orphansToInclude,
   })
 
-  return Promise.resolve({ snapshotScript: script, meta, bundle })
+  return { snapshotScript: script, meta, bundle }
 }
 
 function outfileText(outfile: { contents: string }) {
@@ -218,38 +218,3 @@ async function createBundle(opts: CreateBundleOpts) {
   })
   return { bundle, meta }
 }
-
-/*
-  const bundleTmpDir = path.join(tmpdir(), 'v8-snapshot')
-  ensureDirSync(bundleTmpDir)
-
-  const outfile = path.join(bundleTmpDir, opts.bundleFile || 'bundle.js')
-  const metafile = path.join(bundleTmpDir, opts.metaFile || 'meta.json')
-  const basedir = path.resolve(process.cwd(), opts.baseDirPath)
-
-  const cmd =
-    opts.bundlerPath +
-    ` --outfile=${outfile}` +
-    ` --basedir=${basedir}` +
-    ` --metafile=${metafile}` +
-    (opts.deferred != null ? ` --deferred='${opts.deferred.join(',')}'` : '') +
-    (opts.norewrite != null
-      ? ` --norewrite='${opts.norewrite.join(',')}'`
-      : '') +
-    ` ${opts.entryFilePath}`
-
-  logDebug('Running "%s"', cmd)
-  try {
-    execSync(cmd, { stdio: ['pipe', 'pipe', 'inherit'], cwd: basedir })
-  } catch (err) {
-    if (err.stderr != null) {
-      logError(err.stderr.toString())
-    }
-    if (err.stdout != null) {
-      logDebug(err.stdout.toString())
-    }
-    throw new Error(`Failed command: "${cmd}"`)
-  }
-
-  return { outfile, metafile }
-  */

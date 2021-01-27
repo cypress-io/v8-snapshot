@@ -16,6 +16,7 @@ import {
   fileExistsSync,
   findMksnapshot,
 } from './utils'
+import { createExportScript } from './create-snapshot-bundle'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
@@ -54,6 +55,7 @@ export class SnapshotGenerator {
   private readonly skipWriteOnVerificationFailure: boolean
   private readonly cacheDir: string
   private readonly snapshotScriptPath: string
+  private readonly snapshotExportScriptPath: string
   private readonly mksnapshotBin: string
   private readonly mksnapshotBinFilename: string
   private readonly snapshotBinDir: string
@@ -64,6 +66,7 @@ export class SnapshotGenerator {
   private readonly _snapshotVerifier: SnapshotVerifier
   readonly snapshotBinFilename: string
   snapshotScript?: string
+  snapshotExportScript?: string
 
   constructor(
     readonly bundlerPath: string,
@@ -97,6 +100,7 @@ export class SnapshotGenerator {
     this.cacheDir = cacheDir
     this.snapshotBinDir = snapshotBinDir
     this.snapshotScriptPath = join(cacheDir, 'snapshot.js')
+    this.snapshotExportScriptPath = join(cacheDir, 'snapshot-bundle.js')
     this.auxiliaryData = opts.auxiliaryData
     this.maxWorkers = maxWorkers
 
@@ -197,6 +201,56 @@ export class SnapshotGenerator {
       return fs.promises.writeFile(this.snapshotScriptPath, minified.code)
     }
     return fs.promises.writeFile(this.snapshotScriptPath, this.snapshotScript)
+  }
+
+  async createExportBundle() {
+    let deferred
+    let healthyOrphans
+    try {
+      ;({ deferred, healthyOrphans } = await determineDeferred(
+        this.bundlerPath,
+        this.projectBaseDir,
+        this.snapshotEntryFile,
+        this.cacheDir,
+        this.includeHealthyOrphans,
+        { maxWorkers: this.maxWorkers }
+      ))
+    } catch (err) {
+      logError('Failed obtaining deferred modules to create script')
+      throw err
+    }
+
+    let result
+    try {
+      result = await createExportScript({
+        baseDirPath: this.projectBaseDir,
+        entryFilePath: this.snapshotEntryFile,
+        bundlerPath: this.bundlerPath,
+        includeStrictVerifiers: false,
+        deferred,
+        norewrite: this.norewrite,
+        orphansToInclude: this.includeHealthyOrphans ? healthyOrphans : null,
+        auxiliaryData: this.auxiliaryData,
+      })
+    } catch (err) {
+      logError('Failed creating script')
+      throw err
+    }
+    logDebug(
+      Object.assign({}, result, {
+        snapshotBundle: `len: ${result.snapshotBundle.length}`,
+        bundle: `len: ${result.bundle.length}`,
+        meta: '<hidden>',
+      })
+    )
+
+    this.snapshotExportScript = result.snapshotBundle
+
+    logInfo(`Writing export bundle script to ${this.snapshotExportScriptPath}`)
+    return fs.promises.writeFile(
+      this.snapshotExportScriptPath,
+      this.snapshotExportScript
+    )
   }
 
   makeSnapshot() {
