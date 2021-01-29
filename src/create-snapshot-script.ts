@@ -17,6 +17,7 @@ export type CreateBundleOpts = {
   baseDirPath: string
   entryFilePath: string
   bundlerPath: string
+  nodeModulesOnly: boolean
   deferred?: string[]
   norewrite?: string[]
 }
@@ -213,7 +214,7 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
 async function createBundle(opts: CreateBundleOpts) {
   const { bundle, meta } = await packherd({
     entryFile: opts.entryFilePath,
-    nodeModulesOnly: true,
+    nodeModulesOnly: opts.nodeModulesOnly,
     createBundle: makePackherdCreateBundle(opts),
   })
   return { bundle, meta }

@@ -32,6 +32,7 @@ export class SyncScriptProcessor {
         bundlerPath,
         deferred,
         norewrite,
+        nodeModulesOnly,
       } = opts
       let processOpts: ProcessScriptOpts | undefined
       try {
@@ -41,6 +42,7 @@ export class SyncScriptProcessor {
           bundlerPath,
           deferred,
           norewrite,
+          nodeModulesOnly,
         })
         processOpts = {
           bundle,

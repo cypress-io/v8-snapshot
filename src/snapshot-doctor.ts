@@ -95,6 +95,7 @@ export class SnapshotDoctor {
   readonly entryFilePath: string
   readonly bundlerPath: string
   readonly norewrite?: string[]
+  readonly nodeModulesOnly: boolean
   private readonly _scriptProcessor: AsyncScriptProcessor | SyncScriptProcessor
 
   constructor(opts: SnapshotDoctorOpts) {
@@ -106,6 +107,7 @@ export class SnapshotDoctor {
       opts.processSync != null && opts.processSync
         ? new SyncScriptProcessor()
         : new AsyncScriptProcessor(opts)
+    this.nodeModulesOnly = opts.nodeModulesOnly
   }
 
   async heal(includeHealthyOrphans: boolean, forceDeferred: string[] = []) {
@@ -307,6 +309,7 @@ export class SnapshotDoctor {
       baseDirPath: this.baseDirPath,
       entryFilePath: this.entryFilePath,
       bundlerPath: this.bundlerPath,
+      nodeModulesOnly: this.nodeModulesOnly,
       deferred,
       includeStrictVerifiers: true,
     }
@@ -416,6 +419,7 @@ export class SnapshotDoctor {
         baseDirPath: this.baseDirPath,
         entryFilePath: this.entryFilePath,
         bundlerPath: this.bundlerPath,
+        nodeModulesOnly: this.nodeModulesOnly,
         deferred: deferredArg,
         norewrite: this.norewrite,
       })

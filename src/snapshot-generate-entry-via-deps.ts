@@ -50,6 +50,7 @@ class SnapshotEntryGeneratorViaWalk {
       bundlerPath: this.bundlerPath,
       baseDirPath: this.projectBaseDir,
       entryFilePath: this.entryFile,
+      nodeModulesOnly: this.nodeModulesOnly,
     }
     const { meta } = await createBundleAsync(opts)
     return meta

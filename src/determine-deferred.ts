@@ -13,7 +13,7 @@ export async function determineDeferred(
   snapshotEntryFile: string,
   cacheDir: string,
   includeHealthyOrphans: boolean,
-  opts: { maxWorkers?: number } = {}
+  opts: { maxWorkers?: number; nodeModulesOnly: boolean }
 ) {
   const hashFilePath = await findHashFile(projectBaseDir)
   assert(
@@ -40,6 +40,7 @@ export async function determineDeferred(
     entryFilePath: snapshotEntryFile,
     baseDirPath: projectBaseDir,
     maxWorkers: opts.maxWorkers,
+    nodeModulesOnly: opts.nodeModulesOnly,
   })
 
   const {

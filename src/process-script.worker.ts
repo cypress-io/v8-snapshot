@@ -56,7 +56,13 @@ export async function createAndProcessScript(
   opts: CreateSnapshotScriptOpts,
   entryPoint: string
 ): Promise<BundleAndProcessScriptResult> {
-  const { baseDirPath, entryFilePath, bundlerPath, deferred } = opts
+  const {
+    baseDirPath,
+    entryFilePath,
+    bundlerPath,
+    deferred,
+    nodeModulesOnly,
+  } = opts
   let processOpts: ProcessScriptOpts | undefined
   try {
     const { bundle } = await createBundleAsync({
@@ -64,6 +70,7 @@ export async function createAndProcessScript(
       entryFilePath,
       bundlerPath,
       deferred,
+      nodeModulesOnly,
     })
     processOpts = {
       bundle,
