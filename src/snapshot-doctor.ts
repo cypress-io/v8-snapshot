@@ -20,15 +20,20 @@ const logError = debug('snapgen:error')
 export type SnapshotDoctorOpts = Omit<CreateSnapshotScriptOpts, 'deferred'> & {
   processSync?: boolean
   maxWorkers?: number
+  previousDeferred: Set<string>
+  previousHealthy: Set<string>
 }
 
 class HealState {
+  processedLeaves: boolean
   constructor(
     readonly meta: Readonly<Metadata>,
     readonly deferred: Set<string> = new Set(),
     readonly healthy: Set<string> = new Set(),
     readonly needDefer: Set<string> = new Set()
-  ) {}
+  ) {
+    this.processedLeaves = false
+  }
 }
 
 function sortModulesByLeafness(
@@ -90,12 +95,22 @@ function pathifyAndSort(keys: Set<string>) {
   return xs
 }
 
+function unpathify(keys: Set<string>) {
+  const unpathified: Set<string> = new Set()
+  for (const x of keys) {
+    unpathified.add(x.slice(2))
+  }
+  return unpathified
+}
+
 export class SnapshotDoctor {
-  readonly baseDirPath: string
-  readonly entryFilePath: string
-  readonly bundlerPath: string
-  readonly norewrite?: string[]
-  readonly nodeModulesOnly: boolean
+  private readonly baseDirPath: string
+  private readonly entryFilePath: string
+  private readonly bundlerPath: string
+  private readonly norewrite?: string[]
+  private readonly nodeModulesOnly: boolean
+  private readonly previousDeferred: Set<string>
+  private readonly previousHealthy: Set<string>
   private readonly _scriptProcessor: AsyncScriptProcessor | SyncScriptProcessor
 
   constructor(opts: SnapshotDoctorOpts) {
@@ -108,16 +123,22 @@ export class SnapshotDoctor {
         ? new SyncScriptProcessor()
         : new AsyncScriptProcessor(opts)
     this.nodeModulesOnly = opts.nodeModulesOnly
+    this.previousDeferred = unpathify(opts.previousDeferred)
+    this.previousHealthy = unpathify(opts.previousHealthy)
   }
 
-  async heal(includeHealthyOrphans: boolean, forceDeferred: string[] = []) {
+  async heal(includeHealthyOrphans: boolean) {
     const { meta, bundle } = await this._createScript()
 
     const entries = Object.entries(meta.inputs)
     const circulars = circularImports(meta.inputs, entries)
     logDebug({ circulars })
 
-    const healState = new HealState(meta, new Set(forceDeferred))
+    const healState = new HealState(
+      meta,
+      this.previousDeferred,
+      this.previousHealthy
+    )
 
     await this._processCurrentScript(bundle, healState, circulars)
     while (healState.needDefer.size > 0) {
@@ -147,12 +168,7 @@ export class SnapshotDoctor {
     const {
       optimizedDeferred,
       includingImplicitsDeferred,
-    } = await this._optimizeDeferred(
-      meta,
-      sortedDeferred,
-      forceDeferred,
-      healthyOrphans
-    )
+    } = await this._optimizeDeferred(meta, sortedDeferred, healthyOrphans)
 
     logInfo({ allDeferred: sortedDeferred, len: sortedDeferred.length })
     logInfo({ healthyOrphans, len: healthyOrphans.size })
@@ -161,7 +177,7 @@ export class SnapshotDoctor {
     await this._scriptProcessor.dispose()
 
     return {
-      healthy: healState.healthy,
+      healthy: pathifyAndSort(healState.healthy),
       includingImplicitsDeferred: pathifyAndSort(includingImplicitsDeferred),
       deferred: pathifyAndSort(optimizedDeferred),
       healthyOrphans: pathifyAndSort(healthyOrphans),
@@ -173,15 +189,14 @@ export class SnapshotDoctor {
   async _optimizeDeferred(
     meta: Metadata,
     deferredSortedByLeafness: string[],
-    forceDeferred: string[],
     healthyOrphans: Set<string>
   ) {
-    const optimizedDeferred: Set<string> = new Set(forceDeferred)
+    const optimizedDeferred: Set<string> = new Set(this.previousDeferred)
 
     // 1. Push down defers where possible, i.e. prefer deferring one import instead of an entire module
     logInfo('--- OPTIMIZE Pushing down defers ---')
     for (const key of deferredSortedByLeafness) {
-      if (forceDeferred.includes(key)) continue
+      if (this.previousDeferred.has(key)) continue
       const imports = meta.inputs[key].imports.map((x) => x.path)
       if (imports.length === 0) {
         optimizedDeferred.add(key)
@@ -193,7 +208,8 @@ export class SnapshotDoctor {
     await Promise.all(
       deferredSortedByLeafness
         .filter(
-          (key) => !forceDeferred.includes(key) && !optimizedDeferred.has(key)
+          (key) =>
+            !this.previousDeferred.has(key) && !optimizedDeferred.has(key)
         )
         .map(async (key) => {
           // Check if it was fixed by one of the optimizedDeferred added previously
@@ -227,19 +243,16 @@ export class SnapshotDoctor {
     //    unless we're including healthy orphans.
     if (healthyOrphans.size === 0) {
       logInfo('--- OPTIMIZE Remove implicit defers ---')
-      await this._removeImplicitlyDeferred(optimizedDeferred, forceDeferred)
+      await this._removeImplicitlyDeferred(optimizedDeferred)
     }
 
     return { optimizedDeferred, includingImplicitsDeferred }
   }
 
-  private async _removeImplicitlyDeferred(
-    optimizedDeferred: Set<string>,
-    forceDeferred: string[]
-  ) {
+  private async _removeImplicitlyDeferred(optimizedDeferred: Set<string>) {
     const entry = path.relative(this.baseDirPath, this.entryFilePath)
     const implicitDeferredPromises = Array.from(optimizedDeferred.keys())
-      .filter((key) => !forceDeferred.includes(key))
+      .filter((key) => !this.previousDeferred.has(key))
       .map(async (key) => {
         const fine = await this._entryWorksWhenDeferring(
           entry,
@@ -265,18 +278,20 @@ export class SnapshotDoctor {
     key: string,
     optimizedDeferred: Set<string>
   ) {
-    const importPromises = imports.map(async (imp) => {
-      if (
-        await this._entryWorksWhenDeferring(
-          key,
-          new Set([...optimizedDeferred, imp])
-        )
-      ) {
-        return { deferred: imp, fixed: true }
-      } else {
-        return { deferred: '', fixed: false }
-      }
-    })
+    const importPromises = imports
+      .filter((imp) => this.previousDeferred.has(imp))
+      .map(async (imp) => {
+        if (
+          await this._entryWorksWhenDeferring(
+            key,
+            new Set([...optimizedDeferred, imp])
+          )
+        ) {
+          return { deferred: imp, fixed: true }
+        } else {
+          return { deferred: '', fixed: false }
+        }
+      })
 
     // Find the one import we need to defer to fix the entry module
     const fixers = new Set(
@@ -368,6 +383,14 @@ export class SnapshotDoctor {
       nextStage.length > 0;
       nextStage = this._findNextStage(healState, circulars)
     ) {
+      if (!healState.processedLeaves) {
+        healState.processedLeaves = true
+        // In case all leaves were determined to be healthy before we can move on to therefore
+        // next step
+        if (nextStage.length < 0) {
+          nextStage = this._findNextStage(healState, circulars)
+        }
+      }
       const promises = nextStage.map(async (key) => {
         logDebug('Testing entry in isolation "%s"', key)
         const result = await this._scriptProcessor.processScript({
@@ -434,16 +457,17 @@ export class SnapshotDoctor {
     healState: HealState,
     circulars: Map<string, Set<string>>
   ) {
-    const { healthy, deferred, needDefer } = healState
-    const visited = healthy.size + deferred.size + needDefer.size
-    return visited === 0
-      ? this._findLeaves(healState.meta)
-      : this._findVerifiables(healState, circulars)
+    if (healState.processedLeaves) {
+      return this._findVerifiables(healState, circulars)
+    } else {
+      return this._findLeaves(healState)
+    }
   }
 
-  private _findLeaves(meta: Metadata) {
+  private _findLeaves(healState: HealState) {
     const leaves = []
-    for (const [key, { imports }] of Object.entries(meta.inputs)) {
+    for (const [key, { imports }] of Object.entries(healState.meta.inputs)) {
+      if (healState.healthy.has(key) || healState.deferred.has(key)) continue
       if (imports.length === 0) leaves.push(key)
     }
     return leaves

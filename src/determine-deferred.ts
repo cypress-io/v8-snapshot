@@ -13,7 +13,12 @@ export async function determineDeferred(
   snapshotEntryFile: string,
   cacheDir: string,
   includeHealthyOrphans: boolean,
-  opts: { maxWorkers?: number; nodeModulesOnly: boolean }
+  opts: {
+    maxWorkers?: number
+    nodeModulesOnly: boolean
+    previousDeferred: Set<string>
+    previousHealthy: Set<string>
+  }
 ) {
   const hashFilePath = await findHashFile(projectBaseDir)
   assert(
@@ -27,9 +32,10 @@ export async function determineDeferred(
     match,
     hash,
     deferred,
+    healthy,
     healthyOrphans,
   } = await validateExistingDeferred(jsonPath, hashFilePath)
-  if (match) return { deferred, healthyOrphans }
+  if (match) return { deferred, healthy, healthyOrphans }
 
   logInfo(
     'Did not find valid excludes for current project state, will determine them ...'
@@ -41,16 +47,20 @@ export async function determineDeferred(
     baseDirPath: projectBaseDir,
     maxWorkers: opts.maxWorkers,
     nodeModulesOnly: opts.nodeModulesOnly,
+    previousDeferred: opts.previousDeferred,
+    previousHealthy: opts.previousHealthy,
   })
 
   const {
     deferred: updatedDeferred,
     healthyOrphans: updatedVerifiedOrphans,
+    healthy: updatedHealty,
   } = await doctor.heal(includeHealthyOrphans)
   const deferredHashFile = path.relative(projectBaseDir, hashFilePath)
   const cachedDeferred = {
     deferred: updatedDeferred,
     healthyOrphans: updatedVerifiedOrphans,
+    healthy: updatedHealty,
     deferredHashFile,
     deferredHash: hash,
   }
@@ -71,9 +81,9 @@ async function validateExistingDeferred(
     const hash = await createHashForFile(hashFilePath)
     return { deferred: [], match: false, hash }
   }
-  const { deferredHash, deferred, healthyOrphans } = require(jsonPath)
+  const { deferredHash, deferred, healthy, healthyOrphans } = require(jsonPath)
   const res = await matchFileHash(hashFilePath, deferredHash)
-  return { deferred, match: res.match, hash: res.hash, healthyOrphans }
+  return { deferred, match: res.match, hash: res.hash, healthy, healthyOrphans }
 }
 
 async function findHashFile(projectBaseDir: string) {

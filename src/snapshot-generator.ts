@@ -32,6 +32,8 @@ type GenerationOpts = {
   snapshotBinDir: string
   includeHealthyOrphans: boolean
   nodeModulesOnly: boolean
+  previousDeferred?: string[]
+  previousHealthy?: string[]
   mksnapshotBin?: string
   auxiliaryData?: Record<string, any>
   norewrite?: string[]
@@ -42,11 +44,13 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
   return {
     verify: true,
     minify: false,
-    includeHealthyOrphans: true,
+    includeHealthyOrphans: false,
     skipWriteOnVerificationFailure: false,
     cacheDir: join(projectBaseDir, 'cache'),
     snapshotBinDir: projectBaseDir,
     nodeModulesOnly: true,
+    previousDeferred: [],
+    previousHealthy: [],
   }
 }
 
@@ -66,6 +70,8 @@ export class SnapshotGenerator {
   private readonly norewrite: string[] | undefined
   private readonly nodeModulesOnly: boolean
   private readonly maxWorkers?: number
+  private readonly previousDeferred: Set<string>
+  private readonly previousHealthy: Set<string>
   private readonly _snapshotVerifier: SnapshotVerifier
   readonly snapshotBinFilename: string
   snapshotScript?: string
@@ -87,6 +93,8 @@ export class SnapshotGenerator {
       norewrite,
       maxWorkers,
       nodeModulesOnly,
+      previousDeferred,
+      previousHealthy,
     }: GenerationOpts = Object.assign(
       getDefaultGenerationOpts(projectBaseDir),
       opts
@@ -107,6 +115,8 @@ export class SnapshotGenerator {
     this.snapshotExportScriptPath = join(cacheDir, 'snapshot-bundle.js')
     this.auxiliaryData = opts.auxiliaryData
     this.nodeModulesOnly = nodeModulesOnly
+    this.previousDeferred = new Set(previousDeferred)
+    this.previousHealthy = new Set(previousHealthy)
     this.maxWorkers = maxWorkers
 
     const { snapshotBin, snapshotBackup } = electronSnapshotFilenames(
@@ -146,7 +156,12 @@ export class SnapshotGenerator {
         this.snapshotEntryFile,
         this.cacheDir,
         this.includeHealthyOrphans,
-        { maxWorkers: this.maxWorkers, nodeModulesOnly: this.nodeModulesOnly }
+        {
+          maxWorkers: this.maxWorkers,
+          nodeModulesOnly: this.nodeModulesOnly,
+          previousDeferred: this.previousDeferred,
+          previousHealthy: this.previousHealthy,
+        }
       ))
     } catch (err) {
       logError('Failed obtaining deferred modules to create script')
@@ -219,7 +234,12 @@ export class SnapshotGenerator {
         this.snapshotEntryFile,
         this.cacheDir,
         this.includeHealthyOrphans,
-        { maxWorkers: this.maxWorkers, nodeModulesOnly: this.nodeModulesOnly }
+        {
+          maxWorkers: this.maxWorkers,
+          nodeModulesOnly: this.nodeModulesOnly,
+          previousDeferred: this.previousDeferred,
+          previousHealthy: this.previousHealthy,
+        }
       ))
     } catch (err) {
       logError('Failed obtaining deferred modules to create script')
