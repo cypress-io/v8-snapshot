@@ -11,19 +11,32 @@ if (process.env.BUNDLER == null) {
   process.exit(1)
 }
 
+function resolvePrevious() {
+  try {
+    const {
+      deferred: previousDeferred,
+      healthy: previousHealthy,
+    } = require('../cache/snapshot-meta.prev.json')
+    return { previousDeferred, previousHealthy }
+  } catch (_) {
+    return {}
+  }
+}
+const { previousDeferred, previousHealthy } = resolvePrevious()
+
 const cacheDir = path.resolve(__dirname, '../cache')
 const bundlerPath = path.resolve(process.env.BUNDLER)
 const snapshotGenerator = new SnapshotGenerator(
   bundlerPath,
   projectBaseDir,
   snapshotEntryFile,
-  { cacheDir }
+  { cacheDir, previousDeferred, previousHealthy }
 )
 
 ;(async () => {
   try {
     await snapshotGenerator.createScript()
-    snapshotGenerator.makeAndInstallSnapshot()
+    // snapshotGenerator.makeAndInstallSnapshot()
   } catch (err) {
     prettyPrintError(err, projectBaseDir)
     process.exit(1)
