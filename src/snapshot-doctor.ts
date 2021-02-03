@@ -15,6 +15,7 @@ import { bundleFileNameFromHash, createHash, ensureDirSync } from './utils'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
+const logTrace = debug('snapgen:trace')
 const logError = debug('snapgen:error')
 
 export type SnapshotDoctorOpts = Omit<CreateSnapshotScriptOpts, 'deferred'> & {
@@ -378,6 +379,7 @@ export class SnapshotDoctor {
     logInfo('Preparing to process current script')
     const { bundleHash, bundlePath } = await this._writeBundle(bundle)
     logDebug('Stored bundle file (%s)', bundleHash)
+    logTrace(bundlePath)
     for (
       let nextStage = this._findNextStage(healState, circulars);
       nextStage.length > 0;
