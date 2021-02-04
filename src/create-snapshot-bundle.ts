@@ -4,8 +4,7 @@ import {
 } from './create-snapshot-script'
 import { Metadata } from './types'
 
-const prelude = `// vim: set ft=text:
-function get_process() {
+const prelude = `function get_process() {
   if (typeof process === 'undefined') return undefined
   return process
 }

@@ -31,7 +31,6 @@ export function scriptFromBlueprint(config: BlueprintConfig) {
 
   // TODO: NODE_ENV needs to be configurable
   return `
-// vim: set ft=text:
 var snapshotAuxiliaryData = ${auxiliaryData}
 
 function generateSnapshot() {

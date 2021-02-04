@@ -25,9 +25,7 @@ class SnapshotEntryGeneratorViaWalk {
     const meta = await this._getMetadata()
     const paths = this._resolveRelativePaths(meta)
     paths.sort()
-    return ['// vim: set ft=text:']
-      .concat(paths.map((x) => `exports['${x}'] = require('${x}')`))
-      .join('\n')
+    return paths.map((x) => `exports['${x}'] = require('${x}')`).join('\n')
   }
 
   private _resolveRelativePaths(meta: Metadata) {
