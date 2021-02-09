@@ -22,7 +22,7 @@ class SnapshotEntryGeneratorViaWalk {
   ) {}
 
   async createSnapshotScript() {
-    const meta = await this._getMetadata()
+    const meta = await this.getMetadata()
     const paths = this._resolveRelativePaths(meta)
     paths.sort()
     return paths.map((x) => `exports['${x}'] = require('${x}')`).join('\n')
@@ -43,7 +43,7 @@ class SnapshotEntryGeneratorViaWalk {
       .map(this.pathsMapper)
   }
 
-  private async _getMetadata() {
+  async getMetadata() {
     const opts: CreateBundleOpts = {
       bundlerPath: this.bundlerPath,
       baseDirPath: this.projectBaseDir,
@@ -55,7 +55,7 @@ class SnapshotEntryGeneratorViaWalk {
   }
 }
 
-const DEFAULT_GENERATE_CONFIG: Partial<GenerateSnapshotEntryFromEntryDepsConfig> & {
+const DEFAULT_GENERATE_CONFIG: Partial<GenerateDepsDataOpts> & {
   nodeModulesOnly: boolean
   pathsMapper: PathsMapper
 } = {
@@ -63,17 +63,36 @@ const DEFAULT_GENERATE_CONFIG: Partial<GenerateSnapshotEntryFromEntryDepsConfig>
   pathsMapper: identityMapper,
 }
 
-type GenerateSnapshotEntryFromEntryDepsConfig = {
+type GenerateDepsDataOpts = {
   bundlerPath: string
   entryFile: string
   nodeModulesOnly?: boolean
   pathsMapper?: PathsMapper
 }
 
+export type BundlerMetadata = Metadata & { projectBaseDir: string }
+export async function generateBundlerMetadata(
+  projectBaseDir: string,
+  fullPathToSnapshotEntry: string,
+  config: GenerateDepsDataOpts
+): Promise<BundlerMetadata> {
+  const fullConf = Object.assign({}, DEFAULT_GENERATE_CONFIG, config)
+  const generator = new SnapshotEntryGeneratorViaWalk(
+    fullConf.bundlerPath,
+    fullConf.entryFile,
+    projectBaseDir,
+    fullPathToSnapshotEntry,
+    fullConf.nodeModulesOnly,
+    fullConf.pathsMapper
+  )
+  const meta = await generator.getMetadata()
+  return { ...meta, projectBaseDir }
+}
+
 export async function generateSnapshotEntryFromEntryDeps(
   projectBaseDir: string,
   fullPathToSnapshotEntry: string,
-  config: GenerateSnapshotEntryFromEntryDepsConfig
+  config: GenerateDepsDataOpts
 ) {
   const fullConf = Object.assign({}, DEFAULT_GENERATE_CONFIG, config)
   const generator = new SnapshotEntryGeneratorViaWalk(
