@@ -1,5 +1,6 @@
 import debug from 'debug'
-import { GetModuleKey, packherdRequire } from 'packherd'
+import { packherdRequire } from 'packherd/dist/src/require.js'
+import type { GetModuleKey } from 'packherd'
 import { Snapshot } from './types'
 
 const logInfo = debug('snapshot:info')
