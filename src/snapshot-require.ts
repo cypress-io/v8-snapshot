@@ -23,6 +23,7 @@ export type SnapshotRequireOpts = {
   useCache?: boolean
   diagnostics?: boolean
   snapshotOverride?: Snapshot
+  requireStatsFile?: string
 }
 
 const DEFAULT_SNAPSHOT_REQUIRE_OPTS = {
@@ -59,6 +60,7 @@ export function snapshotRequire(
       moduleDefinitions: sr.customRequire.definitions,
       moduleExports: useCache ? sr.customRequire.cache : undefined,
       getModuleKey,
+      requireStatsFile: opts.requireStatsFile,
     })
 
     // The below aren't available in all environments
