@@ -61,8 +61,8 @@ function customRequire(modulePath, parent = {}) {
           module.exports = require(`${SNAPSHOT_PROJECT_ROOT}/node_modules/${modulePath}`)
           customRequire.cache[modulePath] = module
         } catch (err) {
-          console.error('Failed to require', modulePath)
           debugger
+          throw new Error(`Failed to require ${modulePath}.\n${err.toString()}`)
         }
       }
     }
