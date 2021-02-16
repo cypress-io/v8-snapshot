@@ -51,16 +51,23 @@ function customRequire(modulePath, parent = {}) {
         module.exports = require(modulePath)
         customRequire.cache[modulePath] = module
       } catch (err) {
-        // This happens when `require` calls were dynamic and not resolved by esbuild
-        // i.e. `require(opts.typescript)`
-        // Let's hope it's a node_module located at the root otherwise we just have to fail.
-        try {
-          // TODO(thlorenz): don't do this for core modules
-          module.exports = require(`${SNAPSHOT_PROJECT_ROOT}node_modules/${modulePath}`)
-          customRequire.cache[modulePath] = module
-        } catch (err) {
-          debugger
-          throw new Error(`Failed to require ${modulePath}.\n${err.toString()}`)
+        // If we're running in doctor (strict) mode avoid trying to resolve core modules by path
+        if (require.isStrict) {
+          throw err
+        } else {
+          // This happens when `require` calls were dynamic and not resolved by esbuild
+          // i.e. `require(opts.typescript)`
+          // Let's hope it's a node_module located at the root otherwise we just have to fail.
+          try {
+            // TODO(thlorenz): don't do this for core modules
+            module.exports = require(`${SNAPSHOT_PROJECT_ROOT}node_modules/${modulePath}`)
+            customRequire.cache[modulePath] = module
+          } catch (err) {
+            debugger
+            throw new Error(
+              `Failed to require ${modulePath}.\n${err.toString()}`
+            )
+          }
         }
       }
     }

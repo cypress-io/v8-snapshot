@@ -90,6 +90,7 @@ function generateSnapshot() {
 
   ${customRequire}
   ${customRequireDefinitions}
+  ${includeStrictVerifiers ? 'require.isStrict = true' : ''}
 
   customRequire(${mainModuleRequirePath})
   return {
