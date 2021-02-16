@@ -12,6 +12,13 @@ function cannotAccess(proto, prop) {
     throw `Cannot access ${proto}.${prop} during snapshot creation`
   }
 }
+function cannotDefine(proto, prop) {
+  throw `Cannot define ${proto}.${prop} during snapshot creation`
+}
+
+function cannotDelete(proto, prop) {
+  throw `Cannot delete ${proto}.${prop} during snapshot creation`
+}
 
 function getsetPrevent(proto, prop) {
   return {
@@ -20,12 +27,38 @@ function getsetPrevent(proto, prop) {
   }
 }
 
-function proxyPrevent(item, { construction }) {
+function proxyPrevent(item, { construction, get, set, apply, define, del }) {
   const key = item.prototype.constructor.name
   const proxyHandler = {}
 
   if (construction) {
     proxyHandler.construct = cannotAccess(key, 'constructor')
+  }
+  if (get) {
+    proxyHandler.get = function (_target, prop, _receiver) {
+      cannotAccess(key, prop)()
+    }
+  }
+  if (set) {
+    proxyHandler.set = function (_tarset, prop, _value) {
+      cannotAccess(key, prop)()
+    }
+  }
+  if (apply) {
+    proxyHandler.apply = function (target, _thisArg, _args) {
+      cannotAccess(key, target.name)()
+    }
+  }
+  if (define) {
+    proxyHandler.defineProperty = function (_target, prop, _descriptor) {
+      cannotDefine(key, prop)
+    }
+  }
+
+  if (del) {
+    proxyHandler.deleteProperty = function (_target, prop) {
+      cannotDelete(key, prop)()
+    }
   }
 
   return new Proxy(item, proxyHandler)
@@ -44,17 +77,14 @@ Object.defineProperties(Error, {
 //
 // Promise
 //
-const promiseProperties = [
-  'all',
-  'allSettled',
-  'race',
-  'reject',
-  'resolve',
-].reduce((acc, key) => {
-  acc[key] = { value: cannotAccess('Promise', key) }
-  return acc
-}, {})
-Object.defineProperties(Promise, promiseProperties)
+Promis = proxyPrevent(Promise, {
+  construction: true,
+  get: true,
+  set: true,
+  apply: true,
+  define: true,
+  del: true,
+})
 
 //
 // Arrays
