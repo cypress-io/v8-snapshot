@@ -20,9 +20,6 @@ function customRequire(modulePath, parent = {}) {
     module = {
       exports: {},
     }
-    if (modulePath.includes('fsevents.node')) {
-      debugger
-    }
     // TODO(thlorenz): hack for now .. won't work in some circumstances, esp. not on windows
     // also how would this work in prod if we hard code the full path?
     const relPath = modulePath.replace(/^\.\//, '')
@@ -58,7 +55,8 @@ function customRequire(modulePath, parent = {}) {
         // i.e. `require(opts.typescript)`
         // Let's hope it's a node_module located at the root otherwise we just have to fail.
         try {
-          module.exports = require(`${SNAPSHOT_PROJECT_ROOT}/node_modules/${modulePath}`)
+          // TODO(thlorenz): don't do this for core modules
+          module.exports = require(`${SNAPSHOT_PROJECT_ROOT}node_modules/${modulePath}`)
           customRequire.cache[modulePath] = module
         } catch (err) {
           debugger
