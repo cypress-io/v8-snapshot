@@ -1,6 +1,6 @@
 import debug from 'debug'
 import { packherdRequire } from 'packherd/dist/src/require.js'
-import type { GetModuleKey } from 'packherd'
+import type { GetModuleKey, PackherdTranspileOpts } from 'packherd'
 import { Snapshot } from './types'
 
 const logInfo = debug('snapshot:info')
@@ -25,6 +25,7 @@ export type SnapshotRequireOpts = {
   diagnostics?: boolean
   snapshotOverride?: Snapshot
   requireStatsFile?: string
+  transpileOpts?: PackherdTranspileOpts
 }
 
 const DEFAULT_SNAPSHOT_REQUIRE_OPTS = {
@@ -62,6 +63,7 @@ export function snapshotRequire(
       moduleExports: useCache ? sr.customRequire.cache : undefined,
       getModuleKey,
       requireStatsFile: opts.requireStatsFile,
+      transpileOpts: opts.transpileOpts,
     })
 
     // The below aren't available in all environments
