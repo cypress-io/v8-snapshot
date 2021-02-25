@@ -4,6 +4,7 @@ import type { GetModuleKey, PackherdTranspileOpts } from 'packherd'
 import { Snapshot } from './types'
 
 const logInfo = debug('snapshot:info')
+const logDebug = debug('snapshot:debug')
 const logTrace = debug('snapshot:trace')
 
 const getModuleKey: GetModuleKey = (moduleUri, relPath) => {
@@ -26,18 +27,31 @@ export type SnapshotRequireOpts = {
   snapshotOverride?: Snapshot
   requireStatsFile?: string
   transpileOpts?: PackherdTranspileOpts
+  alwaysHook?: boolean
 }
 
 const DEFAULT_SNAPSHOT_REQUIRE_OPTS = {
   useCache: true,
   diagnostics: false,
+  alwaysHook: true,
+}
+
+function getCaches(sr: Snapshot | undefined, useCache: boolean) {
+  if (typeof sr !== 'undefined') {
+    return {
+      moduleExports: useCache ? sr.customRequire.cache : undefined,
+      moduleDefinitions: sr.customRequire.definitions,
+    }
+  } else {
+    return { moduleExports: {}, moduleDefinitions: {} }
+  }
 }
 
 export function snapshotRequire(
   entryFile: string,
   opts: SnapshotRequireOpts = {}
 ) {
-  const { useCache, diagnostics } = Object.assign(
+  const { useCache, diagnostics, alwaysHook } = Object.assign(
     {},
     DEFAULT_SNAPSHOT_REQUIRE_OPTS,
     opts
@@ -47,9 +61,11 @@ export function snapshotRequire(
     // @ts-ignore global snapshotResult
     (typeof snapshotResult !== 'undefined' ? snapshotResult : undefined)
 
-  if (typeof sr !== 'undefined') {
-    const cacheKeys = Object.keys(sr.customRequire.cache)
-    const defKeys = Object.keys(sr.customRequire.definitions)
+  if (sr != null || alwaysHook) {
+    const { moduleExports, moduleDefinitions } = getCaches(sr, useCache)
+
+    const cacheKeys = Object.keys(moduleExports || {})
+    const defKeys = Object.keys(moduleDefinitions)
     logInfo(
       'Caching %d, defining %d modules! %s cache',
       cacheKeys.length,
@@ -57,23 +73,24 @@ export function snapshotRequire(
       useCache ? 'Using' : 'Not using'
     )
 
+    logDebug('initializing packherd require')
     packherdRequire(entryFile, {
       diagnostics,
-      moduleDefinitions: sr.customRequire.definitions,
-      moduleExports: useCache ? sr.customRequire.cache : undefined,
+      moduleExports,
+      moduleDefinitions,
       getModuleKey,
       requireStatsFile: opts.requireStatsFile,
       transpileOpts: opts.transpileOpts,
     })
 
-    // The below aren't available in all environments
-    const checked_process: any = typeof process !== 'undefined' ? process : {}
-    const checked_window: any = typeof window !== 'undefined' ? window : {}
-    const checked_document: any =
-      typeof document !== 'undefined' ? document : {}
-
     // @ts-ignore global snapshotResult
     if (typeof snapshotResult !== 'undefined') {
+      // The below aren't available in all environments
+      const checked_process: any = typeof process !== 'undefined' ? process : {}
+      const checked_window: any = typeof window !== 'undefined' ? window : {}
+      const checked_document: any =
+        typeof document !== 'undefined' ? document : {}
+
       // @ts-ignore global snapshotResult
       snapshotResult.setGlobals(
         global,
