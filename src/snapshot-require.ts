@@ -1,6 +1,7 @@
 import debug from 'debug'
-import { packherdRequire } from 'packherd/dist/src/require.js'
 import type { GetModuleKey, PackherdTranspileOpts } from 'packherd'
+import { packherdRequire } from 'packherd/dist/src/require.js'
+import path from 'path'
 import { Snapshot } from './types'
 
 const logInfo = debug('snapshot:info')
@@ -74,7 +75,8 @@ export function snapshotRequire(
     )
 
     logDebug('initializing packherd require')
-    packherdRequire(entryFile, {
+    const projectBaseDir = path.dirname(entryFile)
+    packherdRequire(projectBaseDir, {
       diagnostics,
       moduleExports,
       moduleDefinitions,
