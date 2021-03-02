@@ -1,5 +1,5 @@
 export * from './snapshot-generator'
-export * from './snapshot-require'
+export * from './loading/snapshot-require'
 export * from './snapshot-generate-entry-via-yarn'
 export * from './snapshot-generate-entry-via-deps'
 export { prettyPrintError } from './utils'

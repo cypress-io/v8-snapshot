@@ -1,9 +1,9 @@
 import debug from 'debug'
 import type { GetModuleKey, PackherdTranspileOpts } from 'packherd'
 import { packherdRequire } from 'packherd/dist/src/require.js'
-import { moduleMapper } from './loading/module_negotiator'
+import { moduleMapper } from './module_negotiator'
 import path from 'path'
-import { Snapshot } from './types'
+import { Snapshot } from '../types'
 
 const logInfo = debug('snapshot:info')
 const logDebug = debug('snapshot:debug')
