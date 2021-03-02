@@ -1,10 +1,7 @@
 import debug from 'debug'
-import type {
-  GetModuleKey,
-  PackherdTranspileOpts,
-  ModuleMapper,
-} from 'packherd'
+import type { GetModuleKey, PackherdTranspileOpts } from 'packherd'
 import { packherdRequire } from 'packherd/dist/src/require.js'
+import { moduleMapper } from './loading/module_negotiator'
 import path from 'path'
 import { Snapshot } from './types'
 
@@ -24,34 +21,6 @@ const getModuleKey: GetModuleKey = (moduleUri, relPath) => {
   const key = relPath.replace(/^\.\.\//, './')
   logTrace('key "%s" for [ %s | %s ]', key, relPath, moduleUri)
   return key
-}
-
-const moduleMapper: ModuleMapper = (
-  parent: NodeModule,
-  moduleUri: string,
-  projectBaseDir: string
-) => {
-  // Not sure why this is set incorrectly at times, but it breaks module resolution
-  // It seems it is related to electron's use of webpack
-  if (
-    moduleUri.startsWith('./packages') ||
-    moduleUri.startsWith('./node_modules')
-  ) {
-    const fullModuleUri = path.resolve(projectBaseDir, moduleUri)
-    moduleUri = `./${path.relative(parent.path, fullModuleUri)}`
-  } else if (parent.id.includes('v8-snapshot-utils')) {
-    // TODO(thlorenz): HACK those magic hints on how to treat things differently need
-    // to be configurable, i.e. via a parent module mapper function
-    // There are other cases we don't cover yet, i.e. a relative require coming out of the
-    // snapshot, i.e. to `./hook-require` from `./ts/register'.
-    // However this seems to be the only one and we want to skip loading that anyways since
-    // we already hooked the require to get here.
-    const fakeOrigin = path.join(projectBaseDir, 'package.json')
-    parent.id = parent.filename = fakeOrigin
-    parent.path = path.dirname(fakeOrigin)
-    parent.paths.unshift(path.join(parent.path, 'node_modules'))
-  }
-  return moduleUri
 }
 
 export type SnapshotRequireOpts = {
