@@ -17,12 +17,14 @@ import {
   findMksnapshot,
 } from './utils'
 import { createExportScript } from './create-snapshot-bundle'
+import { Flag, GeneratorFlags } from './snapshot-generator-flags'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
 
 const MK_SNAPSHOT_BIN_FILENAME = 'v8_context_snapshot.bin'
+const NOT_DEFINED_FOR_SCRIPT_MODE = '<not defined for script only mode>'
 
 type GenerationOpts = {
   verify: boolean
@@ -38,6 +40,7 @@ type GenerationOpts = {
   auxiliaryData?: Record<string, any>
   norewrite?: string[]
   maxWorkers?: number
+  flags: Flag
 }
 
 function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
@@ -51,6 +54,7 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
     nodeModulesOnly: true,
     previousDeferred: [],
     previousHealthy: [],
+    flags: Flag.Script | Flag.MakeSnapshot | Flag.ReuseDoctorArtifacts,
   }
 }
 
@@ -73,6 +77,7 @@ export class SnapshotGenerator {
   private readonly previousDeferred: Set<string>
   private readonly previousHealthy: Set<string>
   private readonly _snapshotVerifier: SnapshotVerifier
+  private readonly _flags: GeneratorFlags
   readonly snapshotBinFilename: string
   snapshotScript?: string
   snapshotExportScript?: string
@@ -95,6 +100,7 @@ export class SnapshotGenerator {
       nodeModulesOnly,
       previousDeferred,
       previousHealthy,
+      flags: mode,
     }: GenerationOpts = Object.assign(
       getDefaultGenerationOpts(projectBaseDir),
       opts
@@ -118,20 +124,28 @@ export class SnapshotGenerator {
     this.previousDeferred = new Set(previousDeferred)
     this.previousHealthy = new Set(previousHealthy)
     this.maxWorkers = maxWorkers
+    this._flags = new GeneratorFlags(mode)
 
-    const { snapshotBin, snapshotBackup } = electronSnapshotFilenames(
-      projectBaseDir
-    )
-    this.snapshotBinFilename = snapshotBin
-    this.snapshotBackupFilename = snapshotBackup
-    this.mksnapshotBinFilename = MK_SNAPSHOT_BIN_FILENAME
+    if (this._flags.has(Flag.MakeSnapshot)) {
+      const { snapshotBin, snapshotBackup } = electronSnapshotFilenames(
+        projectBaseDir
+      )
+      this.snapshotBinFilename = snapshotBin
+      this.snapshotBackupFilename = snapshotBackup
+      this.mksnapshotBinFilename = MK_SNAPSHOT_BIN_FILENAME
 
-    if (opts.mksnapshotBin == null) {
-      logDebug('No mksnapshot binary provided, attempting to find it')
-      this.mksnapshotBin = findMksnapshot(projectBaseDir)
+      if (opts.mksnapshotBin == null) {
+        logDebug('No mksnapshot binary provided, attempting to find it')
+        this.mksnapshotBin = findMksnapshot(projectBaseDir)
+      } else {
+        checkFileSync(opts.mksnapshotBin)
+        this.mksnapshotBin = opts.mksnapshotBin
+      }
     } else {
-      checkFileSync(opts.mksnapshotBin)
-      this.mksnapshotBin = opts.mksnapshotBin
+      this.mksnapshotBin = NOT_DEFINED_FOR_SCRIPT_MODE
+      this.mksnapshotBinFilename = NOT_DEFINED_FOR_SCRIPT_MODE
+      this.snapshotBinFilename = NOT_DEFINED_FOR_SCRIPT_MODE
+      this.snapshotBackupFilename = NOT_DEFINED_FOR_SCRIPT_MODE
     }
 
     const auxiliaryDataKeys = Object.keys(this.auxiliaryData || {})
@@ -161,6 +175,7 @@ export class SnapshotGenerator {
           nodeModulesOnly: this.nodeModulesOnly,
           previousDeferred: this.previousDeferred,
           previousHealthy: this.previousHealthy,
+          useHashBasedCache: this._flags.has(Flag.ReuseDoctorArtifacts),
         }
       ))
     } catch (err) {
@@ -239,6 +254,7 @@ export class SnapshotGenerator {
           nodeModulesOnly: this.nodeModulesOnly,
           previousDeferred: this.previousDeferred,
           previousHealthy: this.previousHealthy,
+          useHashBasedCache: !this._flags.has(Flag.ReuseDoctorArtifacts),
         }
       ))
     } catch (err) {
@@ -285,6 +301,10 @@ export class SnapshotGenerator {
       this.snapshotScript != null,
       'Run `createScript` first to create snapshotScript'
     )
+    assert(
+      this._flags.has(Flag.MakeSnapshot),
+      'Cannot makeSnapshot when MakeSnapshot flag is not set'
+    )
     const args = [this.snapshotScriptPath, '--output_dir', this.snapshotBinDir]
     const cmd = `node ${this.mksnapshotBin} ${args.join(' ')}`
     logDebug(cmd)
@@ -318,6 +338,10 @@ export class SnapshotGenerator {
     assert(
       this.snapshotScript != null,
       'Run `createScript` and `makeSnapshot` first to create snapshot'
+    )
+    assert(
+      this._flags.has(Flag.MakeSnapshot),
+      'Cannot install when MakeSnapshot flag is not set'
     )
     const createdSnapshotBin = join(
       this.snapshotBinDir,

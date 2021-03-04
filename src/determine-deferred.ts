@@ -18,24 +18,29 @@ export async function determineDeferred(
     nodeModulesOnly: boolean
     previousDeferred: Set<string>
     previousHealthy: Set<string>
+    useHashBasedCache: boolean
   }
 ) {
-  const hashFilePath = await findHashFile(projectBaseDir)
-  assert(
-    hashFilePath != null,
-    `Unable to find hash file inside ${projectBaseDir}`
-  )
-
   const jsonPath = path.join(cacheDir, 'snapshot-meta.json')
 
-  const {
-    match,
-    hash,
-    deferred,
-    healthy,
-    healthyOrphans,
-  } = await validateExistingDeferred(jsonPath, hashFilePath)
-  if (match) return { deferred, healthy, healthyOrphans }
+  let hashFilePath: string | undefined
+  let hash
+  if (opts.useHashBasedCache) {
+    hashFilePath = await findHashFile(projectBaseDir)
+    assert(
+      hashFilePath != null,
+      `Unable to find hash file inside ${projectBaseDir}`
+    )
+    const {
+      match,
+      hash: currentHash,
+      deferred,
+      healthy,
+      healthyOrphans,
+    } = await validateExistingDeferred(jsonPath, hashFilePath)
+    if (match) return { deferred, healthy, healthyOrphans }
+    hash = currentHash
+  }
 
   logInfo(
     'Did not find valid excludes for current project state, will determine them ...'
@@ -56,7 +61,10 @@ export async function determineDeferred(
     healthyOrphans: updatedVerifiedOrphans,
     healthy: updatedHealty,
   } = await doctor.heal(includeHealthyOrphans)
-  const deferredHashFile = path.relative(projectBaseDir, hashFilePath)
+  const deferredHashFile = opts.useHashBasedCache
+    ? path.relative(projectBaseDir, hashFilePath!)
+    : '<not used>'
+
   const cachedDeferred = {
     deferred: updatedDeferred,
     healthyOrphans: updatedVerifiedOrphans,

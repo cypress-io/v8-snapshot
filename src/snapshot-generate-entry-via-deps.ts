@@ -4,7 +4,7 @@ import { promises as fs } from 'fs'
 import { createBundleAsync, CreateBundleOpts } from './create-snapshot-script'
 import { Metadata } from './types'
 
-const snapshotUtils = require('../package.json').name
+const snapshotUtils = require('../../package.json').name
 const logInfo = debug('snapgen:info')
 const logError = debug('snapgen:error')
 
