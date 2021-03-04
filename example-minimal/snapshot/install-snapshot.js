@@ -6,9 +6,8 @@ const path = require('path')
 const { SnapshotGenerator } = require('../../')
 
 const projectBaseDir = path.join(__dirname, '../')
-const snapshotEntryFile = process.env.RENDERER
-  ? require.resolve('../app/renderer')
-  : require.resolve('./snapshot.js')
+const snapshotEntryFile = require.resolve('./snapshot.js')
+const appEntryFile = require.resolve('../app/index')
 
 if (process.env.BUNDLER == null) {
   console.error(
@@ -26,7 +25,8 @@ const snapshotGenerator = new SnapshotGenerator(
   bundlerPath,
   projectBaseDir,
   snapshotEntryFile,
-  { minify: false, verify: VERIFY, cacheDir }
+  // appEntryFile,
+  { minify: false, verify: VERIFY, cacheDir, nodeModulesOnly: false }
 )
 
 ;(async () => {

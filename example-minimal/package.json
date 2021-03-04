@@ -7,6 +7,7 @@
     "start": "DEBUG='(packherd|snapshot):*' electron -r ./app/hook-require.js app",
     "start-as-node": "ELECTRON_RUN_AS_NODE=1 DEBUG='(packherd|snapshot):*' electron -r ./app/hook-require.js app",
     "debug": "DEBUG='(packherd|snapshot):*' electron --inspect-brk -r ./app/hook-require.js app",
+    "debug-no-hook": "DEBUG='(packherd|snapshot):*' electron --inspect-brk app",
     "install-snapshot": "node ./snapshot/install-snapshot.js",
     "uninstall-snapshot": "node ./snapshot/uninstall-snapshot.js"
   },
