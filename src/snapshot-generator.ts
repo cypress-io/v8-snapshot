@@ -34,8 +34,9 @@ type GenerationOpts = {
   snapshotBinDir: string
   includeHealthyOrphans: boolean
   nodeModulesOnly: boolean
-  previousDeferred?: string[]
   previousHealthy?: string[]
+  previousDeferred?: string[]
+  previousNoRewrite?: string[]
   mksnapshotBin?: string
   auxiliaryData?: Record<string, any>
   norewrite?: string[]
@@ -76,6 +77,7 @@ export class SnapshotGenerator {
   private readonly maxWorkers?: number
   private readonly previousDeferred: Set<string>
   private readonly previousHealthy: Set<string>
+  private readonly previousNoRewrite: Set<string>
   private readonly _snapshotVerifier: SnapshotVerifier
   private readonly _flags: GeneratorFlags
   readonly snapshotBinFilename: string
@@ -100,6 +102,7 @@ export class SnapshotGenerator {
       nodeModulesOnly,
       previousDeferred,
       previousHealthy,
+      previousNoRewrite,
       flags: mode,
     }: GenerationOpts = Object.assign(
       getDefaultGenerationOpts(projectBaseDir),
@@ -123,6 +126,7 @@ export class SnapshotGenerator {
     this.nodeModulesOnly = nodeModulesOnly
     this.previousDeferred = new Set(previousDeferred)
     this.previousHealthy = new Set(previousHealthy)
+    this.previousNoRewrite = new Set(previousNoRewrite)
     this.maxWorkers = maxWorkers
     this._flags = new GeneratorFlags(mode)
 
@@ -175,6 +179,7 @@ export class SnapshotGenerator {
           nodeModulesOnly: this.nodeModulesOnly,
           previousDeferred: this.previousDeferred,
           previousHealthy: this.previousHealthy,
+          previousNoRewrite: this.previousNoRewrite,
           useHashBasedCache: this._flags.has(Flag.ReuseDoctorArtifacts),
         }
       ))
@@ -252,8 +257,9 @@ export class SnapshotGenerator {
         {
           maxWorkers: this.maxWorkers,
           nodeModulesOnly: this.nodeModulesOnly,
-          previousDeferred: this.previousDeferred,
           previousHealthy: this.previousHealthy,
+          previousDeferred: this.previousDeferred,
+          previousNoRewrite: this.previousNoRewrite,
           useHashBasedCache: !this._flags.has(Flag.ReuseDoctorArtifacts),
         }
       ))

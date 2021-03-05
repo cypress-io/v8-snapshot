@@ -20,7 +20,7 @@ export type CreateBundleOpts = {
   bundlerPath: string
   nodeModulesOnly: boolean
   deferred?: string[]
-  norewrite?: string[]
+  noRewrite?: string[]
 }
 
 export type CreateSnapshotScriptOpts = CreateBundleOpts & {
@@ -186,8 +186,8 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
     opts.bundlerPath +
     ` --basedir=${basedir}` +
     (opts.deferred != null ? ` --deferred='${opts.deferred.join(',')}'` : '') +
-    (opts.norewrite != null
-      ? ` --norewrite='${opts.norewrite.join(',')}'`
+    (opts.noRewrite != null
+      ? ` --norewrite='${opts.noRewrite.join(',')}'`
       : '') +
     ` ${popts.entryFilePath}`
 
@@ -195,7 +195,11 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
 
   const _MB = 1024 * 1024
   try {
-    const stdout = execSync(cmd, { maxBuffer: 200 * _MB, cwd: basedir })
+    const stdout = execSync(cmd, {
+      maxBuffer: 200 * _MB,
+      cwd: basedir,
+      stdio: ['pipe', 'pipe', 'ignore'],
+    })
     const { warnings, outfiles } = JSON.parse(stdout.toString())
 
     assert(outfiles.length >= 2, 'need at least two outfiles, bundle and meta')

@@ -18,12 +18,16 @@ export type ProcessedWarning = {
   text: Warning['text']
 }
 
-export function stringifyWarning(warning: ProcessedWarning) {
+export function stringifyWarning(
+  projectBaseDir: string,
+  warning: ProcessedWarning
+) {
   const loc = warning.location
+  const p = path.relative(projectBaseDir, loc.fullPath)
   return `
-    ${warning.text} at ${loc.fullPath}:${loc.line}:${loc.column} (${loc.file}
-
-      ${warning.location.lineText}
+    ${warning.text} at ./${p}:${loc.line}:${loc.column} (${loc.file})
+      | ${loc.line} ${warning.location.lineText}
+      | ${' '.repeat(loc.column + loc.line.toString().length)} ^
   `
 }
 

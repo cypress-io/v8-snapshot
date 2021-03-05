@@ -18,6 +18,7 @@ export async function determineDeferred(
     nodeModulesOnly: boolean
     previousDeferred: Set<string>
     previousHealthy: Set<string>
+    previousNoRewrite: Set<string>
     useHashBasedCache: boolean
   }
 ) {
@@ -35,10 +36,11 @@ export async function determineDeferred(
       match,
       hash: currentHash,
       deferred,
+      noRewrite,
       healthy,
       healthyOrphans,
     } = await validateExistingDeferred(jsonPath, hashFilePath)
-    if (match) return { deferred, healthy, healthyOrphans }
+    if (match) return { noRewrite, deferred, healthy, healthyOrphans }
     hash = currentHash
   }
 
@@ -54,10 +56,12 @@ export async function determineDeferred(
     nodeModulesOnly: opts.nodeModulesOnly,
     previousDeferred: opts.previousDeferred,
     previousHealthy: opts.previousHealthy,
+    previousNoRewrite: opts.previousNoRewrite,
   })
 
   const {
     deferred: updatedDeferred,
+    noRewrite: updatedNoRewrite,
     healthyOrphans: updatedVerifiedOrphans,
     healthy: updatedHealty,
   } = await doctor.heal(includeHealthyOrphans)
@@ -66,6 +70,7 @@ export async function determineDeferred(
     : '<not used>'
 
   const cachedDeferred = {
+    noRewrite: updatedNoRewrite,
     deferred: updatedDeferred,
     healthyOrphans: updatedVerifiedOrphans,
     healthy: updatedHealty,
@@ -89,9 +94,22 @@ async function validateExistingDeferred(
     const hash = await createHashForFile(hashFilePath)
     return { deferred: [], match: false, hash }
   }
-  const { deferredHash, deferred, healthy, healthyOrphans } = require(jsonPath)
+  const {
+    deferredHash,
+    noRewrite,
+    deferred,
+    healthy,
+    healthyOrphans,
+  } = require(jsonPath)
   const res = await matchFileHash(hashFilePath, deferredHash)
-  return { deferred, match: res.match, hash: res.hash, healthy, healthyOrphans }
+  return {
+    noRewrite,
+    deferred,
+    match: res.match,
+    hash: res.hash,
+    healthy,
+    healthyOrphans,
+  }
 }
 
 async function findHashFile(projectBaseDir: string) {
