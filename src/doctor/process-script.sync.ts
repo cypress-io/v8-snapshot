@@ -4,13 +4,13 @@ import {
   assembleScript,
   createBundleAsync,
   CreateSnapshotScriptOpts,
-} from './create-snapshot-script'
-import { SnapshotVerifier } from './snapshot-verifier'
+} from '../create-snapshot-script'
+import { SnapshotVerifier } from '../snapshot-verifier'
 import {
   BundleAndProcessScriptResult,
   ProcessScriptOpts,
   ProcessScriptResult,
-} from './types'
+} from '../types'
 
 const logInfo = debug('snapgen:info')
 

@@ -3,7 +3,7 @@ import debug from 'debug'
 import fs from 'fs'
 import path from 'path'
 import { SnapshotDoctor } from './snapshot-doctor'
-import { canAccess, createHashForFile, matchFileHash } from './utils'
+import { canAccess, createHashForFile, matchFileHash } from '../utils'
 
 const logInfo = debug('snapgen:info')
 

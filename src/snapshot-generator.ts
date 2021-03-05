@@ -6,7 +6,7 @@ import { dirname, join } from 'path'
 import { minify } from 'terser'
 import { createSnapshotScript } from './create-snapshot-script'
 import { SnapshotVerifier } from './snapshot-verifier'
-import { determineDeferred } from './determine-deferred'
+import { determineDeferred } from './doctor/determine-deferred'
 import {
   checkDirSync,
   checkFileSync,

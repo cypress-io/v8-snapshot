@@ -7,11 +7,11 @@ import { circularImports } from './circular-imports'
 import {
   createBundleAsync,
   CreateSnapshotScriptOpts,
-} from './create-snapshot-script'
+} from '../create-snapshot-script'
 import { AsyncScriptProcessor } from './process-script.async'
 import { SyncScriptProcessor } from './process-script.sync'
-import { Entries, Metadata } from './types'
-import { bundleFileNameFromHash, createHash, ensureDirSync } from './utils'
+import { Entries, Metadata } from '../types'
+import { bundleFileNameFromHash, createHash, ensureDirSync } from '../utils'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')

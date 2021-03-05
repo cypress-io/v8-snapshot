@@ -2,12 +2,12 @@ import debug from 'debug'
 import { strict as assert } from 'assert'
 import os from 'os'
 import WorkerNodes from 'worker-nodes'
-import { CreateSnapshotScriptOpts } from './create-snapshot-script'
+import { CreateSnapshotScriptOpts } from '../create-snapshot-script'
 import {
   BundleAndProcessScriptResult,
   ProcessScriptOpts,
   ProcessScriptResult,
-} from './types'
+} from '../types'
 
 const workerScript = require.resolve('./process-script.worker')
 

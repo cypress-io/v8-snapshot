@@ -8,10 +8,13 @@ import {
   CreateBundle,
   packherd,
   CreateBundleOpts as PackherdCreateBundleOpts,
+  CreateBundleResult,
 } from 'packherd'
 
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
+
+export const SNAPSHOT_REWRITE_FAILURE = '[SNAPSHOT_REWRITE_FAILURE]'
 
 export type CreateBundleOpts = {
   baseDirPath: string
@@ -143,6 +146,7 @@ export function assembleScript(
 export async function createBundleAsync(
   opts: CreateBundleOpts
 ): Promise<{
+  warnings: CreateBundleResult['warnings']
   meta: Metadata
   bundle: string
 }> {
@@ -212,10 +216,10 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
 }
 
 async function createBundle(opts: CreateBundleOpts) {
-  const { bundle, meta } = await packherd({
+  const { warnings, bundle, meta } = await packherd({
     entryFile: opts.entryFilePath,
     nodeModulesOnly: opts.nodeModulesOnly,
     createBundle: makePackherdCreateBundle(opts),
   })
-  return { bundle, meta }
+  return { warnings, bundle, meta }
 }

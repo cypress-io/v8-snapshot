@@ -1,4 +1,4 @@
-import { Metadata, Entries } from './types'
+import { Metadata, Entries } from '../types'
 
 class CircularImports {
   private readonly _visited: Set<string> = new Set()

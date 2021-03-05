@@ -5,14 +5,14 @@ import {
   assembleScript,
   createBundleAsync,
   CreateSnapshotScriptOpts,
-} from './create-snapshot-script'
-import { SnapshotVerifier } from './snapshot-verifier'
+} from '../create-snapshot-script'
+import { SnapshotVerifier } from '../snapshot-verifier'
 import {
   BundleAndProcessScriptResult,
   ProcessScriptOpts,
   ProcessScriptResult,
-} from './types'
-import { createHash } from './utils'
+} from '../types'
+import { createHash } from '../utils'
 process.env.DEBUG_COLOR = '1'
 
 const logInfo = debug('snapgen:info')
