@@ -14,8 +14,6 @@ import {
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
 
-export const SNAPSHOT_REWRITE_FAILURE = '[SNAPSHOT_REWRITE_FAILURE]'
-
 export type CreateBundleOpts = {
   baseDirPath: string
   entryFilePath: string

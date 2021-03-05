@@ -12,6 +12,12 @@ import { AsyncScriptProcessor } from './process-script.async'
 import { SyncScriptProcessor } from './process-script.sync'
 import { Entries, Metadata } from '../types'
 import { bundleFileNameFromHash, createHash, ensureDirSync } from '../utils'
+import {
+  stringifyWarning,
+  Warning,
+  WarningConsequence,
+  WarningsProcessor,
+} from './warnings-processor'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
@@ -113,6 +119,7 @@ export class SnapshotDoctor {
   private readonly previousDeferred: Set<string>
   private readonly previousHealthy: Set<string>
   private readonly _scriptProcessor: AsyncScriptProcessor | SyncScriptProcessor
+  private readonly _warningsProcessor: WarningsProcessor
 
   constructor(opts: SnapshotDoctorOpts) {
     this.baseDirPath = opts.baseDirPath
@@ -123,13 +130,14 @@ export class SnapshotDoctor {
       opts.processSync != null && opts.processSync
         ? new SyncScriptProcessor()
         : new AsyncScriptProcessor(opts)
+    this._warningsProcessor = new WarningsProcessor(this.baseDirPath)
     this.nodeModulesOnly = opts.nodeModulesOnly
     this.previousDeferred = unpathify(opts.previousDeferred)
     this.previousHealthy = unpathify(opts.previousHealthy)
   }
 
   async heal(includeHealthyOrphans: boolean) {
-    const { meta, bundle } = await this._createScript()
+    const { warnings, meta, bundle } = await this._createScript()
 
     const entries = Object.entries(meta.inputs)
     const circulars = circularImports(meta.inputs, entries)
@@ -141,14 +149,14 @@ export class SnapshotDoctor {
       this.previousHealthy
     )
 
-    await this._processCurrentScript(bundle, healState, circulars)
+    await this._processCurrentScript(bundle, warnings, healState, circulars)
     while (healState.needDefer.size > 0) {
       for (const x of healState.needDefer) {
         healState.deferred.add(x)
       }
-      const { bundle } = await this._createScript(healState.deferred)
+      const { warnings, bundle } = await this._createScript(healState.deferred)
       healState.needDefer.clear()
-      await this._processCurrentScript(bundle, healState, circulars)
+      await this._processCurrentScript(bundle, warnings, healState, circulars)
     }
 
     const sortedDeferred = sortDeferredByLeafness(
@@ -373,9 +381,25 @@ export class SnapshotDoctor {
 
   private async _processCurrentScript(
     bundle: string,
+    warnings: Warning[],
     healState: HealState,
     circulars: Map<string, Set<string>>
   ) {
+    for (const warning of this._warningsProcessor.process(warnings)) {
+      const s = stringifyWarning(warning)
+      switch (warning.consequence) {
+        case WarningConsequence.Defer:
+          logInfo('Encountered warning triggering no defer: %s', s)
+          break
+        case WarningConsequence.NoRewrite:
+          logInfo('Encountered warning triggering no rewrite: %s', s)
+          break
+        case WarningConsequence.None:
+          logInfo('Encountered warning without consequence: %s', s)
+          break
+      }
+    }
+
     logInfo('Preparing to process current script')
     const { bundleHash, bundlePath } = await this._writeBundle(bundle)
     logDebug('Stored bundle file (%s)', bundleHash)
@@ -433,6 +457,7 @@ export class SnapshotDoctor {
   ): Promise<{
     meta: Metadata
     bundle: string
+    warnings: Warning[]
   }> {
     try {
       const deferredArg =
@@ -440,7 +465,7 @@ export class SnapshotDoctor {
           ? Array.from(deferred).map((x) => `./${x}`)
           : undefined
 
-      const { meta, bundle } = await createBundleAsync({
+      const { warnings, meta, bundle } = await createBundleAsync({
         baseDirPath: this.baseDirPath,
         entryFilePath: this.entryFilePath,
         bundlerPath: this.bundlerPath,
@@ -448,7 +473,8 @@ export class SnapshotDoctor {
         deferred: deferredArg,
         norewrite: this.norewrite,
       })
-      return { meta, bundle }
+
+      return { warnings, meta, bundle }
     } catch (err) {
       logError('Failed creating initial bundle')
       throw err
