@@ -13,18 +13,22 @@ import {
 } from '../types'
 
 const logInfo = debug('snapgen:info')
+const logTrace = debug('snapgen:trace')
 
 export class SyncScriptProcessor {
   private readonly _snapshotVerifier: SnapshotVerifier
+  private _isDisposed: boolean
   constructor() {
     logInfo('Initializing sync script processor')
     this._snapshotVerifier = new SnapshotVerifier()
+    this._isDisposed = false
   }
 
   async createAndProcessScript(
     opts: CreateSnapshotScriptOpts,
     entryPoint: string
   ): Promise<BundleAndProcessScriptResult> {
+    assert(!this._isDisposed, 'should not createAndProcessScript when disposed')
     return new Promise(async (resolve) => {
       const {
         baseDirPath,
@@ -59,6 +63,8 @@ export class SyncScriptProcessor {
   }
 
   processScript(opts: ProcessScriptOpts): Promise<ProcessScriptResult> {
+    assert(!this._isDisposed, 'should not processScript when disposed')
+
     const { bundle, baseDirPath, entryFilePath, entryPoint } = opts
     assert(bundle != null, 'sync processing requires bundle content')
     return new Promise((resolve) => {
@@ -81,6 +87,8 @@ export class SyncScriptProcessor {
   }
 
   dispose() {
+    logTrace('Disposing SyncScriptProcessor')
+    this._isDisposed = true
     return Promise.resolve()
   }
 }

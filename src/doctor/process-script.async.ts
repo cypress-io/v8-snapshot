@@ -12,6 +12,7 @@ import {
 const workerScript = require.resolve('./process-script.worker')
 
 const logInfo = debug('snapgen:info')
+const logTrace = debug('snapgen:trace')
 
 type AsyncScriptProcessorOpts = {
   maxWorkers?: number
@@ -23,6 +24,7 @@ const DEFAULT_ASYNC_SCRIPT_PROCESSOR_OPTS = {
 
 export class AsyncScriptProcessor {
   private readonly _workers: WorkerNodesInstance
+  private _isDisposed: boolean
   constructor(args: AsyncScriptProcessorOpts) {
     logInfo('Initializing async script processor')
     const processorOpts = Object.assign(
@@ -41,6 +43,7 @@ export class AsyncScriptProcessor {
       maxTasksPerWorker: 1,
       taskMaxRetries: 0,
     }
+    this._isDisposed = false
 
     this._workers = new WorkerNodes(workerScript, opts)
   }
@@ -49,10 +52,12 @@ export class AsyncScriptProcessor {
     opts: CreateSnapshotScriptOpts,
     entryPoint: string
   ): Promise<BundleAndProcessScriptResult> {
+    assert(!this._isDisposed, 'should not createAndProcessScript when disposed')
     return this._workers.call.createAndProcessScript(opts, entryPoint)
   }
 
   async processScript(opts: ProcessScriptOpts): Promise<ProcessScriptResult> {
+    assert(!this._isDisposed, 'should not processScript when disposed')
     if (opts.bundlePath != null) {
       // Avoid sending large payloads across the wire
       assert(
@@ -64,8 +69,9 @@ export class AsyncScriptProcessor {
     return this._workers.call.processScript(opts)
   }
 
-  async dispose() {
-    await this._workers.terminate()
-    return
+  dispose() {
+    logTrace('Disposing AsyncScriptProcessor')
+    this._isDisposed = true
+    return this._workers.terminate()
   }
 }

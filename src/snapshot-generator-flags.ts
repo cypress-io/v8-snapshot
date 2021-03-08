@@ -3,10 +3,10 @@
  */
 // prettier-ignore
 export enum Flag {
-  None         = 0x0000,
-  Script       = 0x0001,
-  MakeSnapshot = 0x0002,
-  ReuseDoctorArtifacts  = 0x0004,
+  None                 = 0x0000,
+  Script               = 0x0001,
+  MakeSnapshot         = 0x0002,
+  ReuseDoctorArtifacts = 0x0004,
 }
 
 export class GeneratorFlags {
