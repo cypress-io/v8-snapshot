@@ -12,7 +12,6 @@ export async function determineDeferred(
   projectBaseDir: string,
   snapshotEntryFile: string,
   cacheDir: string,
-  includeHealthyOrphans: boolean,
   opts: {
     maxWorkers?: number
     nodeModulesOnly: boolean
@@ -36,11 +35,10 @@ export async function determineDeferred(
       match,
       hash: currentHash,
       deferred,
-      noRewrite,
+      norewrite,
       healthy,
-      healthyOrphans,
     } = await validateExistingDeferred(jsonPath, hashFilePath)
-    if (match) return { noRewrite, deferred, healthy, healthyOrphans }
+    if (match) return { norewrite, deferred, healthy }
     hash = currentHash
   }
 
@@ -61,18 +59,16 @@ export async function determineDeferred(
 
   const {
     deferred: updatedDeferred,
-    noRewrite: updatedNoRewrite,
-    healthyOrphans: updatedVerifiedOrphans,
+    norewrite: updatedNorewrite,
     healthy: updatedHealty,
-  } = await doctor.heal(includeHealthyOrphans)
+  } = await doctor.heal()
   const deferredHashFile = opts.useHashBasedCache
     ? path.relative(projectBaseDir, hashFilePath!)
     : '<not used>'
 
   const cachedDeferred = {
-    noRewrite: updatedNoRewrite,
+    norewrite: updatedNorewrite,
     deferred: updatedDeferred,
-    healthyOrphans: updatedVerifiedOrphans,
     healthy: updatedHealty,
     deferredHashFile,
     deferredHash: hash,
@@ -83,7 +79,11 @@ export async function determineDeferred(
     JSON.stringify(cachedDeferred, null, 2),
     'utf8'
   )
-  return { deferred: updatedDeferred, healthyOrphans: updatedVerifiedOrphans }
+  return {
+    norewrite: updatedNorewrite,
+    deferred: updatedDeferred,
+    healthy: updatedHealty,
+  }
 }
 
 async function validateExistingDeferred(
@@ -94,21 +94,14 @@ async function validateExistingDeferred(
     const hash = await createHashForFile(hashFilePath)
     return { deferred: [], match: false, hash }
   }
-  const {
-    deferredHash,
-    noRewrite,
-    deferred,
-    healthy,
-    healthyOrphans,
-  } = require(jsonPath)
+  const { deferredHash, norewrite, deferred, healthy } = require(jsonPath)
   const res = await matchFileHash(hashFilePath, deferredHash)
   return {
-    noRewrite,
+    norewrite,
     deferred,
     match: res.match,
     hash: res.hash,
     healthy,
-    healthyOrphans,
   }
 }
 

@@ -32,14 +32,12 @@ type GenerationOpts = {
   skipWriteOnVerificationFailure: boolean
   cacheDir: string
   snapshotBinDir: string
-  includeHealthyOrphans: boolean
   nodeModulesOnly: boolean
   previousHealthy?: string[]
   previousDeferred?: string[]
   previousNoRewrite?: string[]
   mksnapshotBin?: string
   auxiliaryData?: Record<string, any>
-  norewrite?: string[]
   maxWorkers?: number
   flags: Flag
 }
@@ -48,7 +46,6 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
   return {
     verify: true,
     minify: false,
-    includeHealthyOrphans: false,
     skipWriteOnVerificationFailure: false,
     cacheDir: join(projectBaseDir, 'cache'),
     snapshotBinDir: projectBaseDir,
@@ -62,7 +59,6 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
 export class SnapshotGenerator {
   private readonly verify: boolean
   private readonly minify: boolean
-  private readonly includeHealthyOrphans: boolean
   private readonly skipWriteOnVerificationFailure: boolean
   private readonly cacheDir: string
   private readonly snapshotScriptPath: string
@@ -72,7 +68,6 @@ export class SnapshotGenerator {
   private readonly snapshotBinDir: string
   private readonly snapshotBackupFilename: string
   private readonly auxiliaryData?: Record<string, any>
-  private readonly norewrite: string[] | undefined
   private readonly nodeModulesOnly: boolean
   private readonly maxWorkers?: number
   private readonly previousDeferred: Set<string>
@@ -93,11 +88,9 @@ export class SnapshotGenerator {
     const {
       verify,
       minify,
-      includeHealthyOrphans,
       skipWriteOnVerificationFailure,
       cacheDir,
       snapshotBinDir,
-      norewrite,
       maxWorkers,
       nodeModulesOnly,
       previousDeferred,
@@ -115,8 +108,6 @@ export class SnapshotGenerator {
     this._snapshotVerifier = new SnapshotVerifier()
     this.verify = verify
     this.minify = minify
-    this.norewrite = norewrite
-    this.includeHealthyOrphans = includeHealthyOrphans
     this.skipWriteOnVerificationFailure = skipWriteOnVerificationFailure
     this.cacheDir = cacheDir
     this.snapshotBinDir = snapshotBinDir
@@ -166,14 +157,13 @@ export class SnapshotGenerator {
 
   async createScript() {
     let deferred
-    let healthyOrphans
+    let norewrite
     try {
-      ;({ deferred, healthyOrphans } = await determineDeferred(
+      ;({ deferred, norewrite } = await determineDeferred(
         this.bundlerPath,
         this.projectBaseDir,
         this.snapshotEntryFile,
         this.cacheDir,
-        this.includeHealthyOrphans,
         {
           maxWorkers: this.maxWorkers,
           nodeModulesOnly: this.nodeModulesOnly,
@@ -196,8 +186,7 @@ export class SnapshotGenerator {
         bundlerPath: this.bundlerPath,
         includeStrictVerifiers: false,
         deferred,
-        norewrite: this.norewrite,
-        orphansToInclude: this.includeHealthyOrphans ? healthyOrphans : null,
+        norewrite,
         auxiliaryData: this.auxiliaryData,
         nodeModulesOnly: this.nodeModulesOnly,
       })
@@ -246,14 +235,13 @@ export class SnapshotGenerator {
 
   async createExportBundle() {
     let deferred
-    let healthyOrphans
+    let norewrite
     try {
-      ;({ deferred, healthyOrphans } = await determineDeferred(
+      ;({ deferred, norewrite } = await determineDeferred(
         this.bundlerPath,
         this.projectBaseDir,
         this.snapshotEntryFile,
         this.cacheDir,
-        this.includeHealthyOrphans,
         {
           maxWorkers: this.maxWorkers,
           nodeModulesOnly: this.nodeModulesOnly,
@@ -276,9 +264,8 @@ export class SnapshotGenerator {
         bundlerPath: this.bundlerPath,
         includeStrictVerifiers: false,
         deferred,
-        norewrite: this.norewrite,
+        norewrite,
         nodeModulesOnly: this.nodeModulesOnly,
-        orphansToInclude: this.includeHealthyOrphans ? healthyOrphans : null,
         auxiliaryData: this.auxiliaryData,
       })
     } catch (err) {

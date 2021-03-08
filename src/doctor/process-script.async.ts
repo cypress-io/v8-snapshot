@@ -12,7 +12,6 @@ import {
 const workerScript = require.resolve('./process-script.worker')
 
 const logInfo = debug('snapgen:info')
-const logDebug = debug('snapgen:debug')
 
 type AsyncScriptProcessorOpts = {
   maxWorkers?: number
@@ -66,8 +65,7 @@ export class AsyncScriptProcessor {
   }
 
   async dispose() {
-    const result = await this._workers.terminate()
-    logDebug(result)
+    await this._workers.terminate()
     return
   }
 }

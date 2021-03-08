@@ -38,9 +38,9 @@ class HealState {
     readonly meta: Readonly<Metadata>,
     readonly healthy: Set<string> = new Set(),
     readonly deferred: Set<string> = new Set(),
-    readonly noRewrite: Set<string> = new Set(),
+    readonly norewrite: Set<string> = new Set(),
     readonly needDefer: Set<string> = new Set(),
-    readonly needNoRewrite: Set<string> = new Set()
+    readonly needNorewrite: Set<string> = new Set()
   ) {
     this.processedLeaves = false
   }
@@ -96,11 +96,15 @@ function sortDeferredByLeafness(
   )
 }
 
-function pathifyAndSort(keys: Set<string>) {
+function pathify(keys: Iterable<string>) {
   const xs = []
   for (const x of keys) {
     xs.push(`./${x}`)
   }
+  return xs
+}
+function pathifyAndSort(keys: Set<string>) {
+  const xs = pathify(keys)
   xs.sort()
   return xs
 }
@@ -145,7 +149,7 @@ export class SnapshotDoctor {
     this.previousNoRewrite = unpathify(opts.previousNoRewrite)
   }
 
-  async heal(includeHealthyOrphans: boolean) {
+  async heal() {
     const { warnings, meta, bundle } = await this._createScript()
 
     const entries = Object.entries(meta.inputs)
@@ -160,20 +164,20 @@ export class SnapshotDoctor {
     )
 
     await this._processCurrentScript(bundle, warnings, healState, circulars)
-    while (healState.needDefer.size > 0 || healState.needNoRewrite.size > 0) {
+    while (healState.needDefer.size > 0 || healState.needNorewrite.size > 0) {
       for (const x of healState.needDefer) {
         healState.deferred.add(x)
       }
-      for (const x of healState.needNoRewrite) {
-        healState.noRewrite.add(x)
+      for (const x of healState.needNorewrite) {
+        healState.norewrite.add(x)
       }
 
       const { warnings, bundle } = await this._createScript(
         healState.deferred,
-        healState.noRewrite
+        healState.norewrite
       )
       healState.needDefer.clear()
-      healState.needNoRewrite.clear()
+      healState.needNorewrite.clear()
       await this._processCurrentScript(bundle, warnings, healState, circulars)
     }
 
@@ -184,22 +188,18 @@ export class SnapshotDoctor {
       healState.deferred
     )
 
-    let healthyOrphans: Set<string> = new Set()
-    if (includeHealthyOrphans) {
-      logInfo('Getting Healthy Orphans')
-      healthyOrphans = this._determineHealthyOrphans(meta.inputs, healState)
-    }
+    const sortedNorewrite = Array.from(healState.norewrite).sort()
 
     logInfo('Optimizing')
 
     const {
       optimizedDeferred,
       includingImplicitsDeferred,
-    } = await this._optimizeDeferred(meta, sortedDeferred, healthyOrphans)
+    } = await this._optimizeDeferred(meta, sortedDeferred, sortedNorewrite)
 
     logInfo({ allDeferred: sortedDeferred, len: sortedDeferred.length })
-    logInfo({ healthyOrphans, len: healthyOrphans.size })
     logInfo({ optimizedDeferred, len: optimizedDeferred.size })
+    logInfo({ norewrite: sortedNorewrite, len: sortedNorewrite.length })
 
     await this._scriptProcessor.dispose()
 
@@ -207,8 +207,7 @@ export class SnapshotDoctor {
       healthy: pathifyAndSort(healState.healthy),
       includingImplicitsDeferred: pathifyAndSort(includingImplicitsDeferred),
       deferred: pathifyAndSort(optimizedDeferred),
-      noRewrite: pathifyAndSort(healState.noRewrite),
-      healthyOrphans: pathifyAndSort(healthyOrphans),
+      norewrite: pathify(sortedNorewrite),
       bundle,
       meta,
     }
@@ -217,7 +216,7 @@ export class SnapshotDoctor {
   async _optimizeDeferred(
     meta: Metadata,
     deferredSortedByLeafness: string[],
-    healthyOrphans: Set<string>
+    notRewriting: string[]
   ) {
     const optimizedDeferred: Set<string> = new Set(this.previousDeferred)
 
@@ -225,6 +224,8 @@ export class SnapshotDoctor {
     logInfo('--- OPTIMIZE Pushing down defers ---')
     for (const key of deferredSortedByLeafness) {
       if (this.previousDeferred.has(key)) continue
+      if (this.previousNoRewrite.has(key)) continue
+
       const imports = meta.inputs[key].imports.map((x) => x.path)
       if (imports.length === 0) {
         optimizedDeferred.add(key)
@@ -241,7 +242,13 @@ export class SnapshotDoctor {
         )
         .map(async (key) => {
           // Check if it was fixed by one of the optimizedDeferred added previously
-          if (await this._entryWorksWhenDeferring(key, optimizedDeferred)) {
+          if (
+            await this._entryWorksWhenDeferring(
+              key,
+              optimizedDeferred,
+              notRewriting
+            )
+          ) {
             logInfo('Optimize: deferring no longer needed for', key)
             return
           }
@@ -253,7 +260,8 @@ export class SnapshotDoctor {
           if (
             !(await this._entryWorksWhenDeferring(
               key,
-              new Set([...optimizedDeferred, ...imports])
+              new Set([...optimizedDeferred, ...imports]),
+              notRewriting
             ))
           ) {
             logInfo('Optimize: deferred unfixable parent', key)
@@ -261,30 +269,36 @@ export class SnapshotDoctor {
             return
           }
 
-          await this._tryDeferImport(imports, key, optimizedDeferred)
+          await this._tryDeferImport(
+            imports,
+            key,
+            optimizedDeferred,
+            notRewriting
+          )
         })
     )
 
     const includingImplicitsDeferred = new Set(optimizedDeferred)
 
     // 2. Find children that don't need to be explicitly deferred since they are via their deferred parent
-    //    unless we're including healthy orphans.
-    if (healthyOrphans.size === 0) {
-      logInfo('--- OPTIMIZE Remove implicit defers ---')
-      await this._removeImplicitlyDeferred(optimizedDeferred)
-    }
+    logInfo('--- OPTIMIZE Remove implicit defers ---')
+    await this._removeImplicitlyDeferred(optimizedDeferred, notRewriting)
 
     return { optimizedDeferred, includingImplicitsDeferred }
   }
 
-  private async _removeImplicitlyDeferred(optimizedDeferred: Set<string>) {
+  private async _removeImplicitlyDeferred(
+    optimizedDeferred: Set<string>,
+    notRewriting: string[]
+  ) {
     const entry = path.relative(this.baseDirPath, this.entryFilePath)
     const implicitDeferredPromises = Array.from(optimizedDeferred.keys())
       .filter((key) => !this.previousDeferred.has(key))
       .map(async (key) => {
         const fine = await this._entryWorksWhenDeferring(
           entry,
-          new Set([...optimizedDeferred].filter((x) => x !== key))
+          new Set([...optimizedDeferred].filter((x) => x !== key)),
+          notRewriting
         )
         return { fine, key }
       })
@@ -304,7 +318,8 @@ export class SnapshotDoctor {
   private async _tryDeferImport(
     imports: string[],
     key: string,
-    optimizedDeferred: Set<string>
+    optimizedDeferred: Set<string>,
+    notRewriting: string[]
   ) {
     const importPromises = imports
       .filter((imp) => this.previousDeferred.has(imp))
@@ -312,7 +327,8 @@ export class SnapshotDoctor {
         if (
           await this._entryWorksWhenDeferring(
             key,
-            new Set([...optimizedDeferred, imp])
+            new Set([...optimizedDeferred, imp]),
+            notRewriting
           )
         ) {
           return { deferred: imp, fixed: true }
@@ -345,15 +361,22 @@ export class SnapshotDoctor {
     }
   }
 
-  async _entryWorksWhenDeferring(key: string, deferring: Set<string>) {
+  async _entryWorksWhenDeferring(
+    key: string,
+    deferring: Set<string>,
+    notRewriting: string[]
+  ) {
     const entryPoint = `./${key}`
     const deferred = Array.from(deferring).map((x) => `./${x}`)
+    const norewrite = notRewriting.map((x) => `./${x}`)
+
     const opts: CreateSnapshotScriptOpts = {
       baseDirPath: this.baseDirPath,
       entryFilePath: this.entryFilePath,
       bundlerPath: this.bundlerPath,
       nodeModulesOnly: this.nodeModulesOnly,
       deferred,
+      norewrite,
       includeStrictVerifiers: true,
     }
     const result = await this._scriptProcessor.createAndProcessScript(
@@ -371,21 +394,6 @@ export class SnapshotDoctor {
         logInfo('"%s" cannot be loaded for current setup (1 deferred)', key)
         return false
     }
-  }
-
-  private _determineHealthyOrphans(
-    inputs: Metadata['inputs'],
-    healState: HealState
-  ) {
-    const healthyOrphans: Set<string> = new Set()
-    for (const deferred of healState.deferred) {
-      const { imports } = inputs[deferred]
-      imports
-        .map((x) => x.path)
-        .filter((p) => healState.healthy.has(p))
-        .forEach((p) => healthyOrphans.add(p))
-    }
-    return healthyOrphans
   }
 
   private async _writeBundle(bundle: string) {
@@ -414,7 +422,7 @@ export class SnapshotDoctor {
           break
         case WarningConsequence.NoRewrite:
           logDebug('Encountered warning triggering no-rewrite: %s', s)
-          healState.needNoRewrite.add(warning.location.file)
+          healState.needNorewrite.add(warning.location.file)
           break
         case WarningConsequence.None:
           logDebug('Encountered warning without consequence: %s', s)
@@ -476,7 +484,7 @@ export class SnapshotDoctor {
 
   private async _createScript(
     deferred?: Set<string>,
-    noRewrite?: Set<string>
+    norewrite?: Set<string>
   ): Promise<{
     meta: Metadata
     bundle: string
@@ -484,7 +492,7 @@ export class SnapshotDoctor {
   }> {
     try {
       const deferredArg = argumentify(deferred)
-      const noRewriteArg = argumentify(noRewrite)
+      const norewriteArg = argumentify(norewrite)
 
       const { warnings, meta, bundle } = await createBundleAsync({
         baseDirPath: this.baseDirPath,
@@ -492,7 +500,7 @@ export class SnapshotDoctor {
         bundlerPath: this.bundlerPath,
         nodeModulesOnly: this.nodeModulesOnly,
         deferred: deferredArg,
-        noRewrite: noRewriteArg,
+        norewrite: norewriteArg,
       })
 
       return { warnings, meta, bundle }
@@ -519,7 +527,7 @@ export class SnapshotDoctor {
       if (
         healState.healthy.has(key) ||
         healState.deferred.has(key) ||
-        healState.needNoRewrite.has(key)
+        healState.needNorewrite.has(key)
       ) {
         continue
       }
@@ -535,14 +543,14 @@ export class SnapshotDoctor {
     // Finds modules that only depend on previously handled modules
     const verifiables = []
     for (const [key, { imports }] of Object.entries(healState.meta.inputs)) {
-      if (healState.needNoRewrite.has(key)) continue
+      if (healState.needNorewrite.has(key)) continue
       if (healState.needDefer.has(key)) continue
       if (
         this._wasHandled(
           key,
           healState.healthy,
           healState.deferred,
-          healState.noRewrite
+          healState.norewrite
         )
       )
         continue
@@ -554,7 +562,7 @@ export class SnapshotDoctor {
             x.path,
             healState.healthy,
             healState.deferred,
-            healState.noRewrite
+            healState.norewrite
           ) || circular.has(x.path)
       )
       if (allImportsHandledOrCircular) verifiables.push(key)
@@ -566,8 +574,8 @@ export class SnapshotDoctor {
     key: string,
     healthy: Set<string>,
     deferred: Set<string>,
-    noRewrite: Set<string>
+    norewrite: Set<string>
   ) {
-    return healthy.has(key) || deferred.has(key) || noRewrite.has(key)
+    return healthy.has(key) || deferred.has(key) || norewrite.has(key)
   }
 }

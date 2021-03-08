@@ -20,43 +20,19 @@ export type CreateBundleOpts = {
   bundlerPath: string
   nodeModulesOnly: boolean
   deferred?: string[]
-  noRewrite?: string[]
+  norewrite?: string[]
 }
 
 export type CreateSnapshotScriptOpts = CreateBundleOpts & {
   auxiliaryData?: Record<string, any>
   includeStrictVerifiers?: boolean
-  orphansToInclude?: string[]
 }
 
 export type CreateSnapshotScript = (
   opts: CreateSnapshotScriptOpts
 ) => Promise<{ snapshotScript: string }>
 
-const orphanInjectionEntryPoint = '<entry_with_injected_orphans>'
-function injectOrphans(entryPoint: string, orphans: string[]) {
-  const inject = orphans.reduce(
-    (acc, x) => acc + `module.exports['${x}'] = require('${x}')\n`,
-    ''
-  )
-  return `
-  __commonJS['${orphanInjectionEntryPoint}'] = function(exports, module, __dirname, __filename, require) {
-    module.exports = require('${entryPoint}')
-    ${inject}
-  }
-  `
-}
-
-const requireDefinitions = (
-  bundle: string,
-  entryPoint: string,
-  orphansToInclude?: string[]
-) => {
-  const injectedOrphans =
-    orphansToInclude == null
-      ? null
-      : injectOrphans(entryPoint, orphansToInclude)
-
+const requireDefinitions = (bundle: string, entryPoint: string) => {
   return {
     code: `
   //
@@ -66,12 +42,10 @@ const requireDefinitions = (
   //
   // </esbuild bundle>
   //
-  ${injectedOrphans != null ? injectedOrphans : ''}
 
   customRequire.definitions = __commonJS 
 `,
-    mainModuleRequirePath:
-      injectedOrphans == null ? entryPoint : orphanInjectionEntryPoint,
+    mainModuleRequirePath: entryPoint,
   }
 }
 
@@ -102,7 +76,6 @@ export function assembleScript(
     auxiliaryData?: Record<string, any>
     entryPoint?: string
     includeStrictVerifiers?: boolean
-    orphansToInclude?: string[]
   } = {}
 ) {
   const includeStrictVerifiers = opts.includeStrictVerifiers ?? false
@@ -117,11 +90,7 @@ export function assembleScript(
   )
 
   const indentedBundle = bundle.split('\n').join('\n  ')
-  const defs = requireDefinitions(
-    indentedBundle,
-    mainModuleRequirePath,
-    opts.orphansToInclude
-  )
+  const defs = requireDefinitions(indentedBundle, mainModuleRequirePath)
 
   const config: BlueprintConfig = {
     processPlatform: process.platform,
@@ -168,7 +137,6 @@ export async function createSnapshotScript(
   const script = assembleScript(bundle, opts.baseDirPath, opts.entryFilePath, {
     auxiliaryData: opts.auxiliaryData,
     includeStrictVerifiers: opts.includeStrictVerifiers,
-    orphansToInclude: opts.orphansToInclude,
   })
 
   return { snapshotScript: script, meta, bundle }
@@ -185,9 +153,11 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
   const cmd =
     opts.bundlerPath +
     ` --basedir=${basedir}` +
-    (opts.deferred != null ? ` --deferred='${opts.deferred.join(',')}'` : '') +
-    (opts.noRewrite != null
-      ? ` --norewrite='${opts.noRewrite.join(',')}'`
+    (opts.deferred != null && opts.deferred.length > 0
+      ? ` --deferred='${opts.deferred.join(',')}'`
+      : '') +
+    (opts.norewrite != null && opts.norewrite.length > 0
+      ? ` --norewrite='${opts.norewrite.join(',')}'`
       : '') +
     ` ${popts.entryFilePath}`
 
