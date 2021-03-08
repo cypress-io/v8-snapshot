@@ -248,7 +248,7 @@ export class SnapshotGenerator {
           previousHealthy: this.previousHealthy,
           previousDeferred: this.previousDeferred,
           previousNoRewrite: this.previousNoRewrite,
-          useHashBasedCache: !this._flags.has(Flag.ReuseDoctorArtifacts),
+          useHashBasedCache: this._flags.has(Flag.ReuseDoctorArtifacts),
         }
       ))
     } catch (err) {
