@@ -2,7 +2,7 @@ import spok from 'spok'
 import path from 'path'
 import test from 'tape'
 import { readResult, bundlerPath } from './utils/bundle'
-import { Flag, SnapshotGenerator } from '../../'
+import { Flag, SnapshotGenerator } from '../../../'
 
 const projectBaseDir = path.join(__dirname, 'fixtures', 'console-assign')
 const cacheDir = path.join(projectBaseDir, 'cache')

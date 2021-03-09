@@ -12,7 +12,7 @@ const EMBEDDED = '<embedded>:'
 // TODO: add test to detect breakage when it occurs
 const EMBEDDED_FRAME = 10
 
-const packName = require('../../../package.json').name
+const packName = require('../../package.json').name
 
 export class ModuleNegotiator {
   private constructor(
