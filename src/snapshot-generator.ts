@@ -256,6 +256,8 @@ export class SnapshotGenerator {
       throw err
     }
 
+    logInfo('determined deferred %o', { deferred, norewrite })
+
     let result
     try {
       result = await createExportScript({
