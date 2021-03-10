@@ -6,11 +6,11 @@ import path from 'path'
 const EMBEDDED = '<embedded>:'
 // This is the frame in the stack from which the bundled require will get called, however this may
 // change in the future, i.e. when this library or any of its dependents like packherd change.
-// For now we assume it doesn't and live with things being a bit brittle as
+// For now we assume it doesn't too much and live with things being a bit brittle as
 // otherwise we'd have to search for a range of stack frames which is much more
 // costly.
 // TODO: add test to detect breakage when it occurs
-const EMBEDDED_FRAME = 10
+const EMBEDDED_FRAMES = [10, 11]
 
 const packName = require('../../package.json').name
 
@@ -59,8 +59,13 @@ export class ModuleNegotiator {
   private _requireInitiatedFromBundle(): boolean {
     const stack = new Error().stack!
     const frames = stack.split('\n')
-    if (frames.length <= EMBEDDED_FRAME) return false
-    return frames[EMBEDDED_FRAME].includes(EMBEDDED)
+    for (let frame of EMBEDDED_FRAMES) {
+      if (frames.length <= frame) return false
+      if (frames[frame].includes(EMBEDDED)) {
+        return true
+      }
+    }
+    return false
   }
 
   static _instance?: ModuleNegotiator
