@@ -1,5 +1,5 @@
 const valid = require('./valid-module')
-const invalid = require('./invalid-module')
+const invalid = require('./using-dirname')
 
 function entry() {
   return valid() + invalid()
