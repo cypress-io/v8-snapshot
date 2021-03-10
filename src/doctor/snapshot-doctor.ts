@@ -150,7 +150,7 @@ export class SnapshotDoctor {
   }
 
   async heal() {
-    const { warnings, meta, bundle } = await this._createScript()
+    let { warnings, meta, bundle } = await this._createScript()
 
     const entries = Object.entries(meta.inputs)
     const circulars = circularImports(meta.inputs, entries)
@@ -412,7 +412,12 @@ export class SnapshotDoctor {
     healState: HealState,
     circulars: Map<string, Set<string>>
   ) {
-    for (const warning of this._warningsProcessor.process(warnings)) {
+    const processedWarnings = this._warningsProcessor.process({
+      warnings,
+      deferred: healState.deferred,
+      norewrite: healState.norewrite,
+    })
+    for (const warning of processedWarnings) {
       const s = stringifyWarning(this.baseDirPath, warning)
       switch (warning.consequence) {
         case WarningConsequence.Defer:
@@ -428,6 +433,11 @@ export class SnapshotDoctor {
           logDebug('Encountered warning without consequence: %s', s)
           break
       }
+    }
+
+    // If norwrite is required we actually need to rebuild the bundle so we exit early
+    if (healState.needNorewrite.size > 0) {
+      return
     }
 
     logInfo('Preparing to process current script')

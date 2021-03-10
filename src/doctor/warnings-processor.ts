@@ -34,10 +34,29 @@ export function stringifyWarning(
 export class WarningsProcessor {
   constructor(private readonly _projectBasedir: string) {}
 
-  public process(warnings: Warning[]): ProcessedWarning[] {
-    return warnings
-      .map(this._processWarning)
-      .filter((x) => x != null) as ProcessedWarning[]
+  public process({
+    warnings,
+    deferred,
+    norewrite,
+  }: {
+    warnings: Warning[]
+    deferred: Set<string>
+    norewrite: Set<string>
+  }): ProcessedWarning[] {
+    return warnings.map(this._processWarning).filter((x): boolean => {
+      if (x == null) return false
+      switch (x.consequence) {
+        case WarningConsequence.Defer: {
+          if (deferred.has(x.location.file)) return false
+          break
+        }
+        case WarningConsequence.NoRewrite: {
+          if (norewrite.has(x.location.file)) return false
+          break
+        }
+      }
+      return true
+    }) as ProcessedWarning[]
   }
 
   private _processWarning = (warning: Warning): ProcessedWarning | null => {
