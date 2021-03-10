@@ -36,6 +36,7 @@ type GenerationOpts = {
   previousHealthy?: string[]
   previousDeferred?: string[]
   previousNoRewrite?: string[]
+  forceNoRewrite?: string[]
   mksnapshotBin?: string
   auxiliaryData?: Record<string, any>
   maxWorkers?: number
@@ -73,6 +74,7 @@ export class SnapshotGenerator {
   private readonly previousDeferred: Set<string>
   private readonly previousHealthy: Set<string>
   private readonly previousNoRewrite: Set<string>
+  private readonly forceNoRewrite: Set<string>
   private readonly _snapshotVerifier: SnapshotVerifier
   private readonly _flags: GeneratorFlags
   readonly snapshotBinFilename: string
@@ -96,6 +98,7 @@ export class SnapshotGenerator {
       previousDeferred,
       previousHealthy,
       previousNoRewrite,
+      forceNoRewrite,
       flags: mode,
     }: GenerationOpts = Object.assign(
       getDefaultGenerationOpts(projectBaseDir),
@@ -118,6 +121,7 @@ export class SnapshotGenerator {
     this.previousDeferred = new Set(previousDeferred)
     this.previousHealthy = new Set(previousHealthy)
     this.previousNoRewrite = new Set(previousNoRewrite)
+    this.forceNoRewrite = new Set(forceNoRewrite)
     this.maxWorkers = maxWorkers
     this._flags = new GeneratorFlags(mode)
 
@@ -170,6 +174,7 @@ export class SnapshotGenerator {
           previousDeferred: this.previousDeferred,
           previousHealthy: this.previousHealthy,
           previousNoRewrite: this.previousNoRewrite,
+          forceNoRewrite: this.forceNoRewrite,
           useHashBasedCache: this._flags.has(Flag.ReuseDoctorArtifacts),
         }
       ))
@@ -248,6 +253,7 @@ export class SnapshotGenerator {
           previousHealthy: this.previousHealthy,
           previousDeferred: this.previousDeferred,
           previousNoRewrite: this.previousNoRewrite,
+          forceNoRewrite: this.forceNoRewrite,
           useHashBasedCache: this._flags.has(Flag.ReuseDoctorArtifacts),
         }
       ))

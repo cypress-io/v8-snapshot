@@ -30,6 +30,7 @@ export type SnapshotDoctorOpts = Omit<CreateSnapshotScriptOpts, 'deferred'> & {
   previousDeferred: Set<string>
   previousHealthy: Set<string>
   previousNoRewrite: Set<string>
+  forceNoRewrite: Set<string>
 }
 
 class HealState {
@@ -131,6 +132,7 @@ export class SnapshotDoctor {
   private readonly previousDeferred: Set<string>
   private readonly previousHealthy: Set<string>
   private readonly previousNoRewrite: Set<string>
+  private readonly forceNoRewrite: Set<string>
   private readonly _scriptProcessor: AsyncScriptProcessor | SyncScriptProcessor
   private readonly _warningsProcessor: WarningsProcessor
 
@@ -147,6 +149,7 @@ export class SnapshotDoctor {
     this.previousDeferred = unpathify(opts.previousDeferred)
     this.previousHealthy = unpathify(opts.previousHealthy)
     this.previousNoRewrite = unpathify(opts.previousNoRewrite)
+    this.forceNoRewrite = unpathify(opts.forceNoRewrite)
   }
 
   async heal() {
@@ -160,7 +163,7 @@ export class SnapshotDoctor {
       meta,
       this.previousHealthy,
       this.previousDeferred,
-      this.previousNoRewrite
+      new Set([...this.previousNoRewrite, ...this.forceNoRewrite])
     )
 
     await this._processCurrentScript(bundle, warnings, healState, circulars)

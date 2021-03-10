@@ -18,6 +18,7 @@ export async function determineDeferred(
     previousDeferred: Set<string>
     previousHealthy: Set<string>
     previousNoRewrite: Set<string>
+    forceNoRewrite: Set<string>
     useHashBasedCache: boolean
   }
 ) {
@@ -38,7 +39,17 @@ export async function determineDeferred(
       norewrite,
       healthy,
     } = await validateExistingDeferred(jsonPath, hashFilePath)
-    if (match) return { norewrite, deferred, healthy }
+    if (match) {
+      const combined: Set<string> = new Set([
+        ...norewrite,
+        ...opts.forceNoRewrite,
+      ])
+      return {
+        norewrite: Array.from(combined),
+        deferred,
+        healthy,
+      }
+    }
     hash = currentHash
   }
 
@@ -55,6 +66,7 @@ export async function determineDeferred(
     previousDeferred: opts.previousDeferred,
     previousHealthy: opts.previousHealthy,
     previousNoRewrite: opts.previousNoRewrite,
+    forceNoRewrite: opts.forceNoRewrite,
   })
 
   const {
