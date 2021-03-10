@@ -167,9 +167,11 @@ export class SnapshotDoctor {
     while (healState.needDefer.size > 0 || healState.needNorewrite.size > 0) {
       for (const x of healState.needDefer) {
         healState.deferred.add(x)
+        healState.healthy.delete(x)
       }
       for (const x of healState.needNorewrite) {
         healState.norewrite.add(x)
+        healState.healthy.delete(x)
       }
 
       const { warnings, bundle } = await this._createScript(

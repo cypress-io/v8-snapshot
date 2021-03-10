@@ -2,6 +2,7 @@ import type { CreateBundleResult } from 'packherd'
 import path from 'path'
 
 export const SNAPSHOT_REWRITE_FAILURE = '[SNAPSHOT_REWRITE_FAILURE]'
+export const SNAPSHOT_CACHE_FAILURE = '[SNAPSHOT_CACHE_FAILURE]'
 export const UNKNOWN = 'UNKNOWN'
 
 export enum WarningConsequence {
@@ -12,7 +13,6 @@ export enum WarningConsequence {
 
 export type Warning = CreateBundleResult['warnings'][number]
 export type ProcessedWarning = {
-  type: typeof SNAPSHOT_REWRITE_FAILURE | typeof UNKNOWN
   location: Warning['location'] & { fullPath: string }
   consequence: WarningConsequence
   text: Warning['text']
@@ -66,20 +66,17 @@ export class WarningsProcessor {
     const location = Object.assign({}, warning.location, { fullPath })
     const text = warning.text
 
-    if (warning.text.includes(SNAPSHOT_REWRITE_FAILURE)) {
-      return {
-        type: SNAPSHOT_REWRITE_FAILURE,
-        location,
-        text,
-        consequence: WarningConsequence.NoRewrite,
-      }
-    }
-    // We don't know what this warning means, just pass it along with no consequence
+    // prettier-ignore
+    const consequence = 
+        warning.text.includes(SNAPSHOT_REWRITE_FAILURE) ? WarningConsequence.NoRewrite
+      : warning.text.includes(SNAPSHOT_CACHE_FAILURE)   ? WarningConsequence.Defer
+        // We don't know what this warning means, just pass it along with no consequence
+      : WarningConsequence.None
+
     return {
-      type: UNKNOWN,
       location,
       text,
-      consequence: WarningConsequence.None,
+      consequence,
     }
   }
 }
