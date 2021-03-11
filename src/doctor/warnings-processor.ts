@@ -3,7 +3,14 @@ import path from 'path'
 
 export const SNAPSHOT_REWRITE_FAILURE = '[SNAPSHOT_REWRITE_FAILURE]'
 export const SNAPSHOT_CACHE_FAILURE = '[SNAPSHOT_CACHE_FAILURE]'
+export const TYPE_ERROR = 'TypeError:'
+export const REFERENCE_ERROR = 'ReferenceError:'
 export const UNKNOWN = 'UNKNOWN'
+
+export type WarningsProcessHistory = {
+  deferred: Set<string>
+  norewrite: Set<string>
+}
 
 export enum WarningConsequence {
   Defer,
@@ -37,38 +44,21 @@ export class WarningsProcessor {
     private readonly _warningsWithoutConsequenceReported: Set<string> = new Set()
   ) {}
 
-  public process({
-    warnings,
-    deferred,
-    norewrite,
-  }: {
-    warnings: Warning[]
-    deferred: Set<string>
-    norewrite: Set<string>
-  }): ProcessedWarning[] {
-    return warnings.map(this._processWarning).filter((x): boolean => {
-      if (x == null) return false
-      switch (x.consequence) {
-        case WarningConsequence.Defer: {
-          if (deferred.has(x.location.file)) return false
-          break
-        }
-        case WarningConsequence.NoRewrite: {
-          if (norewrite.has(x.location.file)) return false
-          break
-        }
-        case WarningConsequence.None: {
-          if (this._warningsWithoutConsequenceReported.has(x.location.file))
-            return false
-          this._warningsWithoutConsequenceReported.add(x.location.file)
-          break
-        }
-      }
-      return true
-    }) as ProcessedWarning[]
+  public process(
+    warnings: Warning[],
+    hist: WarningsProcessHistory
+  ): ProcessedWarning[] {
+    return warnings
+      .map((x) => this._processWarning(x, hist))
+      .filter(
+        (x: ProcessedWarning | null): boolean => x != null
+      ) as ProcessedWarning[]
   }
 
-  private _processWarning = (warning: Warning): ProcessedWarning | null => {
+  private _processWarning(
+    warning: Omit<Warning, 'detail'>,
+    hist: WarningsProcessHistory
+  ): ProcessedWarning | null {
     // We cannot do anything useful if we don't know what file the warning pertains to
     if (warning.location == null) return null
     const fullPath = path.resolve(this._projectBasedir, warning.location.file)
@@ -77,15 +67,58 @@ export class WarningsProcessor {
 
     // prettier-ignore
     const consequence = 
-        warning.text.includes(SNAPSHOT_REWRITE_FAILURE) ? WarningConsequence.NoRewrite
-      : warning.text.includes(SNAPSHOT_CACHE_FAILURE)   ? WarningConsequence.Defer
-        // We don't know what this warning means, just pass it along with no consequence
+           text.includes(SNAPSHOT_REWRITE_FAILURE) 
+        || text.includes(TYPE_ERROR)                ? WarningConsequence.NoRewrite
+      :    text.includes(SNAPSHOT_CACHE_FAILURE)      
+        || text.includes(REFERENCE_ERROR)           ? WarningConsequence.Defer
       : WarningConsequence.None
 
-    return {
-      location,
-      text,
-      consequence,
+    // We don't know what this warning means, just pass it along with no consequence
+    return this._nullIfAlreadyProcessed(
+      {
+        location,
+        text,
+        consequence,
+      },
+      hist
+    )
+  }
+
+  private _nullIfAlreadyProcessed(
+    x: ProcessedWarning,
+    { deferred, norewrite }: WarningsProcessHistory
+  ) {
+    if (x == null) return null
+    switch (x.consequence) {
+      case WarningConsequence.Defer: {
+        if (deferred.has(x.location.file)) return null
+        return x
+      }
+      case WarningConsequence.NoRewrite: {
+        if (norewrite.has(x.location.file)) return null
+        return x
+      }
+      case WarningConsequence.None: {
+        if (this._warningsWithoutConsequenceReported.has(x.location.file))
+          return null
+        this._warningsWithoutConsequenceReported.add(x.location.file)
+        return x
+      }
     }
+  }
+
+  warningFromError(err: Error, file: string, hist: WarningsProcessHistory) {
+    let location: Warning['location'] = {
+      file,
+      namespace: 'file:',
+      line: 1,
+      column: 0,
+      length: 0,
+      lineText: '<unknown>',
+    }
+    let text = err.toString()
+
+    let warning: Omit<Warning, 'detail'> = { location, text }
+    return this._processWarning(warning, hist)
   }
 }

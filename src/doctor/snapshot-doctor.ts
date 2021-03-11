@@ -421,8 +421,7 @@ export class SnapshotDoctor {
     healState: HealState,
     circulars: Map<string, Set<string>>
   ) {
-    const processedWarnings = this._warningsProcessor.process({
-      warnings,
+    const processedWarnings = this._warningsProcessor.process(warnings, {
       deferred: healState.deferred,
       norewrite: healState.norewrite,
     })
@@ -466,37 +465,62 @@ export class SnapshotDoctor {
           nextStage = this._findNextStage(healState, circulars)
         }
       }
-      const promises = nextStage.map(async (key) => {
-        logDebug('Testing entry in isolation "%s"', key)
-        const result = await this._scriptProcessor.processScript({
-          bundle,
-          bundlePath,
-          bundleHash,
-          baseDirPath: this.baseDirPath,
-          entryFilePath: this.entryFilePath,
-          entryPoint: `./${key}`,
-        })
+      const promises = nextStage.map(
+        async (key): Promise<void> => {
+          logDebug('Testing entry in isolation "%s"', key)
+          const result = await this._scriptProcessor.processScript({
+            bundle,
+            bundlePath,
+            bundleHash,
+            baseDirPath: this.baseDirPath,
+            entryFilePath: this.entryFilePath,
+            entryPoint: `./${key}`,
+          })
 
-        assert(result != null, 'expected result from script processor')
+          assert(result != null, 'expected result from script processor')
 
-        switch (result.outcome) {
-          case 'completed':
-            healState.healthy.add(key)
-            logDebug('Verified as healthy "%s"', key)
-            break
-          case 'failed:assembleScript':
-          case 'failed:verifyScript':
-            logError('%s script with entry "%s"', result.outcome, key)
-            logError(result.error!.toString())
-            logInfo(
-              '"%s" cannot be loaded for current setup (%d deferred)',
-              key,
-              healState.deferred.size
-            )
-            healState.needDefer.add(key)
-            break
+          switch (result.outcome) {
+            case 'completed': {
+              healState.healthy.add(key)
+              logDebug('Verified as healthy "%s"', key)
+              break
+            }
+            case 'failed:assembleScript':
+            case 'failed:verifyScript': {
+              logError('%s script with entry "%s"', result.outcome, key)
+              logError(result.error!.toString())
+
+              const warning = this._warningsProcessor.warningFromError(
+                result.error!,
+                key,
+                healState
+              )
+              if (warning != null) {
+                switch (warning.consequence) {
+                  case WarningConsequence.Defer: {
+                    logInfo('Deferring "%s"', key)
+                    healState.needDefer.add(key)
+                    break
+                  }
+                  case WarningConsequence.NoRewrite: {
+                    logInfo(
+                      'Not rewriting "%s" as it results in incorrect code',
+                      key
+                    )
+                    healState.needNorewrite.add(key)
+                    break
+                  }
+                  case WarningConsequence.None: {
+                    console.error(result.error)
+                    assert.fail('I do not know what to do with this error')
+                  }
+                }
+              }
+              break
+            }
+          }
         }
-      })
+      )
       await Promise.all(promises)
     }
   }
