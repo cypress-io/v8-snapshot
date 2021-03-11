@@ -113,7 +113,11 @@ function pathifyAndSort(keys: Set<string>) {
 function unpathify(keys: Set<string>) {
   const unpathified: Set<string> = new Set()
   for (const x of keys) {
-    unpathified.add(x.slice(2))
+    if (!x.startsWith('./')) {
+      unpathified.add(x)
+    } else {
+      unpathified.add(x.slice(2))
+    }
   }
   return unpathified
 }
