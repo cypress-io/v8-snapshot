@@ -430,12 +430,12 @@ export class SnapshotDoctor {
       const s = stringifyWarning(this.baseDirPath, warning)
       switch (warning.consequence) {
         case WarningConsequence.Defer:
-          logDebug('Encountered warning triggering defer: %s', s)
+          logError('Encountered warning triggering defer: %s', s)
           // TODO(thlorenz): verify that this is a relative path vs. just the file name
           healState.needDefer.add(warning.location.file)
           break
         case WarningConsequence.NoRewrite:
-          logDebug('Encountered warning triggering no-rewrite: %s', s)
+          logError('Encountered warning triggering no-rewrite: %s', s)
           healState.needNorewrite.add(warning.location.file)
           break
         case WarningConsequence.None:
@@ -486,8 +486,8 @@ export class SnapshotDoctor {
             break
           case 'failed:assembleScript':
           case 'failed:verifyScript':
-            logDebug('%s script with entry "%s"', result.outcome, key)
-            logDebug(result.error!.toString())
+            logError('%s script with entry "%s"', result.outcome, key)
+            logError(result.error!.toString())
             logInfo(
               '"%s" cannot be loaded for current setup (%d deferred)',
               key,

@@ -9,15 +9,15 @@
 
 function cannotAccess(proto, prop) {
   return function () {
-    throw `Cannot access ${proto}.${prop} during snapshot creation`
+    throw `[SNAPSHOT_CACHE_FAILURE] Cannot access ${proto}.${prop} during snapshot creation`
   }
 }
 function cannotDefine(proto, prop) {
-  throw `Cannot define ${proto}.${prop} during snapshot creation`
+  throw `[SNAPSHOT_CACHE_FAILURE] Cannot define ${proto}.${prop} during snapshot creation`
 }
 
 function cannotDelete(proto, prop) {
-  throw `Cannot delete ${proto}.${prop} during snapshot creation`
+  throw `[SNAPSHOT_CACHE_FAILURE] Cannot delete ${proto}.${prop} during snapshot creation`
 }
 
 function getsetPrevent(proto, prop) {

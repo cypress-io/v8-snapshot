@@ -758,11 +758,13 @@ function makeGlobalPlaceholder(globalFunctionName) {
   return function () {
     if (globalFunctionTrampoline === null) {
       throw new Error(
-        `Attempt to call ${globalFunctionName} during snapshot generation or before snapshotResult.setGlobals()`
+        `[SNAPSHOT_CACHE_FAILURE] Attempt to call ${globalFunctionName} during snapshot generation ` +
+          `or before snapshotResult.setGlobals()`
       )
     } else if (globalFunctionTrampoline[globalFunctionName] === undefined) {
       throw new ReferenceError(
-        `Global method ${globalFunctionName} was still not defined after the snapshot was loaded`
+        `[SNAPSHOT_CACHE_FAILURE] Global method ${globalFunctionName} was still not ` +
+          `defined after the snapshot was loaded`
       )
     } else if (new.target === undefined) {
       // Not called as a constructor
@@ -821,7 +823,9 @@ function get_window() {
 let console = {}
 
 function consoleNoop() {
-  throw new Error('Cannot use `console` functions in the snapshot.')
+  throw new Error(
+    '[SNAPSHOT_CACHE_FAILURE] Cannot use `console` functions in the snapshot.'
+  )
 }
 
 Object.defineProperties(console, {

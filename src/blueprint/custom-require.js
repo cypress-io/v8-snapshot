@@ -3,8 +3,7 @@
 //
 let require = (moduleName) => {
   throw new Error(
-    `Cannot require module "${moduleName}".\n` +
-      "To use Node's require you need to call `snapshotResult.setGlobals` first!"
+    `[SNAPSHOT_CACHE_FAILURE] Cannot require module "${moduleName}"`
   )
 }
 

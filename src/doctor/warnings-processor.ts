@@ -32,7 +32,10 @@ export function stringifyWarning(
 }
 
 export class WarningsProcessor {
-  constructor(private readonly _projectBasedir: string) {}
+  constructor(
+    private readonly _projectBasedir: string,
+    private readonly _warningsWithoutConsequenceReported: Set<string> = new Set()
+  ) {}
 
   public process({
     warnings,
@@ -52,6 +55,12 @@ export class WarningsProcessor {
         }
         case WarningConsequence.NoRewrite: {
           if (norewrite.has(x.location.file)) return false
+          break
+        }
+        case WarningConsequence.None: {
+          if (this._warningsWithoutConsequenceReported.has(x.location.file))
+            return false
+          this._warningsWithoutConsequenceReported.add(x.location.file)
           break
         }
       }
