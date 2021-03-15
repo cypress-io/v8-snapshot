@@ -40,6 +40,17 @@ export async function tryReadFile(p: string) {
   return fs.promises.readFile(p, 'utf8')
 }
 
+export async function tryRemoveFile(p: string) {
+  if (!(await canAccess(p))) {
+    return new Error(`Cannot access ${p} in order to delete it`)
+  }
+  try {
+    await fs.promises.unlink(p)
+  } catch (err) {
+    return err
+  }
+}
+
 export async function matchFileHash(p: string, hash: string) {
   const contents = await tryReadFile(p)
   if (contents == null) throw new Error(`Cannot obtain hash for '${p}`)

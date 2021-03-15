@@ -11,7 +11,12 @@ import {
 import { AsyncScriptProcessor } from './process-script.async'
 import { SyncScriptProcessor } from './process-script.sync'
 import { Entries, Metadata } from '../types'
-import { bundleFileNameFromHash, createHash, ensureDirSync } from '../utils'
+import {
+  bundleFileNameFromHash,
+  createHash,
+  ensureDirSync,
+  tryRemoveFile,
+} from '../utils'
 import {
   stringifyWarning,
   Warning,
@@ -100,7 +105,11 @@ function sortDeferredByLeafness(
 function pathify(keys: Iterable<string>) {
   const xs = []
   for (const x of keys) {
-    xs.push(`./${x}`)
+    if (x.startsWith('.') || x.startsWith(path.sep)) {
+      xs.push(x)
+    } else {
+      xs.push(`./${x}`)
+    }
   }
   return xs
 }
@@ -452,76 +461,84 @@ export class SnapshotDoctor {
     const { bundleHash, bundlePath } = await this._writeBundle(bundle)
     logDebug('Stored bundle file (%s)', bundleHash)
     logTrace(bundlePath)
-    for (
-      let nextStage = this._findNextStage(healState, circulars);
-      nextStage.length > 0;
-      nextStage = this._findNextStage(healState, circulars)
-    ) {
-      if (!healState.processedLeaves) {
-        healState.processedLeaves = true
-        // In case all leaves were determined to be healthy before we can move on to therefore
-        // next step
-        if (nextStage.length < 0) {
-          nextStage = this._findNextStage(healState, circulars)
-        }
-      }
-      const promises = nextStage.map(
-        async (key): Promise<void> => {
-          logDebug('Testing entry in isolation "%s"', key)
-          const result = await this._scriptProcessor.processScript({
-            bundle,
-            bundlePath,
-            bundleHash,
-            baseDirPath: this.baseDirPath,
-            entryFilePath: this.entryFilePath,
-            entryPoint: `./${key}`,
-          })
-
-          assert(result != null, 'expected result from script processor')
-
-          switch (result.outcome) {
-            case 'completed': {
-              healState.healthy.add(key)
-              logDebug('Verified as healthy "%s"', key)
-              break
-            }
-            case 'failed:assembleScript':
-            case 'failed:verifyScript': {
-              logError('%s script with entry "%s"', result.outcome, key)
-              logError(result.error!.toString())
-
-              const warning = this._warningsProcessor.warningFromError(
-                result.error!,
-                key,
-                healState
-              )
-              if (warning != null) {
-                switch (warning.consequence) {
-                  case WarningConsequence.Defer: {
-                    logInfo('Deferring "%s"', key)
-                    healState.needDefer.add(key)
-                    break
-                  }
-                  case WarningConsequence.NoRewrite: {
-                    logInfo(
-                      'Not rewriting "%s" as it results in incorrect code',
-                      key
-                    )
-                    healState.needNorewrite.add(key)
-                    break
-                  }
-                  case WarningConsequence.None: {
-                    console.error(result.error)
-                    assert.fail('I do not know what to do with this error')
-                  }
-                }
-              }
-              break
-            }
+    /* START using (bundlePath) */ {
+      for (
+        let nextStage = this._findNextStage(healState, circulars);
+        nextStage.length > 0;
+        nextStage = this._findNextStage(healState, circulars)
+      ) {
+        if (!healState.processedLeaves) {
+          healState.processedLeaves = true
+          // In case all leaves were determined to be healthy before we can move on to therefore
+          // next step
+          if (nextStage.length < 0) {
+            nextStage = this._findNextStage(healState, circulars)
           }
         }
-      )
-      await Promise.all(promises)
+        const promises = nextStage.map(
+          async (key): Promise<void> => {
+            logDebug('Testing entry in isolation "%s"', key)
+            const result = await this._scriptProcessor.processScript({
+              bundle,
+              bundlePath,
+              bundleHash,
+              baseDirPath: this.baseDirPath,
+              entryFilePath: this.entryFilePath,
+              entryPoint: `./${key}`,
+            })
+
+            assert(result != null, 'expected result from script processor')
+
+            switch (result.outcome) {
+              case 'completed': {
+                healState.healthy.add(key)
+                logDebug('Verified as healthy "%s"', key)
+                break
+              }
+              case 'failed:assembleScript':
+              case 'failed:verifyScript': {
+                logError('%s script with entry "%s"', result.outcome, key)
+                logError(result.error!.toString())
+
+                const warning = this._warningsProcessor.warningFromError(
+                  result.error!,
+                  key,
+                  healState
+                )
+                if (warning != null) {
+                  switch (warning.consequence) {
+                    case WarningConsequence.Defer: {
+                      logInfo('Deferring "%s"', key)
+                      healState.needDefer.add(key)
+                      break
+                    }
+                    case WarningConsequence.NoRewrite: {
+                      logInfo(
+                        'Not rewriting "%s" as it results in incorrect code',
+                        key
+                      )
+                      healState.needNorewrite.add(key)
+                      break
+                    }
+                    case WarningConsequence.None: {
+                      console.error(result.error)
+                      assert.fail('I do not know what to do with this error')
+                    }
+                  }
+                }
+                break
+              }
+            }
+          }
+        )
+        await Promise.all(promises)
+      }
+    } /* END using (bundlePath) */
+    logDebug('Removing bundle file (%s)', bundleHash)
+    logTrace(bundlePath)
+    const err = tryRemoveFile(bundlePath)
+    if (err != null) {
+      logError('Failed to remove bundle file', err)
     }
   }
 
