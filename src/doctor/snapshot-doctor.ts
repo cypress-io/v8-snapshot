@@ -439,7 +439,6 @@ export class SnapshotDoctor {
       switch (warning.consequence) {
         case WarningConsequence.Defer:
           logError('Encountered warning triggering defer: %s', s)
-          // TODO(thlorenz): verify that this is a relative path vs. just the file name
           healState.needDefer.add(warning.location.file)
           break
         case WarningConsequence.NoRewrite:

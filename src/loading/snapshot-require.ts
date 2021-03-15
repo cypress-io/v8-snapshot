@@ -10,14 +10,13 @@ const logDebug = debug('snapshot:debug')
 const logTrace = debug('snapshot:trace')
 
 const getModuleKey: GetModuleKey = (moduleUri, relPath) => {
-  // TODO(thlorenz): this works for cases for which the root of the app
+  // NOTE(thlorenz): this works for cases for which the root of the app
   // is up to one level below node_modules.
-  // We need to investigate other cases.
-
   if (/^[a-zA-Z]/.test(relPath)) {
     // Change things like `node_modules/...` to `./node_modules/...`
     relPath = `./${relPath}`
   }
+  // WINDOWS: won't work if windows paths are back slashes
   const key = relPath.replace(/^\.\.\//, './')
   logTrace('key "%s" for [ %s | %s ]', key, relPath, moduleUri)
   return key
@@ -102,7 +101,6 @@ export function snapshotRequire(
         checked_window,
         checked_document,
         console,
-        // TODO: was global.require which was `undefined`, how will this work for relative `require` calls?
         require
       )
     }
