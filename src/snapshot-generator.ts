@@ -41,6 +41,7 @@ type GenerationOpts = {
   auxiliaryData?: Record<string, any>
   maxWorkers?: number
   flags: Flag
+  nodeEnv: string
 }
 
 function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
@@ -54,6 +55,7 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
     previousDeferred: [],
     previousHealthy: [],
     flags: Flag.Script | Flag.MakeSnapshot | Flag.ReuseDoctorArtifacts,
+    nodeEnv: 'development',
   }
 }
 
@@ -75,6 +77,7 @@ export class SnapshotGenerator {
   private readonly previousHealthy: Set<string>
   private readonly previousNoRewrite: Set<string>
   private readonly forceNoRewrite: Set<string>
+  private readonly nodeEnv: string
   private readonly _snapshotVerifier: SnapshotVerifier
   private readonly _flags: GeneratorFlags
   readonly snapshotBinFilename: string
@@ -100,6 +103,7 @@ export class SnapshotGenerator {
       previousNoRewrite,
       forceNoRewrite,
       flags: mode,
+      nodeEnv,
     }: GenerationOpts = Object.assign(
       getDefaultGenerationOpts(projectBaseDir),
       opts
@@ -123,6 +127,7 @@ export class SnapshotGenerator {
     this.previousNoRewrite = new Set(previousNoRewrite)
     this.forceNoRewrite = new Set(forceNoRewrite)
     this.maxWorkers = maxWorkers
+    this.nodeEnv = nodeEnv
     this._flags = new GeneratorFlags(mode)
 
     if (this._flags.has(Flag.MakeSnapshot)) {
@@ -176,6 +181,7 @@ export class SnapshotGenerator {
           previousNoRewrite: this.previousNoRewrite,
           forceNoRewrite: this.forceNoRewrite,
           useHashBasedCache: this._flags.has(Flag.ReuseDoctorArtifacts),
+          nodeEnv: this.nodeEnv,
         }
       ))
     } catch (err) {
@@ -194,6 +200,7 @@ export class SnapshotGenerator {
         norewrite,
         auxiliaryData: this.auxiliaryData,
         nodeModulesOnly: this.nodeModulesOnly,
+        nodeEnv: this.nodeEnv,
       })
     } catch (err) {
       logError('Failed creating script')
@@ -255,6 +262,7 @@ export class SnapshotGenerator {
           previousNoRewrite: this.previousNoRewrite,
           forceNoRewrite: this.forceNoRewrite,
           useHashBasedCache: this._flags.has(Flag.ReuseDoctorArtifacts),
+          nodeEnv: this.nodeEnv,
         }
       ))
     } catch (err) {
@@ -275,6 +283,7 @@ export class SnapshotGenerator {
         norewrite,
         nodeModulesOnly: this.nodeModulesOnly,
         auxiliaryData: this.auxiliaryData,
+        nodeEnv: this.nodeEnv,
       })
     } catch (err) {
       logError('Failed creating script')

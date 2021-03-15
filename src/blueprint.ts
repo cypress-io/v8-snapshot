@@ -18,6 +18,7 @@ export type BlueprintConfig = {
   auxiliaryData: string
   customRequireDefinitions: string
   includeStrictVerifiers: boolean
+  nodeEnv: string
 }
 export function scriptFromBlueprint(config: BlueprintConfig) {
   const {
@@ -27,9 +28,9 @@ export function scriptFromBlueprint(config: BlueprintConfig) {
     auxiliaryData,
     customRequireDefinitions,
     includeStrictVerifiers,
+    nodeEnv,
   } = config
 
-  // TODO: NODE_ENV needs to be configurable
   return `
 var snapshotAuxiliaryData = ${auxiliaryData}
 
@@ -60,7 +61,7 @@ function generateSnapshot() {
     },
     env: {
       value: {
-        NODE_ENV: 'production',
+        NODE_ENV: '${nodeEnv}',
       },
       enumerable: false,
     },

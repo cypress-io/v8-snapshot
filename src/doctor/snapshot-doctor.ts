@@ -146,6 +146,7 @@ export class SnapshotDoctor {
   private readonly previousHealthy: Set<string>
   private readonly previousNoRewrite: Set<string>
   private readonly forceNoRewrite: Set<string>
+  private readonly nodeEnv: string
   private readonly _scriptProcessor: AsyncScriptProcessor | SyncScriptProcessor
   private readonly _warningsProcessor: WarningsProcessor
 
@@ -163,6 +164,7 @@ export class SnapshotDoctor {
     this.previousHealthy = unpathify(opts.previousHealthy)
     this.previousNoRewrite = unpathify(opts.previousNoRewrite)
     this.forceNoRewrite = unpathify(opts.forceNoRewrite)
+    this.nodeEnv = opts.nodeEnv
   }
 
   async heal() {
@@ -396,6 +398,7 @@ export class SnapshotDoctor {
       deferred,
       norewrite,
       includeStrictVerifiers: true,
+      nodeEnv: this.nodeEnv,
     }
     const result = await this._scriptProcessor.createAndProcessScript(
       opts,
@@ -484,6 +487,7 @@ export class SnapshotDoctor {
               baseDirPath: this.baseDirPath,
               entryFilePath: this.entryFilePath,
               entryPoint: `./${key}`,
+              nodeEnv: this.nodeEnv,
             })
 
             assert(result != null, 'expected result from script processor')

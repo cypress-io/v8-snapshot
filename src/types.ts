@@ -24,6 +24,8 @@ export type ProcessScriptOpts = {
   baseDirPath: string
   entryFilePath: string
   entryPoint: string
+
+  nodeEnv: string
 }
 
 export type ProcessScriptResult = {

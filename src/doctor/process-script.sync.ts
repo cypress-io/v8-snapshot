@@ -37,6 +37,7 @@ export class SyncScriptProcessor {
         deferred,
         norewrite,
         nodeModulesOnly,
+        nodeEnv,
       } = opts
       let processOpts: ProcessScriptOpts | undefined
       try {
@@ -53,6 +54,7 @@ export class SyncScriptProcessor {
           baseDirPath,
           entryFilePath,
           entryPoint,
+          nodeEnv,
         }
       } catch (err) {
         return resolve({ outcome: 'failed:bundleScript', error: err })
@@ -65,7 +67,7 @@ export class SyncScriptProcessor {
   processScript(opts: ProcessScriptOpts): Promise<ProcessScriptResult> {
     assert(!this._isDisposed, 'should not processScript when disposed')
 
-    const { bundle, baseDirPath, entryFilePath, entryPoint } = opts
+    const { bundle, baseDirPath, entryFilePath, entryPoint, nodeEnv } = opts
     assert(bundle != null, 'sync processing requires bundle content')
     return new Promise((resolve) => {
       let snapshotScript
@@ -73,6 +75,7 @@ export class SyncScriptProcessor {
         snapshotScript = assembleScript(bundle, baseDirPath, entryFilePath, {
           entryPoint,
           includeStrictVerifiers: true,
+          nodeEnv,
         })
       } catch (err) {
         return resolve({ outcome: 'failed:assembleScript', error: err })

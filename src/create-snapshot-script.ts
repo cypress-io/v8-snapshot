@@ -26,6 +26,7 @@ export type CreateBundleOpts = {
 export type CreateSnapshotScriptOpts = CreateBundleOpts & {
   auxiliaryData?: Record<string, any>
   includeStrictVerifiers?: boolean
+  nodeEnv: string
 }
 
 export type CreateSnapshotScript = (
@@ -76,7 +77,8 @@ export function assembleScript(
     auxiliaryData?: Record<string, any>
     entryPoint?: string
     includeStrictVerifiers?: boolean
-  } = {}
+    nodeEnv: string
+  }
 ) {
   const includeStrictVerifiers = opts.includeStrictVerifiers ?? false
   const auxiliaryDataString = JSON.stringify(opts.auxiliaryData || {})
@@ -99,6 +101,7 @@ export function assembleScript(
     auxiliaryData: auxiliaryDataString,
     customRequireDefinitions: defs.code,
     includeStrictVerifiers,
+    nodeEnv: opts.nodeEnv,
   }
   return scriptFromBlueprint(config)
 }
@@ -137,6 +140,7 @@ export async function createSnapshotScript(
   const script = assembleScript(bundle, opts.baseDirPath, opts.entryFilePath, {
     auxiliaryData: opts.auxiliaryData,
     includeStrictVerifiers: opts.includeStrictVerifiers,
+    nodeEnv: opts.nodeEnv,
   })
 
   return { snapshotScript: script, meta, bundle }

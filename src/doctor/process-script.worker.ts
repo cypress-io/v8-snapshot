@@ -62,6 +62,7 @@ export async function createAndProcessScript(
     bundlerPath,
     deferred,
     nodeModulesOnly,
+    nodeEnv,
   } = opts
   let processOpts: ProcessScriptOpts | undefined
   try {
@@ -77,6 +78,7 @@ export async function createAndProcessScript(
       baseDirPath,
       entryFilePath,
       entryPoint,
+      nodeEnv,
     }
   } catch (err) {
     return { outcome: 'failed:bundleScript', error: err }
@@ -92,6 +94,7 @@ export function processScript({
   baseDirPath,
   entryFilePath,
   entryPoint,
+  nodeEnv,
 }: ProcessScriptOpts): ProcessScriptResult {
   const bundleContent = getBundle(bundle, bundlePath, bundleHash)
   let snapshotScript
@@ -99,6 +102,7 @@ export function processScript({
     snapshotScript = assembleScript(bundleContent, baseDirPath, entryFilePath, {
       entryPoint,
       includeStrictVerifiers: true,
+      nodeEnv,
     })
   } catch (err) {
     return { outcome: 'failed:assembleScript', error: err }
