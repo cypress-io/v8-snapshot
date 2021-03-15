@@ -7,9 +7,6 @@ let require = (moduleName) => {
   )
 }
 
-// TODO(thlorenz): configurable
-const SNAPSHOT_PROJECT_ROOT = '/Volumes/d/dev/cy/perf-tr1/cypress-latest/'
-
 // Some modules check for `module.parent` in order to to determine if they are
 // run from CLI or are being required.
 // Providing an empty one fixes those cases. Once that isn't sufficient we'll
@@ -21,13 +18,7 @@ function customRequire(modulePath, parent = {}) {
     module = {
       exports: {},
     }
-    // TODO(thlorenz): hack for now .. won't work in some circumstances, esp. not on windows
-    // also how would this work in prod if we hard code the full path?
-    const relPath = modulePath.replace(/^\.\//, '')
-    const filename = relPath.startsWith('/')
-      ? relPath
-      : `${SNAPSHOT_PROJECT_ROOT}/${relPath}`
-    const dirname = filename.split('/').slice(0, -1).join('/')
+    const dirname = modulePath.split('/').slice(0, -1).join('/')
 
     function define(callback) {
       callback(customRequire, module.exports, module)
@@ -56,19 +47,8 @@ function customRequire(modulePath, parent = {}) {
         if (require.isStrict) {
           throw err
         } else {
-          // This happens when `require` calls were dynamic and not resolved by esbuild
-          // i.e. `require(opts.typescript)`
-          // Let's hope it's a node_module located at the root otherwise we just have to fail.
-          try {
-            // TODO(thlorenz): don't do this for core modules
-            module.exports = require(`${SNAPSHOT_PROJECT_ROOT}node_modules/${modulePath}`)
-            customRequire.cache[modulePath] = module
-          } catch (err) {
-            debugger
-            throw new Error(
-              `Failed to require ${modulePath}.\n${err.toString()}`
-            )
-          }
+          debugger
+          throw new Error(`Failed to require ${modulePath}.\n${err.toString()}`)
         }
       }
     }
@@ -84,14 +64,8 @@ customRequire.resolve = function (mod) {
   try {
     return require.resolve(mod)
   } catch (err) {
-    try {
-      // TODO(thlorenz): Technically this is incorrect as it should resolve relative to the module calling
-      // `require.resolve` which means we'd need to pass the `__dirname` of that module via esbuild
-      return require.resolve(`${SNAPSHOT_PROJECT_ROOT}/node_modules/${mod}`)
-    } catch (err) {
-      console.error('Failed to resolve', mod)
-      debugger
-    }
+    console.error('Failed to resolve', mod)
+    debugger
   }
 }
 //
