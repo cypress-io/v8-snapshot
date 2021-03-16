@@ -3,6 +3,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { createBundleAsync, CreateBundleOpts } from './create-snapshot-script'
 import { Metadata } from './types'
+import { getBundlerPath } from './utils'
 
 const snapshotUtils = require('../package.json').name
 const logInfo = debug('snapgen:info')
@@ -12,14 +13,16 @@ type PathsMapper = (s: string) => string
 const identityMapper: PathsMapper = (s: string) => s
 
 class SnapshotEntryGeneratorViaWalk {
+  readonly bundlerPath: string
   constructor(
-    readonly bundlerPath: string,
     readonly entryFile: string,
     readonly projectBaseDir: string,
     readonly fullPathToSnapshotEntry: string,
     readonly nodeModulesOnly: boolean,
     readonly pathsMapper: PathsMapper
-  ) {}
+  ) {
+    this.bundlerPath = getBundlerPath()
+  }
 
   async createSnapshotScript() {
     const meta = await this.getMetadata()
@@ -64,7 +67,6 @@ const DEFAULT_GENERATE_CONFIG: Partial<GenerateDepsDataOpts> & {
 }
 
 type GenerateDepsDataOpts = {
-  bundlerPath: string
   entryFile: string
   nodeModulesOnly?: boolean
   pathsMapper?: PathsMapper
@@ -78,7 +80,6 @@ export async function generateBundlerMetadata(
 ): Promise<BundlerMetadata> {
   const fullConf = Object.assign({}, DEFAULT_GENERATE_CONFIG, config)
   const generator = new SnapshotEntryGeneratorViaWalk(
-    fullConf.bundlerPath,
     fullConf.entryFile,
     projectBaseDir,
     fullPathToSnapshotEntry,
@@ -96,7 +97,6 @@ export async function generateSnapshotEntryFromEntryDeps(
 ) {
   const fullConf = Object.assign({}, DEFAULT_GENERATE_CONFIG, config)
   const generator = new SnapshotEntryGeneratorViaWalk(
-    fullConf.bundlerPath,
     fullConf.entryFile,
     projectBaseDir,
     fullPathToSnapshotEntry,
