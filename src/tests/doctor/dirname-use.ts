@@ -2,7 +2,8 @@ import spok from 'spok'
 import path from 'path'
 import test from 'tape'
 import { readResult } from './utils/bundle'
-import { Flag, SnapshotGenerator } from '../../../'
+import { SnapshotGenerator } from '../../snapshot-generator'
+import { Flag } from '../../snapshot-generator-flags'
 
 const projectBaseDir = path.join(__dirname, 'fixtures', 'dirname-use')
 const cacheDir = path.join(projectBaseDir, 'cache')

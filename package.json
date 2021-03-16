@@ -3,20 +3,23 @@
   "version": "0.0.0",
   "description": "Various utils related to create v8 snapshots for electron apps.",
   "main": "dist/v8-snapshot-utils.js",
-  "types": "src/v8-snapshot-utils.ts",
+  "types": "dist/v8-snapshot-utils.d.ts",
   "scripts": {
-    "build": "tsc && (rm -rf ./dist/blueprint && cp -R ./src/blueprint ./dist/blueprint)",
+    "build": "tsc -p ./tsconfig.json && (rm -rf ./dist/blueprint && cp -R ./src/blueprint ./dist/blueprint)",
     "prepublish": "rm -rf ./dist/tests",
     "pretest": "yarn build && (rm -rf ./dist/tests/doctor/fixtures && cp -R ./src/tests/doctor/fixtures ./dist/tests/doctor/fixtures)",
     "test": "tape dist/tests/**/*.js",
     "debug-test": "node --inspect-brk -r ./tests/utils/hook-require.js tests/**/*.ts",
     "lint": "prettier -c ./src/",
     "lint:fix": "prettier --format ./src",
-    "watch": "tsc --watch"
+    "watch": "tsc -p ./tsconfig.json --watch"
   },
   "directories": {
     "dist": "./dist"
   },
+  "files": [
+    "dist/*"
+  ],
   "author": {
     "name": "Thorsten Lorenz",
     "email": "thlorenz@gmx.de",
