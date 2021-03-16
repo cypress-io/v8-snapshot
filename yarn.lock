@@ -584,9 +584,10 @@ packherd@thlorenz/packherd#v0.0.0:
   resolved "https://codeload.github.com/thlorenz/packherd/tar.gz/e13c67759e7dd93847268e85295e8cdc46518121"
   dependencies:
     debug "^4.3.1"
+    depstats "^0.2.0"
     esbuild "^0.8.32"
-    tape "^5.1.1"
-    tslib "^2.1.0"
+    performance-now "^2.1.0"
+    supports-color "^8.1.1"
 
 path-exists@^4.0.0:
   version "4.0.0"
