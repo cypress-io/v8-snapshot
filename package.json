@@ -30,9 +30,6 @@
   "dependencies": {
     "ansi-colors": "^4.1.1",
     "debug": "^4.1.1",
-    "dirt-simple-file-cache": "^0.1.0",
-    "electron": "^10.1.2",
-    "electron-mksnapshot": "^10.0.0",
     "packherd": "^0.1.1",
     "snapbuild-darwin-x64": "^0.1.0",
     "supports-color": "^8.1.1",
@@ -44,6 +41,8 @@
     "@types/debug": "^4.1.5",
     "@types/node": "^12.20.4",
     "@types/tape": "^4.13.0",
+    "electron": "^10.1.2",
+    "electron-mksnapshot": "^10.0.0",
     "prettier": "^2.2.1",
     "spok": "^1.3.0",
     "tape": "^5.2.2",
