@@ -1,7 +1,7 @@
 import spok from 'spok'
 import path from 'path'
 import test from 'tape'
-import { readResult, bundlerPath } from './utils/bundle'
+import { readResult } from './utils/bundle'
 import { Flag, SnapshotGenerator } from '../../../'
 
 const projectBaseDir = path.join(__dirname, 'fixtures', 'dirname-use')
@@ -9,16 +9,11 @@ const cacheDir = path.join(projectBaseDir, 'cache')
 const snapshotEntryFile = path.join(projectBaseDir, 'entry.js')
 
 test('snapshot: entry points two modules, one using __dirname', async (t) => {
-  const generator = new SnapshotGenerator(
-    bundlerPath,
-    projectBaseDir,
-    snapshotEntryFile,
-    {
-      cacheDir,
-      nodeModulesOnly: false,
-      flags: Flag.Script,
-    }
-  )
+  const generator = new SnapshotGenerator(projectBaseDir, snapshotEntryFile, {
+    cacheDir,
+    nodeModulesOnly: false,
+    flags: Flag.Script,
+  })
   await generator.createExportBundle()
   const { meta, exported } = readResult(cacheDir)
 

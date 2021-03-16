@@ -15,6 +15,7 @@ import {
   ensureDirSync,
   fileExistsSync,
   findMksnapshot,
+  getBundlerPath,
 } from './utils'
 import { createExportScript } from './create-snapshot-bundle'
 import { Flag, GeneratorFlags } from './snapshot-generator-flags'
@@ -78,6 +79,7 @@ export class SnapshotGenerator {
   private readonly previousNoRewrite: Set<string>
   private readonly forceNoRewrite: Set<string>
   private readonly nodeEnv: string
+  private readonly bundlerPath: string
   private readonly _snapshotVerifier: SnapshotVerifier
   private readonly _flags: GeneratorFlags
   readonly snapshotBinFilename: string
@@ -85,7 +87,6 @@ export class SnapshotGenerator {
   snapshotExportScript?: string
 
   constructor(
-    readonly bundlerPath: string,
     readonly projectBaseDir: string,
     readonly snapshotEntryFile: string,
     opts: Partial<GenerationOpts> = {}
@@ -129,6 +130,7 @@ export class SnapshotGenerator {
     this.maxWorkers = maxWorkers
     this.nodeEnv = nodeEnv
     this._flags = new GeneratorFlags(mode)
+    this.bundlerPath = getBundlerPath()
 
     if (this._flags.has(Flag.MakeSnapshot)) {
       const { snapshotBin, snapshotBackup } = electronSnapshotFilenames(
