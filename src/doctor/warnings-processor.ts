@@ -56,7 +56,7 @@ export class WarningsProcessor {
   }
 
   private _processWarning(
-    warning: Omit<Warning, 'detail'>,
+    warning: Omit<Warning, 'detail' | 'notes'>,
     hist: WarningsProcessHistory
   ): ProcessedWarning | null {
     // We cannot do anything useful if we don't know what file the warning pertains to
@@ -118,7 +118,7 @@ export class WarningsProcessor {
     }
     let text = err.toString()
 
-    let warning: Omit<Warning, 'detail'> = { location, text }
+    let warning: Omit<Warning, 'detail' | 'notes'> = { location, text }
     return this._processWarning(warning, hist)
   }
 }
