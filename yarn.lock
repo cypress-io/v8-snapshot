@@ -960,6 +960,10 @@ side-channel@^1.0.3:
     get-intrinsic "^1.0.2"
     object-inspect "^1.9.0"
 
+snapbuild-darwin-x64@cypress-io/snapbuild-darwin-x64#v0.0.0-774eeb7:
+  version "0.0.0"
+  resolved "https://codeload.github.com/cypress-io/snapbuild-darwin-x64/tar.gz/ae83cfed723971232e4d1200dde0483c26050e54"
+
 source-map-support@~0.5.12:
   version "0.5.19"
   resolved "https://registry.yarnpkg.com/source-map-support/-/source-map-support-0.5.19.tgz#a98b62f86dcaf4f67399648c085291ab9e8fed61"
