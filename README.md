@@ -1,4 +1,4 @@
-# v8-snapshot-utils [![](https://github.com/thlorenz/v8-snapshot-utils/workflows/Node/badge.svg?branch=master)](https://github.com/thlorenz/v8-snapshot-utils/actions)
+# v8-snapshot [![](https://github.com/thlorenz/v8-snapshot/workflows/Node/badge.svg?branch=master)](https://github.com/thlorenz/v8-snapshot/actions)
 
 Tool to create a snapshot for Electron applications.
 

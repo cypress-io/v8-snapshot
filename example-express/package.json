@@ -1,7 +1,7 @@
 {
   "name": "react-electron-example",
   "version": "1.0.0",
-  "description": "Example app demonstrating how to use v8-snapshot-utils.",
+  "description": "Example app demonstrating how to use v8-snapshot.",
   "scripts": {
     "start-nohook": "electron app",
     "start": "DEBUG='(packherd|snapshot):*' electron -r ./app/hook-require.js app",

@@ -1,9 +1,9 @@
 {
-  "name": "v8-snapshot-utils",
+  "name": "v8-snapshot",
   "version": "0.0.0",
   "description": "Various utils related to create v8 snapshots for electron apps.",
-  "main": "dist/v8-snapshot-utils.js",
-  "types": "dist/v8-snapshot-utils.d.ts",
+  "main": "dist/v8-snapshot.js",
+  "types": "dist/v8-snapshot.d.ts",
   "scripts": {
     "build": "tsc -p ./tsconfig.json && (rm -rf ./dist/blueprint && cp -R ./src/blueprint ./dist/blueprint)",
     "prepublish": "rm -rf ./dist/tests",

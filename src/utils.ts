@@ -177,7 +177,7 @@ export function electronSnapshotPath(root: string) {
   const snapshotLocation = join(electron, location)
   return join(snapshotLocation, snapshotBin)
 }
-// at Object.__commonJS../node_modules/mute-stream/mute.js (/Volumes/d/dev/cy/perf-tr1/v8-snapshot-utils/example-multi/cache/snapshot.js:10555:43)
+// at Object.__commonJS../node_modules/mute-stream/mute.js (/Volumes/d/dev/cy/perf-tr1/v8-snapshot/example-multi/cache/snapshot.js:10555:43)
 const commonJsModuleRx = /(at Object.__commonJS\.)([^(]+)([^ :]+) *:(\d+)(.+)/
 export function prettyPrintError(err: Error, baseDirPath: string) {
   if (
