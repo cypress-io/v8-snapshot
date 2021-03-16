@@ -9,18 +9,7 @@ const projectBaseDir = path.join(__dirname, '../')
 const snapshotEntryFile = require.resolve('./snapshot.js')
 const appEntryFile = require.resolve('../app/index')
 
-if (process.env.BUNDLER == null) {
-  console.error(
-    'Need to provide path to bundler via "BUNDLER=<bundler> node install-snaphot"'
-  )
-  process.exit(1)
-}
-
-const cacheDir =
-  process.env.LINK == 1
-    ? path.resolve(__dirname, '../cache-link')
-    : path.resolve(__dirname, '../cache')
-const bundlerPath = path.resolve(process.env.BUNDLER)
+const cacheDir = path.resolve(__dirname, '../cache')
 const snapshotGenerator = new SnapshotGenerator(
   bundlerPath,
   projectBaseDir,
