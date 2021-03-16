@@ -1,6 +1,6 @@
 {
   "name": "v8-snapshot",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Various utils related to create v8 snapshots for electron apps.",
   "main": "dist/v8-snapshot.js",
   "types": "dist/v8-snapshot.d.ts",
