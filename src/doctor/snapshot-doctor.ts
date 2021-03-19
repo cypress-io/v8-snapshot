@@ -539,7 +539,7 @@ export class SnapshotDoctor {
     } /* END using (bundlePath) */
     logDebug('Removing bundle file (%s)', bundleHash)
     logTrace(bundlePath)
-    const err = tryRemoveFile(bundlePath)
+    const err = await tryRemoveFile(bundlePath)
     if (err != null) {
       logError('Failed to remove bundle file', err)
     }
