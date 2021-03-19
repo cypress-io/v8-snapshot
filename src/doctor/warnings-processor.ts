@@ -4,8 +4,15 @@ import path from 'path'
 export const SNAPSHOT_REWRITE_FAILURE = '[SNAPSHOT_REWRITE_FAILURE]'
 export const SNAPSHOT_CACHE_FAILURE = '[SNAPSHOT_CACHE_FAILURE]'
 export const TYPE_ERROR = 'TypeError:'
-export const REFERENCE_ERROR = 'ReferenceError:'
 export const UNKNOWN = 'UNKNOWN'
+
+// This error is raised for missing Node.js globals like Buffer
+export const REFERENCE_ERROR_DEFER = /(Reference)?Error: (.+ is not defined|Cannot read property)/i
+
+// This error is raised due to missing functions, most likely due to incorrect rewrite
+// Note that the `__.+__ is not defined` part catches rewrite errors that led to a functions
+// replacement to be used before defined or similar
+export const REFERENCE_ERROR_NOREWRITE = /(Reference)?Error: (.+ is not a function|__.+__ is not defined)/i
 
 export type WarningsProcessHistory = {
   deferred: Set<string>
@@ -65,12 +72,15 @@ export class WarningsProcessor {
     const location = Object.assign({}, warning.location, { fullPath })
     const text = warning.text
 
+    // NOTE: we are checking for rewrite indicators first as the regexes overlap
+
     // prettier-ignore
     const consequence = 
            text.includes(SNAPSHOT_REWRITE_FAILURE) 
-        || text.includes(TYPE_ERROR)                ? WarningConsequence.NoRewrite
+        || text.includes(TYPE_ERROR)                
+        || REFERENCE_ERROR_NOREWRITE.test(text)   ? WarningConsequence.NoRewrite
       :    text.includes(SNAPSHOT_CACHE_FAILURE)      
-        || text.includes(REFERENCE_ERROR)           ? WarningConsequence.Defer
+        || REFERENCE_ERROR_DEFER.test(text)       ? WarningConsequence.Defer
       : WarningConsequence.None
 
     // We don't know what this warning means, just pass it along with no consequence
