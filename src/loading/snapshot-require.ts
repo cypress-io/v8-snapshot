@@ -2,7 +2,6 @@ import debug from 'debug'
 import type { GetModuleKey, PackherdTranspileOpts } from 'packherd'
 import { packherdRequire } from 'packherd/dist/src/require.js'
 import { moduleMapper } from './module_negotiator'
-import path from 'path'
 import { Snapshot } from '../types'
 
 const logInfo = debug('snapshot:info')
@@ -49,7 +48,7 @@ function getCaches(sr: Snapshot | undefined, useCache: boolean) {
 }
 
 export function snapshotRequire(
-  entryFile: string,
+  projectBaseDir: string,
   opts: SnapshotRequireOpts = {}
 ) {
   const { useCache, diagnostics, alwaysHook } = Object.assign(
@@ -75,7 +74,6 @@ export function snapshotRequire(
     )
 
     logDebug('initializing packherd require')
-    const projectBaseDir = path.dirname(entryFile)
     packherdRequire(projectBaseDir, {
       diagnostics,
       moduleExports,
