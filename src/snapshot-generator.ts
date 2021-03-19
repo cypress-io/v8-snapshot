@@ -161,6 +161,10 @@ export class SnapshotGenerator {
       snapshotBinDir,
       snapshotScriptPath: this.snapshotScriptPath,
       mksnapshotBin: this.mksnapshotBin,
+      nodeModulesOnly: this.nodeModulesOnly,
+      previousDeferred: this.previousDeferred.size,
+      previousHealthy: this.previousHealthy.size,
+      previousNoRewrite: this.previousNoRewrite.size,
       auxiliaryData: auxiliaryDataKeys,
       verify,
     })
