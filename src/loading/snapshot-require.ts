@@ -1,10 +1,12 @@
 import debug from 'debug'
+import path from 'path'
 import type { GetModuleKey, PackherdTranspileOpts } from 'packherd'
 import { packherdRequire } from 'packherd/dist/src/require.js'
 import { moduleMapper } from './module_negotiator'
 import { Snapshot } from '../types'
 
 const logInfo = debug('snapshot:info')
+const logError = debug('snapshot:error')
 const logDebug = debug('snapshot:debug')
 const logTrace = debug('snapshot:trace')
 
@@ -95,8 +97,17 @@ export function snapshotRequire(
             'Example: PROJECT_BASE_DIR=`pwd` yarn dev'
         )
       }
-      // @ts-ignore adding property
-      require.__projectBaseDir__ = projectBaseDir
+
+      const pathResolver = {
+        resolve(p: string) {
+          try {
+            return path.resolve(projectBaseDir, p)
+          } catch (err) {
+            logError(err)
+            debugger
+          }
+        },
+      }
 
       // The below aren't available in all environments
       const checked_process: any = typeof process !== 'undefined' ? process : {}
@@ -111,6 +122,7 @@ export function snapshotRequire(
         checked_window,
         checked_document,
         console,
+        pathResolver,
         require
       )
     }

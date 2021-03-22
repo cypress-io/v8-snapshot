@@ -862,6 +862,24 @@ Object.defineProperties(console, {
 function get_console() {
   return console
 }
+
+// Resolves paths like __dirname/__filename relative to projectBaseDir
+let __pathResolver = {}
+Object.defineProperties(__pathResolver, {
+  resolve: {
+    value: function resolve(_local) {
+      throw new Error(
+        '[SNAPSHOT_CACHE_FAILURE] Cannot resolve `__dirname` in the snapshot'
+      )
+    },
+    enumerable: false,
+  },
+})
+
+function __resolve_path(dir) {
+  return __pathResolver.resolve(dir)
+}
+
 //
 // </globals>
 //

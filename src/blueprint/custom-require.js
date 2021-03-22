@@ -19,14 +19,11 @@ function customRequire(modulePath, parent = {}) {
       exports: {},
     }
 
-    // When requiring an outside module from inside the snapshot the modulePath is relative
-    // to the projectBaseDir. Here we resolve the full path via a property attached to the
-    // global require inside `src/loading/snapshot-require.ts`
-    const filename =
-      require.__projectBaseDir__ != null
-        ? modulePath.replace(/^.\//, require.__projectBaseDir__)
-        : modulePath
-
+    // NOTE: the modulePath may be relative to the projectBaseDir, however since
+    // access to __dirname/__filename is redirected to a path resolver via the esbuild
+    // snapshot rewriter we don't have to "fix" it here.
+    // @see ../loading/snapshot-require.ts
+    const filename = modulePath
     const dirname = filename.split('/').slice(0, -1).join('/')
 
     function define(callback) {

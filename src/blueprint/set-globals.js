@@ -4,6 +4,7 @@ function setGlobals(
   newWindow,
   newDocument,
   newConsole,
+  newPathResolver,
   nodeRequire
 ) {
   // Populate the global function trampoline with the real global functions defined on newGlobal.
@@ -38,5 +39,6 @@ function setGlobals(
   }
 
   console = newConsole
+  __pathResolver = newPathResolver
   require = nodeRequire
 }

@@ -27,6 +27,22 @@ function get_console() {
   if (typeof console === 'undefined') return undefined
   return console
 }
+
+let __pathResolver = {}
+Object.defineProperties(__pathResolver, {
+  resolve: {
+    value: function resolve(_local) {
+      throw new Error(
+        '[SNAPSHOT_CACHE_FAILURE] Cannot resolve path in the snapshot'
+      )
+    },
+    enumerable: false,
+  },
+})
+
+function __resolve_path(local) {
+  __pathResolver.resolve(local)
+}
 `
 
 const postlude = `
