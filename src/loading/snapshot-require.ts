@@ -86,6 +86,18 @@ export function snapshotRequire(
 
     // @ts-ignore global snapshotResult
     if (typeof snapshotResult !== 'undefined') {
+      const projectBaseDir = process.env.PROJECT_BASE_DIR
+      // TODO(thlorenz): we may not need this in some circumstances, so throwing an error may not be correct
+      if (projectBaseDir == null) {
+        throw new Error(
+          "Please provide the 'PROJECT_BASE_DIR' env var.\n" +
+            'This is the same used when creating the snapshot.\n' +
+            'Example: PROJECT_BASE_DIR=`pwd` yarn dev'
+        )
+      }
+      // @ts-ignore adding property
+      require.__projectBaseDir__ = projectBaseDir
+
       // The below aren't available in all environments
       const checked_process: any = typeof process !== 'undefined' ? process : {}
       const checked_window: any = typeof window !== 'undefined' ? window : {}

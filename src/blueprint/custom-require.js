@@ -18,7 +18,16 @@ function customRequire(modulePath, parent = {}) {
     module = {
       exports: {},
     }
-    const dirname = modulePath.split('/').slice(0, -1).join('/')
+
+    // When requiring an outside module from inside the snapshot the modulePath is relative
+    // to the projectBaseDir. Here we resolve the full path via a property attached to the
+    // global require inside `src/loading/snapshot-require.ts`
+    const filename =
+      require.__projectBaseDir__ != null
+        ? modulePath.replace(/^.\//, require.__projectBaseDir__)
+        : modulePath
+
+    const dirname = filename.split('/').slice(0, -1).join('/')
 
     function define(callback) {
       callback(customRequire, module.exports, module)
@@ -30,7 +39,7 @@ function customRequire(modulePath, parent = {}) {
       customRequire.definitions[modulePath].apply(module.exports, [
         module.exports,
         module,
-        modulePath,
+        filename,
         dirname,
         customRequire,
         define,
