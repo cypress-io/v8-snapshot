@@ -10,10 +10,13 @@ function createWindow() {
     height: 600,
     webPreferences: {
       nodeIntegration: true,
+      contextIsolation: false,
     },
   })
   win.loadFile('index.html')
   win.toggleDevTools()
 }
 
-app.whenReady().then(createWindow)
+if (app != null) {
+  app.whenReady().then(createWindow)
+}

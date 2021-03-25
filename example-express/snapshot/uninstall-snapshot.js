@@ -1,4 +1,6 @@
-process.env.DEBUG = 'snapgen:*'
+// @ts-check
+
+'use strict'
 const path = require('path')
 const { uninstallSnapshot } = require('../../')
 

@@ -35,10 +35,10 @@
   resolved "https://registry.yarnpkg.com/@types/node/-/node-14.14.7.tgz#8ea1e8f8eae2430cf440564b98c6dfce1ec5945d"
   integrity sha512-Zw1vhUSQZYw+7u5dAwNbIA9TuTotpzY/OF7sJM9FqPOF3SPjKnxrjoTktXDZgUjybf4cWVBP7O8wvKdSaGHweg==
 
-"@types/node@^12.0.12":
-  version "12.19.4"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-12.19.4.tgz#cdfbb62e26c7435ed9aab9c941393cc3598e9b46"
-  integrity sha512-o3oj1bETk8kBwzz1WlO6JWL/AfAA3Vm6J1B3C9CsdxHYp7XgPiH7OEXPUbZTndHlRaIElrANkQfe6ZmfJb3H2w==
+"@types/node@^14.6.2":
+  version "14.14.36"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-14.14.36.tgz#5637905dbb15c30a33a3c65b9ef7c20e3c85ebad"
+  integrity sha512-kjivUwDJfIjngzbhooRnOLhGYz6oRFi+L+EpMjxroDYXwDw9lHrJJ43E+dJ6KAd3V3WxWAJ/qZE9XKYHhjPOFQ==
 
 "@types/yauzl@^2.9.1":
   version "2.9.1"
@@ -242,23 +242,23 @@ ee-first@1.1.1:
   resolved "https://registry.yarnpkg.com/ee-first/-/ee-first-1.1.1.tgz#590c61156b0ae2f4f0255732a158b266bc56b21d"
   integrity sha1-WQxhFWsK4vTwJVcyoViyZrxWsh0=
 
-electron-mksnapshot@^10.0.0:
-  version "10.0.0"
-  resolved "https://registry.yarnpkg.com/electron-mksnapshot/-/electron-mksnapshot-10.0.0.tgz#ddefcd55d10fa8c65e02b2ec7cf25abedb0a3782"
-  integrity sha512-NVTRWU6AMFir+lhB3dPeNSq68AAyCn7lJWP32UrN3QVsVsxV+eDL5xu++GLy7nLG/Pna2/f2gH0RCEUQMSdkdg==
+electron-mksnapshot@12.0.0:
+  version "12.0.0"
+  resolved "https://registry.yarnpkg.com/electron-mksnapshot/-/electron-mksnapshot-12.0.0.tgz#dfddce589528825f1de33d65fbb6bdd9c1692323"
+  integrity sha512-Ha9bD2Io34dUMDotJQN3CL3UKHdHW/DwlHj5+MS6qqhLvQjvqqwriO1TgU+F32sDLDpUi8E38DADpEkQamGK6Q==
   dependencies:
     "@electron/get" "^1.12.2"
     extract-zip "^2.0.0"
     fs-extra "^7.0.1"
     temp "^0.8.3"
 
-electron@10.1.2:
-  version "10.1.2"
-  resolved "https://registry.yarnpkg.com/electron/-/electron-10.1.2.tgz#30b6fd7669f8daf08c56219a61dfa053fa2b0c70"
-  integrity sha512-SvN8DcKCmPZ0UcQSNAJBfaUu+LGACqtRhUn1rW0UBLHgdbbDM76L0GU5/XGQEllH5pu5bwlCZwax3srzIl+Aeg==
+electron@12.0.0:
+  version "12.0.0"
+  resolved "https://registry.yarnpkg.com/electron/-/electron-12.0.0.tgz#b3b1d88cc64622e59c637521da5a6b6ab4df4eb5"
+  integrity sha512-p6oxZ4LG82hopPGAsIMOjyoL49fr6cexyFNH0kADA9Yf+mJ72DN7bjvBG+6V7r6QKhwYgsSsW8RpxBeVOUbxVQ==
   dependencies:
     "@electron/get" "^1.0.1"
-    "@types/node" "^12.0.12"
+    "@types/node" "^14.6.2"
     extract-zip "^1.0.3"
 
 encodeurl@^1.0.2, encodeurl@~1.0.2:

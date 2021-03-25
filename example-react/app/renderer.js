@@ -1,7 +1,3 @@
-const path = require('path')
-const projectBaseDir = path.resolve(__dirname, '..')
-const _ = require('../../').snapshotRequire(projectBaseDir)
-
 const React = require('react')
 const ReactDOM = require('react-dom')
 

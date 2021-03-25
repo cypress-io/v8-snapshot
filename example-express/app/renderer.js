@@ -2,8 +2,8 @@ console.time('entire-startup')
 
 let express
 
-// loadExpress()
-// launchExpress()()
+loadExpress()
+launchExpress()
 
 function loadExpress() {
   console.time('init-express')
@@ -15,7 +15,7 @@ function loadExpress() {
 function launchExpress() {
   console.time('start-express-after-loaded')
   const app = express()
-  const port = 3000
+  const port = 3001
   app.listen(port, () => {
     console.log(`Example app listening at http://localhost:${port}`)
     console.timeEnd('start-express-after-loaded')

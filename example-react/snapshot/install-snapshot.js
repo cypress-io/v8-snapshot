@@ -5,7 +5,7 @@ const path = require('path')
 const { SnapshotGenerator, prettyPrintError } = require('../../')
 
 const projectBaseDir = path.join(__dirname, '../')
-const snapshotEntryFile = require.resolve('./snapshot.js')
+const snapshotEntryFile = require.resolve('../app/renderer.js')
 
 const cacheDir = path.resolve(__dirname, '../cache')
 

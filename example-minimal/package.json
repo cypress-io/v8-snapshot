@@ -1,15 +1,14 @@
 {
-  "name": "react-electron-example",
+  "name": "minmal-example",
   "version": "1.0.0",
   "description": "Example app demonstrating how to use v8-snapshot.",
   "scripts": {
     "start-nohook": "electron app",
-    "start": "DEBUG='(packherd|snapshot):*' electron -r ./app/hook-require.js app",
-    "start-as-node": "ELECTRON_RUN_AS_NODE=1 DEBUG='(packherd|snapshot):*' electron -r ./app/hook-require.js app",
-    "debug": "DEBUG='(packherd|snapshot):*' electron --inspect-brk -r ./app/hook-require.js app",
-    "debug-no-hook": "DEBUG='(packherd|snapshot):*' electron --inspect-brk app",
-    "install-snapshot": "node ./snapshot/install-snapshot.js",
-    "uninstall-snapshot": "node ./snapshot/uninstall-snapshot.js"
+    "start": "DEBUG='(packherd|snapgen):*' PROJECT_BASE_DIR=`pwd` electron -r ./app/hook-require.js app",
+    "start-as-node": "ELECTRON_RUN_AS_NODE=1 DEBUG='(packherd|snapgen):*' PROJECT_BASE_DIR=`pwd` electron -r ./app/hook-require.js app",
+    "debug": "DEBUG='(packherd|snapgen):*' PROJECT_BASE_DIR=`pwd` electron --inspect-brk -r ./app/hook-require.js app",
+    "install-snapshot": "DEBUG='(packherd|snapgen):*' node ./snapshot/install-snapshot.js",
+    "uninstall-snapshot": "DEBUG='(packherd|snapgen):*' node ./snapshot/uninstall-snapshot.js"
   },
   "author": "Thorsten Lorenz <thlorenz@gmx.de>",
   "license": "MIT",
@@ -19,7 +18,7 @@
     "tmpfile": "^0.2.0"
   },
   "devDependencies": {
-    "electron": "11.0.1",
-    "electron-mksnapshot": "^11.0.0"
+    "electron": "12.0.0",
+    "electron-mksnapshot": "12.0.0"
   }
 }
