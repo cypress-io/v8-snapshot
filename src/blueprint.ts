@@ -16,7 +16,7 @@ export type BlueprintConfig = {
   processNodeVersion: string
   mainModuleRequirePath: string
   auxiliaryData: string
-  customRequireDefinitions: string
+  customRequireDefinitions: Buffer
   includeStrictVerifiers: boolean
   nodeEnv: string
 }
@@ -31,7 +31,8 @@ export function scriptFromBlueprint(config: BlueprintConfig) {
     nodeEnv,
   } = config
 
-  return `
+  const wrapperOpen = Buffer.from(
+    `
 var snapshotAuxiliaryData = ${auxiliaryData}
 
 function generateSnapshot() {
@@ -88,9 +89,12 @@ function generateSnapshot() {
 
   const coreStubs = {
   }
-
+`,
+    'utf8'
+  )
+  const wrapperClose = Buffer.from(
+    `
   ${customRequire}
-  ${customRequireDefinitions}
   ${includeStrictVerifiers ? 'require.isStrict = true' : ''}
 
   customRequire(${mainModuleRequirePath})
@@ -104,5 +108,9 @@ snapshotAuxiliaryData.snapshotSections = []
 var snapshotResult = generateSnapshot.call({})
 
 generateSnapshot = null
-`
+`,
+    'utf8'
+  )
+
+  return Buffer.concat([wrapperOpen, customRequireDefinitions, wrapperClose])
 }

@@ -17,12 +17,12 @@ process.env.DEBUG_COLOR = '1'
 
 const logInfo = debug('snapgen:info')
 
-const bundleState: { contents?: string; hash?: string } = {
+const bundleState: { contents?: Buffer; hash?: string } = {
   contents: undefined,
   hash: undefined,
 }
 
-function getBundle(bundle?: string, bundlePath?: string, bundleHash?: string) {
+function getBundle(bundle?: Buffer, bundlePath?: string, bundleHash?: string) {
   if (bundle != null) return bundle
 
   assert(
@@ -39,7 +39,7 @@ function getBundle(bundle?: string, bundlePath?: string, bundleHash?: string) {
     bundleState.hash !== bundleHash
   ) {
     logInfo('AsyncScriptProcessor is reading updated bundle file')
-    const contents = fs.readFileSync(bundlePath, 'utf8')
+    const contents = fs.readFileSync(bundlePath)
     const hash = createHash(contents)
     assert(hash === bundleHash, 'bundle should not change while processing')
 

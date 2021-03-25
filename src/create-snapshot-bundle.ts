@@ -58,10 +58,10 @@ module.exports = __commonJS`
  */
 export async function createExportScript(
   opts: CreateSnapshotScriptOpts
-): Promise<{ snapshotBundle: string; meta: Metadata; bundle: string }> {
+): Promise<{ snapshotBundle: string; meta: Metadata; bundle: Buffer }> {
   const { bundle, meta } = await createBundleAsync(opts)
   const snapshotBundle = `${prelude}
-${bundle}
+${bundle.toString()}
 ${postlude}`
 
   return { snapshotBundle, meta, bundle }

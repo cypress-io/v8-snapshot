@@ -17,7 +17,7 @@ export type Metadata = {
 
 export type ProcessScriptOpts = {
   // We expect either the bundle or the bundleHash and bundlePath to be set
-  bundle?: string
+  bundle?: Buffer
   bundleHash?: string
   bundlePath?: string
 

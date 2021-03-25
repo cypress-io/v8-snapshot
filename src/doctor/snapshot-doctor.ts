@@ -417,18 +417,18 @@ export class SnapshotDoctor {
     }
   }
 
-  private async _writeBundle(bundle: string) {
+  private async _writeBundle(bundle: Buffer) {
     const bundleTmpDir = path.join(tmpdir(), 'v8-snapshot')
     ensureDirSync(bundleTmpDir)
     const bundleHash = createHash(bundle)
     const filename = bundleFileNameFromHash(bundleHash)
     const bundlePath = path.join(bundleTmpDir, filename)
-    await fs.promises.writeFile(bundlePath, bundle, 'utf8')
+    await fs.promises.writeFile(bundlePath, bundle)
     return { bundleHash, bundlePath }
   }
 
   private async _processCurrentScript(
-    bundle: string,
+    bundle: Buffer,
     warnings: Warning[],
     healState: HealState,
     circulars: Map<string, Set<string>>
@@ -550,7 +550,7 @@ export class SnapshotDoctor {
     norewrite?: Set<string>
   ): Promise<{
     meta: Metadata
-    bundle: string
+    bundle: Buffer
     warnings: Warning[]
   }> {
     try {

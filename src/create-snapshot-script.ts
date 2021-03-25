@@ -12,6 +12,7 @@ import {
 } from 'packherd'
 
 const logDebug = debug('snapgen:debug')
+const logTrace = debug('snapgen:trace')
 const logError = debug('snapgen:error')
 
 export type CreateBundleOpts = {
@@ -33,19 +34,29 @@ export type CreateSnapshotScript = (
   opts: CreateSnapshotScriptOpts
 ) => Promise<{ snapshotScript: string }>
 
-const requireDefinitions = (bundle: string, entryPoint: string) => {
-  return {
-    code: `
+const requireDefinitions = (bundle: Buffer, entryPoint: string) => {
+  const wrapperOpen = Buffer.from(
+    `
   //
   // <esbuild bundle>
   //
-  ${bundle}
+`,
+    'utf8'
+  )
+  const wrapperClose = Buffer.from(
+    `
   //
   // </esbuild bundle>
   //
 
   customRequire.definitions = __commonJS 
 `,
+    'utf8'
+  )
+
+  const code = Buffer.concat([wrapperOpen, bundle, wrapperClose])
+  return {
+    code,
     mainModuleRequirePath: entryPoint,
   }
 }
@@ -70,7 +81,7 @@ function getMainModuleRequirePath(basedir: string, entryFullPath: string) {
  * @return the contents of the assembled script
  */
 export function assembleScript(
-  bundle: string,
+  bundle: Buffer,
   basedir: string,
   entryFilePath: string,
   opts: {
@@ -91,8 +102,7 @@ export function assembleScript(
     'metadata should have exactly one entry point'
   )
 
-  const indentedBundle = bundle.split('\n').join('\n  ')
-  const defs = requireDefinitions(indentedBundle, mainModuleRequirePath)
+  const defs = requireDefinitions(bundle, mainModuleRequirePath)
 
   const config: BlueprintConfig = {
     processPlatform: process.platform,
@@ -118,7 +128,7 @@ export async function createBundleAsync(
 ): Promise<{
   warnings: CreateBundleResult['warnings']
   meta: Metadata
-  bundle: string
+  bundle: Buffer
 }> {
   return createBundle(opts)
 }
@@ -133,7 +143,7 @@ export async function createBundleAsync(
  */
 export async function createSnapshotScript(
   opts: CreateSnapshotScriptOpts
-): Promise<{ snapshotScript: string; meta: Metadata; bundle: string }> {
+): Promise<{ snapshotScript: Buffer; meta: Metadata; bundle: Buffer }> {
   const { bundle, meta } = await createBundleAsync(opts)
 
   logDebug('Assembling snapshot script')
@@ -147,7 +157,11 @@ export async function createSnapshotScript(
 }
 
 function outfileText(outfile: { contents: string }) {
-  return Buffer.from(outfile.contents, 'hex').toString('utf8')
+  return outfileContents(outfile).toString()
+}
+
+function outfileContents(outfile: { contents: string }) {
+  return Buffer.from(outfile.contents, 'hex')
 }
 
 const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
@@ -165,7 +179,7 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
       : '') +
     ` ${popts.entryFilePath}`
 
-  logDebug('Running "%s"', cmd)
+  logTrace('Running "%s"', cmd)
 
   const _MB = 1024 * 1024
   try {
@@ -177,7 +191,7 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
     const { warnings, outfiles } = JSON.parse(stdout.toString())
 
     assert(outfiles.length >= 2, 'need at least two outfiles, bundle and meta')
-    const bundle = { text: outfileText(outfiles[0]) }
+    const bundle = { contents: outfileContents(outfiles[0]) }
     const meta = { text: outfileText(outfiles[1]) }
     return Promise.resolve({ warnings, outputFiles: [bundle, meta] })
   } catch (err) {
@@ -197,5 +211,5 @@ async function createBundle(opts: CreateBundleOpts) {
     nodeModulesOnly: opts.nodeModulesOnly,
     createBundle: makePackherdCreateBundle(opts),
   })
-  return { warnings, bundle, meta }
+  return { warnings, bundle: bundle as Buffer, meta }
 }

@@ -83,7 +83,7 @@ export class SnapshotGenerator {
   private readonly _snapshotVerifier: SnapshotVerifier
   private readonly _flags: GeneratorFlags
   readonly snapshotBinFilename: string
-  snapshotScript?: string
+  snapshotScript?: Buffer
   snapshotExportScript?: string
 
   constructor(
@@ -245,7 +245,9 @@ export class SnapshotGenerator {
 
     if (this.minify) {
       logInfo('Minifying snapshot script')
-      const minified = await minify(this.snapshotScript!, { sourceMap: false })
+      const minified = await minify(this.snapshotScript!.toString(), {
+        sourceMap: false,
+      })
       return fs.promises.writeFile(this.snapshotScriptPath, minified.code)
     }
     return fs.promises.writeFile(this.snapshotScriptPath, this.snapshotScript)

@@ -1,8 +1,8 @@
 import vm from 'vm'
 
 export class SnapshotVerifier {
-  verify(snapshotScript: string, filename: string) {
-    vm.runInNewContext(snapshotScript, undefined, {
+  verify(snapshotScript: Buffer, filename: string) {
+    vm.runInNewContext(snapshotScript.toString(), undefined, {
       filename,
       displayErrors: true,
     })

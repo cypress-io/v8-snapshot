@@ -838,10 +838,10 @@ p-locate@^5.0.0:
   dependencies:
     p-limit "^3.0.2"
 
-packherd@^0.1.1:
-  version "0.1.1"
-  resolved "https://registry.yarnpkg.com/packherd/-/packherd-0.1.1.tgz#f6392af231426170a310484b2725dd3d57b538b0"
-  integrity sha512-d09WPaldaCd2DUr/9uoPKT/6JAyI9VhByOC5g0WvH3HKgzplvbejlw4NuMieTVDuiI6SUpYifTzWboSyA7I0kA==
+packherd@^0.2.0:
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/packherd/-/packherd-0.2.0.tgz#782bf854761a79d5459ebfbe0eec25ae9b457d48"
+  integrity sha512-QL704JHp+yECqAuPUFdXNyMbDqW+hXIAocQwPx2WQMkUYEWyoJHvOhX1Y9jh32Lc79PB6f7Vp/7Ndv5bFR3hvA==
   dependencies:
     debug "^4.3.1"
     depstats "^0.2.0"
@@ -1017,10 +1017,10 @@ side-channel@^1.0.3:
     get-intrinsic "^1.0.2"
     object-inspect "^1.9.0"
 
-snapbuild-darwin-x64@^0.1.0:
-  version "0.1.0"
-  resolved "https://registry.yarnpkg.com/snapbuild-darwin-x64/-/snapbuild-darwin-x64-0.1.0.tgz#8de5b64b0f002b7811246ba568acfaa149d81204"
-  integrity sha512-kNr2rfqgldAjJBZDeBwSru4e0d5+Pf7CD2+9Y1oM/EZSOaeTC4oydPBMbM53/pXDU5jM2b89G1r3YnvneaeZJw==
+snapbuild-darwin-x64@^0.1.2:
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/snapbuild-darwin-x64/-/snapbuild-darwin-x64-0.1.2.tgz#e04d0d4675d3942a69ff857668e82b930aff2947"
+  integrity sha512-aLv6c3tgpwN20AywtZZ/zGx2/THKZErU2/23ClopCzygmkcJAptVAKyGJePMajCZ8hsaNDLnRfqE04k8euGesA==
 
 source-map-support@~0.5.12:
   version "0.5.19"

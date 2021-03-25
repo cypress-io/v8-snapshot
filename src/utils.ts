@@ -39,7 +39,7 @@ function canAccessSync(p: string) {
   }
 }
 
-export function createHash(s: string) {
+export function createHash(s: Buffer) {
   return crypto.createHash('sha256').update(s).digest('hex')
 }
 
@@ -62,9 +62,9 @@ export async function canAccess(p: string) {
   }
 }
 
-export async function tryReadFile(p: string) {
-  if (!(await canAccess(p))) return null
-  return fs.promises.readFile(p, 'utf8')
+export async function tryReadFile(p: string): Promise<Buffer | undefined> {
+  if (!(await canAccess(p))) return
+  return fs.promises.readFile(p)
 }
 
 export async function tryRemoveFile(p: string) {
