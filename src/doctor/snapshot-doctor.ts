@@ -9,7 +9,6 @@ import {
   CreateSnapshotScriptOpts,
 } from '../create-snapshot-script'
 import { AsyncScriptProcessor } from './process-script.async'
-import { SyncScriptProcessor } from './process-script.sync'
 import { Entries, Metadata } from '../types'
 import {
   bundleFileNameFromHash,
@@ -30,7 +29,6 @@ const logTrace = debug('snapgen:trace')
 const logError = debug('snapgen:error')
 
 export type SnapshotDoctorOpts = Omit<CreateSnapshotScriptOpts, 'deferred'> & {
-  processSync?: boolean
   maxWorkers?: number
   previousDeferred: Set<string>
   previousHealthy: Set<string>
@@ -147,17 +145,14 @@ export class SnapshotDoctor {
   private readonly previousNoRewrite: Set<string>
   private readonly forceNoRewrite: Set<string>
   private readonly nodeEnv: string
-  private readonly _scriptProcessor: AsyncScriptProcessor | SyncScriptProcessor
+  private readonly _scriptProcessor: AsyncScriptProcessor
   private readonly _warningsProcessor: WarningsProcessor
 
   constructor(opts: SnapshotDoctorOpts) {
     this.baseDirPath = opts.baseDirPath
     this.entryFilePath = opts.entryFilePath
     this.bundlerPath = opts.bundlerPath
-    this._scriptProcessor =
-      opts.processSync != null && opts.processSync
-        ? new SyncScriptProcessor()
-        : new AsyncScriptProcessor(opts)
+    this._scriptProcessor = new AsyncScriptProcessor(opts)
     this._warningsProcessor = new WarningsProcessor(this.baseDirPath)
     this.nodeModulesOnly = opts.nodeModulesOnly
     this.previousDeferred = unpathify(opts.previousDeferred)
@@ -481,7 +476,6 @@ export class SnapshotDoctor {
           async (key): Promise<void> => {
             logDebug('Testing entry in isolation "%s"', key)
             const result = await this._scriptProcessor.processScript({
-              bundle,
               bundlePath,
               bundleHash,
               baseDirPath: this.baseDirPath,

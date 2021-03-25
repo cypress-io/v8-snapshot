@@ -58,14 +58,6 @@ export class AsyncScriptProcessor {
 
   async processScript(opts: ProcessScriptOpts): Promise<ProcessScriptResult> {
     assert(!this._isDisposed, 'should not processScript when disposed')
-    if (opts.bundlePath != null) {
-      // Avoid sending large payloads across the wire
-      assert(
-        opts.bundleHash != null,
-        'bundleHash needs to be set when providing bundlePath'
-      )
-      opts.bundle = undefined
-    }
     return this._workers.call.processScript(opts)
   }
 
