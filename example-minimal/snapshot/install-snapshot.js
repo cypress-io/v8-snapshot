@@ -1,36 +1,30 @@
-const SKIP_CREATE = false
-const VERIFY = false
+// @ts-check
 
-process.env.DEBUG = 'snapgen:*'
+'use strict'
 const path = require('path')
-const { SnapshotGenerator } = require('../../')
+const { SnapshotGenerator, prettyPrintError } = require('../../')
 
 const projectBaseDir = path.join(__dirname, '../')
 const snapshotEntryFile = require.resolve('./snapshot.js')
-const appEntryFile = require.resolve('../app/index')
 
 const cacheDir = path.resolve(__dirname, '../cache')
-const snapshotGenerator = new SnapshotGenerator(
-  bundlerPath,
-  projectBaseDir,
-  snapshotEntryFile,
-  // appEntryFile,
-  { minify: false, verify: VERIFY, cacheDir, nodeModulesOnly: false }
-)
 
 ;(async () => {
   try {
-    if (SKIP_CREATE) {
-      snapshotGenerator.snapshotScript = require('fs').readFileSync(
-        snapshotGenerator.snapshotScriptPath,
-        'utf8'
-      )
-    } else {
-      await snapshotGenerator.createScript()
-    }
+    const snapshotGenerator = new SnapshotGenerator(
+      projectBaseDir,
+      snapshotEntryFile,
+      {
+        cacheDir,
+        minify: false,
+        nodeModulesOnly: false,
+      }
+    )
+    await snapshotGenerator.createScript()
     snapshotGenerator.makeSnapshot()
     snapshotGenerator.installSnapshot()
   } catch (err) {
+    prettyPrintError(err, projectBaseDir)
     console.error(err)
   }
 })()

@@ -1,6 +1,9 @@
+// @ts-check
+'use strict'
+
 const path = require('path')
-const entryFile = require.resolve('./index')
-const _ = require('../../').snapshotRequire(path.dirname(entryFile), {
+
+const _ = require('../../').snapshotRequire(path.resolve(__dirname, '..'), {
   diagnostics: true,
   useCache: true,
 })

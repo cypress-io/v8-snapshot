@@ -9,16 +9,23 @@ function createWindow() {
     height: 600,
     webPreferences: {
       nodeIntegration: true,
+      contextIsolation: false,
     },
   })
   win.loadFile('index.html')
   win.toggleDevTools()
 
-  console.log(isObject(tmpfile))
+  console.log({
+    isTmpFileObject: isObject(tmpfile),
+    isTmpModuleObject: isObject(module),
+  })
 }
 
 if (app != null) {
   app.whenReady().then(createWindow)
 } else {
-  console.log(isObject(tmpfile))
+  console.log({
+    isTmpFileObject: isObject(tmpfile),
+    isTmpModuleObject: isObject(module),
+  })
 }
