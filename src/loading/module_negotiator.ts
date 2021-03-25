@@ -9,7 +9,7 @@ const EMBEDDED = '<embedded>:'
 // For now we assume it doesn't too much and live with things being a bit brittle as
 // otherwise we'd have to search for a range of stack frames which is much more
 // costly.
-// TODO: add test to detect breakage when it occurs
+// TODO(#1): add test to detect breakage when it occurs
 const EMBEDDED_FRAMES = [10, 11]
 
 const packName = require('../../package.json').name
