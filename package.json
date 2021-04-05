@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc -p ./tsconfig.json && (rm -rf ./dist/blueprint && cp -R ./src/blueprint ./dist/blueprint)",
     "prepublish": "rm -rf ./dist/tests",
-    "pretest": "yarn build && (rm -rf ./dist/tests/doctor/fixtures && cp -R ./src/tests/doctor/fixtures ./dist/tests/doctor/fixtures)",
+    "pretest": "make pretest",
     "test": "tape dist/tests/**/*.js",
     "debug-test": "node --inspect-brk -r ./tests/utils/hook-require.js tests/**/*.ts",
     "lint": "prettier -c ./src/",
