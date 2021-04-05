@@ -38,7 +38,7 @@ export class ModuleNegotiator {
       const fullModuleUri = path.resolve(this._projectBaseDir, moduleUri)
       return `./${path.relative(parent.path, fullModuleUri)}`
     }
-    if (parent.id.includes(packName)) {
+    if (parent != null && parent.id.includes(packName)) {
       const fakeOrigin = path.join(this._projectBaseDir, 'package.json')
       parent.id = parent.filename = fakeOrigin
       parent.path = path.dirname(fakeOrigin)
