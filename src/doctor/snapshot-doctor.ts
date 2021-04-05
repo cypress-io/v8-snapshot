@@ -358,8 +358,6 @@ export class SnapshotDoctor {
         .filter((x) => x.fixed)
         .map((x) => x.deferred)
     )
-    // TODO(thlorenz): track down the case where we get more than 1
-    // assert(fixers.size <= 1, 'Should only find one faulty import or none')
 
     if (fixers.size === 0) {
       logDebug(
