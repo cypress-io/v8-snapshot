@@ -162,7 +162,14 @@ export class SnapshotDoctor {
     this.nodeEnv = opts.nodeEnv
   }
 
-  async heal() {
+  async heal(): Promise<{
+    healthy: string[]
+    includingImplicitsDeferred: string[]
+    deferred: string[]
+    norewrite: string[]
+    bundle: Buffer
+    meta: Metadata
+  }> {
     let { warnings, meta, bundle } = await this._createScript()
 
     const entries = Object.entries(meta.inputs)
@@ -558,7 +565,7 @@ export class SnapshotDoctor {
         norewrite: norewriteArg,
       })
 
-      return { warnings, meta, bundle }
+      return { warnings, meta: meta as Metadata, bundle }
     } catch (err) {
       logError('Failed creating initial bundle')
       throw err

@@ -127,7 +127,7 @@ export async function createBundleAsync(
   opts: CreateBundleOpts
 ): Promise<{
   warnings: CreateBundleResult['warnings']
-  meta: Metadata
+  meta: Exclude<CreateBundleResult['metafile'], undefined>
   bundle: Buffer
 }> {
   return createBundle(opts)
@@ -153,15 +153,11 @@ export async function createSnapshotScript(
     nodeEnv: opts.nodeEnv,
   })
 
-  return { snapshotScript: script, meta, bundle }
+  return { snapshotScript: script, meta: meta as Metadata, bundle }
 }
 
-function outfileText(outfile: { contents: string }) {
-  return outfileContents(outfile).toString()
-}
-
-function outfileContents(outfile: { contents: string }) {
-  return Buffer.from(outfile.contents, 'hex')
+function stringToBuffer(contents: string) {
+  return Buffer.from(contents, 'hex')
 }
 
 const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
@@ -177,6 +173,7 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
     (opts.norewrite != null && opts.norewrite.length > 0
       ? ` --norewrite='${opts.norewrite.join(',')}'`
       : '') +
+    ' --metafile' +
     ` ${popts.entryFilePath}`
 
   logTrace('Running "%s"', cmd)
@@ -188,12 +185,24 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
       cwd: basedir,
       stdio: ['pipe', 'pipe', 'ignore'],
     })
-    const { warnings, outfiles } = JSON.parse(stdout.toString())
+    const { warnings, outfiles, metafile } = JSON.parse(stdout.toString())
 
-    assert(outfiles.length >= 2, 'need at least two outfiles, bundle and meta')
-    const bundle = { contents: outfileContents(outfiles[0]) }
-    const meta = { text: outfileText(outfiles[1]) }
-    return Promise.resolve({ warnings, outputFiles: [bundle, meta] })
+    assert(outfiles.length >= 1, 'need at least one outfile')
+    assert(metafile != null, 'expected metafile to be included in result')
+    assert(
+      metafile.contents != null,
+      'expected metafile to include contents buffer'
+    )
+
+    const bundle = { contents: stringToBuffer(outfiles[0].contents) }
+    const metadata: Metadata = JSON.parse(
+      stringToBuffer(metafile.contents).toString()
+    )
+    return Promise.resolve({
+      warnings,
+      outputFiles: [bundle],
+      metafile: metadata,
+    })
   } catch (err) {
     if (err.stderr != null) {
       logError(err.stderr.toString())

@@ -123,6 +123,7 @@ export class WarningsProcessor {
       column: 0,
       length: 0,
       lineText: '<unknown>',
+      suggestion: '',
     }
     let text = err.toString()
 

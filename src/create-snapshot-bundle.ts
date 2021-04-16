@@ -64,5 +64,5 @@ export async function createExportScript(
 ${bundle.toString()}
 ${postlude}`
 
-  return { snapshotBundle, meta, bundle }
+  return { snapshotBundle, meta: meta as Metadata, bundle }
 }

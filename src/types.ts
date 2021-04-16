@@ -1,8 +1,10 @@
+import type { CreateBundleResult } from 'packherd'
+
 export type Entries<T> = {
   [K in keyof T]: [K, T[K]]
 }[keyof T][]
 
-export type Metadata = {
+export type Metadata = CreateBundleResult['metafile'] & {
   inputs: Record<
     string,
     {

@@ -46,7 +46,7 @@ class SnapshotEntryGeneratorViaWalk {
       .map(this.pathsMapper)
   }
 
-  async getMetadata() {
+  async getMetadata(): Promise<Metadata> {
     const opts: CreateBundleOpts = {
       bundlerPath: this.bundlerPath,
       baseDirPath: this.projectBaseDir,
@@ -54,7 +54,7 @@ class SnapshotEntryGeneratorViaWalk {
       nodeModulesOnly: this.nodeModulesOnly,
     }
     const { meta } = await createBundleAsync(opts)
-    return meta
+    return meta as Metadata
   }
 }
 
