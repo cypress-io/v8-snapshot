@@ -9,6 +9,7 @@ pretest: build clean-fixtures copy-fixtures prep-loading
 prep-loading:
 	cd $(TESTS_DIR)/loading/fixtures/deferred-from-healthy && (if [ ! -d './node_modules' ]; then yarn install; fi)
 	cd $(TESTS_DIR)/loading/fixtures/external-from-healthy && (if [ ! -d './node_modules' ]; then yarn install; fi)
+	cd $(TESTS_DIR)/loading/fixtures/esm                   && (if [ ! -d './node_modules' ]; then yarn install; fi)
 	rm -rf $(TESTS_DIR)/loading/fixtures/external-from-healthy/node_modules/bluebird && \
 		cp -R \
 			$(TESTS_DIR)/loading/fixtures/external-from-healthy/fake-bluebird \
