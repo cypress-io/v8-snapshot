@@ -1,0 +1,10 @@
+{
+  "name": "native-modules",
+  "dependencies": {
+    "fsevents": "^2.3.2"
+  },
+  "devDependencies": {
+    "electron": "12.0.0",
+    "electron-mksnapshot": "12.0.0"
+  }
+}
