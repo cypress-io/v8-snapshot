@@ -22,11 +22,11 @@ export type CreateBundleOpts = {
   nodeModulesOnly: boolean
   deferred?: string[]
   norewrite?: string[]
+  includeStrictVerifiers?: boolean
 }
 
 export type CreateSnapshotScriptOpts = CreateBundleOpts & {
   auxiliaryData?: Record<string, any>
-  includeStrictVerifiers?: boolean
   nodeEnv: string
 }
 
@@ -174,7 +174,8 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
       ? ` --norewrite='${opts.norewrite.join(',')}'`
       : '') +
     ' --metafile' +
-    ` ${popts.entryFilePath}`
+    ` ${popts.entryFilePath}` +
+    (!!opts.includeStrictVerifiers ? ' --doctor' : '')
 
   logTrace('Running "%s"', cmd)
 

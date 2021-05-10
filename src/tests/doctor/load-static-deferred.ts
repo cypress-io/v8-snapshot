@@ -13,6 +13,7 @@ test('doctor: entry points to dependents of a module that is statically deferred
   const generator = new SnapshotGenerator(projectBaseDir, snapshotEntryFile, {
     cacheDir,
     nodeModulesOnly: false,
+    includeStrictVerifiers: true,
     flags: Flag.Script,
   })
   await generator.createExportBundle()

@@ -34,6 +34,7 @@ type GenerationOpts = {
   cacheDir: string
   snapshotBinDir: string
   nodeModulesOnly: boolean
+  includeStrictVerifiers: boolean
   previousHealthy?: string[]
   previousDeferred?: string[]
   previousNoRewrite?: string[]
@@ -53,6 +54,7 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
     cacheDir: join(projectBaseDir, 'cache'),
     snapshotBinDir: projectBaseDir,
     nodeModulesOnly: true,
+    includeStrictVerifiers: false,
     previousDeferred: [],
     previousHealthy: [],
     flags: Flag.Script | Flag.MakeSnapshot | Flag.ReuseDoctorArtifacts,
@@ -73,6 +75,7 @@ export class SnapshotGenerator {
   private readonly snapshotBackupFilename: string
   private readonly auxiliaryData?: Record<string, any>
   private readonly nodeModulesOnly: boolean
+  private readonly includeStrictVerifiers: boolean
   private readonly maxWorkers?: number
   private readonly previousDeferred: Set<string>
   private readonly previousHealthy: Set<string>
@@ -99,6 +102,7 @@ export class SnapshotGenerator {
       snapshotBinDir,
       maxWorkers,
       nodeModulesOnly,
+      includeStrictVerifiers,
       previousDeferred,
       previousHealthy,
       previousNoRewrite,
@@ -123,6 +127,7 @@ export class SnapshotGenerator {
     this.snapshotExportScriptPath = join(cacheDir, 'snapshot-bundle.js')
     this.auxiliaryData = opts.auxiliaryData
     this.nodeModulesOnly = nodeModulesOnly
+    this.includeStrictVerifiers = includeStrictVerifiers
     this.previousDeferred = new Set(previousDeferred)
     this.previousHealthy = new Set(previousHealthy)
     this.previousNoRewrite = new Set(previousNoRewrite)
@@ -162,6 +167,7 @@ export class SnapshotGenerator {
       snapshotScriptPath: this.snapshotScriptPath,
       mksnapshotBin: this.mksnapshotBin,
       nodeModulesOnly: this.nodeModulesOnly,
+      includeStrictVerifiers: this.includeStrictVerifiers,
       previousDeferred: this.previousDeferred.size,
       previousHealthy: this.previousHealthy.size,
       previousNoRewrite: this.previousNoRewrite.size,
@@ -286,7 +292,7 @@ export class SnapshotGenerator {
         baseDirPath: this.projectBaseDir,
         entryFilePath: this.snapshotEntryFile,
         bundlerPath: this.bundlerPath,
-        includeStrictVerifiers: false,
+        includeStrictVerifiers: this.includeStrictVerifiers,
         deferred,
         norewrite,
         nodeModulesOnly: this.nodeModulesOnly,

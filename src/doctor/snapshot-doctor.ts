@@ -28,7 +28,10 @@ const logDebug = debug('snapgen:debug')
 const logTrace = debug('snapgen:trace')
 const logError = debug('snapgen:error')
 
-export type SnapshotDoctorOpts = Omit<CreateSnapshotScriptOpts, 'deferred'> & {
+export type SnapshotDoctorOpts = Omit<
+  CreateSnapshotScriptOpts,
+  'deferred' | 'includeStrictVerifiers'
+> & {
   maxWorkers?: number
   previousDeferred: Set<string>
   previousHealthy: Set<string>
@@ -561,6 +564,7 @@ export class SnapshotDoctor {
         entryFilePath: this.entryFilePath,
         bundlerPath: this.bundlerPath,
         nodeModulesOnly: this.nodeModulesOnly,
+        includeStrictVerifiers: true,
         deferred: deferredArg,
         norewrite: norewriteArg,
       })
