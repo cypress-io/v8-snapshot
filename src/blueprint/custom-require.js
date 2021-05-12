@@ -15,16 +15,24 @@ function customRequire(modulePath, parent = {}) {
   let module = customRequire.cache[modulePath]
 
   if (!module) {
-    module = {
-      exports: {},
-    }
-
     // NOTE: the modulePath may be relative to the projectBaseDir, however since
     // access to __dirname/__filename is redirected to a path resolver via the esbuild
     // snapshot rewriter we don't have to "fix" it here.
     // @see ../loading/snapshot-require.ts
     const filename = modulePath
     const dirname = filename.split('/').slice(0, -1).join('/')
+
+    module = {
+      exports: {},
+      children: [],
+      loaded: true,
+      parent,
+      paths: parent?.paths || [],
+      require: customRequire,
+      filename,
+      id: filename,
+      path: filename,
+    }
 
     function define(callback) {
       callback(customRequire, module.exports, module)
@@ -70,6 +78,7 @@ customRequire.resolve = function (mod) {
   try {
     return require.resolve(mod)
   } catch (err) {
+    console.error(err.toString())
     console.error('Failed to resolve', mod)
     debugger
   }
