@@ -16,20 +16,26 @@ function setGlobals(
 
   global = newGlobal
 
-  for (let key of Object.keys(process)) {
-    newProcess[key] = process[key]
+  if (typeof newProcess !== 'undefined') {
+    for (let key of Object.keys(process)) {
+      newProcess[key] = process[key]
+    }
   }
 
   process = newProcess
 
-  for (let key of Object.keys(window)) {
-    newWindow[key] = window[key]
+  if (typeof newWindow !== 'undefined') {
+    for (let key of Object.keys(window)) {
+      newWindow[key] = window[key]
+    }
   }
 
   window = newWindow
 
-  for (let key of Object.keys(document)) {
-    newDocument[key] = document[key]
+  if (typeof newDocument !== 'undefined') {
+    for (let key of Object.keys(document)) {
+      newDocument[key] = document[key]
+    }
   }
 
   document = newDocument

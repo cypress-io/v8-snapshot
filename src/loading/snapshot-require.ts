@@ -110,10 +110,12 @@ export function snapshotRequire(
       }
 
       // The below aren't available in all environments
-      const checked_process: any = typeof process !== 'undefined' ? process : {}
-      const checked_window: any = typeof window !== 'undefined' ? window : {}
+      const checked_process: any =
+        typeof process !== 'undefined' ? process : undefined
+      const checked_window: any =
+        typeof window !== 'undefined' ? window : undefined
       const checked_document: any =
-        typeof document !== 'undefined' ? document : {}
+        typeof document !== 'undefined' ? document : undefined
 
       // @ts-ignore global snapshotResult
       snapshotResult.setGlobals(
