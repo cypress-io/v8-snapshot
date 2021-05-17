@@ -78,9 +78,11 @@ customRequire.resolve = function (mod) {
   try {
     return require.resolve(mod)
   } catch (err) {
+    // TODO(thlorenz): remove when debugging is complete to not litter stderr
     console.error(err.toString())
     console.error('Failed to resolve', mod)
     debugger
+    throw err
   }
 }
 //
