@@ -211,6 +211,7 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
     if (err.stdout != null) {
       logDebug(err.stdout.toString())
     }
+    logError(err)
     return Promise.reject(new Error(`Failed command: "${cmd}"`))
   }
 }
