@@ -16,11 +16,16 @@ prep-loading:
 			$(TESTS_DIR)/loading/fixtures/external-from-healthy/fake-bluebird \
 			$(TESTS_DIR)/loading/fixtures/external-from-healthy/node_modules/bluebird
 
+prep-esbuild:
+	cd $(TESTS_DIR)/esbuild/fixtures/rewrites && (if [ ! -d './node_modules' ]; then yarn install; fi)
+
 copy-fixtures:
+	cp -R $(DIR)/src/tests/esbuild/fixtures $(TESTS_DIR)/esbuild/fixtures
 	cp -R $(DIR)/src/tests/doctor/fixtures $(TESTS_DIR)/doctor/fixtures
 	cp -R $(DIR)/src/tests/loading/fixtures $(TESTS_DIR)/loading/fixtures
 
 clean-fixtures:
+	rm -rf $(TESTS_DIR)/esbuild/fixtures
 	rm -rf $(TESTS_DIR)/doctor/fixtures
 	rm -rf $(TESTS_DIR)/loading/fixtures
 

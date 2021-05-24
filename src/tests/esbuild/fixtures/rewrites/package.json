@@ -1,0 +1,7 @@
+{
+  "name": "esbuild-rewrites",
+  "devDependencies": {
+    "electron": "12.0.0",
+    "electron-mksnapshot": "12.0.0"
+  }
+}
