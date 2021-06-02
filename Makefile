@@ -4,7 +4,7 @@ TESTS_DIR = $(DIR)/dist/tests
 build:
 	yarn build
 
-pretest: build clean-fixtures copy-fixtures prep-loading
+pretest: build clean-fixtures copy-fixtures prep-loading prep-esbuild
 
 prep-loading:
 	cd $(TESTS_DIR)/loading/fixtures/deferred-from-healthy && (if [ ! -d './node_modules' ]; then yarn install; fi)
