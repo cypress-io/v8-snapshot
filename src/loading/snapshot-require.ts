@@ -89,7 +89,6 @@ export function snapshotRequire(
     // @ts-ignore global snapshotResult
     if (typeof snapshotResult !== 'undefined') {
       const projectBaseDir = process.env.PROJECT_BASE_DIR
-      // TODO(thlorenz)(#2): we may not need this in some circumstances, so throwing an error may not be correct
       if (projectBaseDir == null) {
         throw new Error(
           "Please provide the 'PROJECT_BASE_DIR' env var.\n" +
