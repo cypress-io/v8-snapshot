@@ -27,7 +27,7 @@ function customRequire(modulePath, parent = {}) {
       children: [],
       loaded: true,
       parent,
-      paths: parent?.paths || [],
+      paths: (parent != null && parent.paths) || [],
       require: customRequire,
       filename,
       id: filename,
