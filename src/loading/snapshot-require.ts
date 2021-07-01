@@ -3,7 +3,8 @@ import path from 'path'
 import type { GetModuleKey, PackherdTranspileOpts } from 'packherd'
 import { packherdRequire } from 'packherd/dist/src/require.js'
 import { moduleMapper } from './module_negotiator'
-import { Snapshot } from '../types'
+import { Snapshot, SnapshotAuxiliaryData } from '../types'
+import { EMBEDDED } from '../constants'
 
 const logInfo = debug('snapshot:info')
 const logError = debug('snapshot:error')
@@ -49,6 +50,17 @@ function getCaches(sr: Snapshot | undefined, useCache: boolean) {
   }
 }
 
+function getSourceMapLookup() {
+  // @ts-ignore global snapshotAuxiliaryData
+  if (typeof snapshotAuxiliaryData === 'undefined')
+    return (_: string) => undefined
+
+  // @ts-ignore global snapshotAuxiliaryData
+  const sourceMap = (<SnapshotAuxiliaryData>snapshotAuxiliaryData).sourceMap
+
+  return (uri: string) => (uri === EMBEDDED ? sourceMap : undefined)
+}
+
 export function snapshotRequire(
   projectBaseDir: string,
   opts: SnapshotRequireOpts = {}
@@ -84,6 +96,7 @@ export function snapshotRequire(
       moduleMapper,
       requireStatsFile: opts.requireStatsFile,
       transpileOpts: opts.transpileOpts,
+      sourceMapLookup: getSourceMapLookup(),
     })
 
     // @ts-ignore global snapshotResult

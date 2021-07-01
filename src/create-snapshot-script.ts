@@ -1,5 +1,6 @@
 import debug from 'debug'
 import { strict as assert } from 'assert'
+import { promises as fs } from 'fs'
 import path from 'path'
 import { execSync } from 'child_process'
 import { BlueprintConfig, scriptFromBlueprint } from './blueprint'
@@ -11,9 +12,30 @@ import {
   CreateBundleResult,
 } from 'packherd'
 
+const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
 const logTrace = debug('snapgen:trace')
 const logError = debug('snapgen:error')
+
+export const BUNDLE_WRAPPER_OPEN = Buffer.from(
+  `
+  //
+  // <esbuild bundle>
+  //
+`,
+  'utf8'
+)
+
+export const BUNDLE_WRAPPER_CLOSE = Buffer.from(
+  `
+  //
+  // </esbuild bundle>
+  //
+
+  customRequire.definitions = __commonJS 
+`,
+  'utf8'
+)
 
 export type CreateBundleOpts = {
   baseDirPath: string
@@ -23,6 +45,8 @@ export type CreateBundleOpts = {
   deferred?: string[]
   norewrite?: string[]
   includeStrictVerifiers?: boolean
+  sourcemap?: boolean
+  sourcemapExternalPath?: string
 }
 
 export type CreateSnapshotScriptOpts = CreateBundleOpts & {
@@ -35,26 +59,11 @@ export type CreateSnapshotScript = (
 ) => Promise<{ snapshotScript: string }>
 
 const requireDefinitions = (bundle: Buffer, entryPoint: string) => {
-  const wrapperOpen = Buffer.from(
-    `
-  //
-  // <esbuild bundle>
-  //
-`,
-    'utf8'
-  )
-  const wrapperClose = Buffer.from(
-    `
-  //
-  // </esbuild bundle>
-  //
-
-  customRequire.definitions = __commonJS 
-`,
-    'utf8'
-  )
-
-  const code = Buffer.concat([wrapperOpen, bundle, wrapperClose])
+  const code = Buffer.concat([
+    BUNDLE_WRAPPER_OPEN,
+    bundle,
+    BUNDLE_WRAPPER_CLOSE,
+  ])
   return {
     code,
     mainModuleRequirePath: entryPoint,
@@ -76,6 +85,7 @@ function getMainModuleRequirePath(basedir: string, entryFullPath: string) {
  *
  * @param bundle contents of the bundle created previously
  * @param basedir project root directory
+ * @param entryFilepath
  * @param opts
  *
  * @return the contents of the assembled script
@@ -88,9 +98,10 @@ export function assembleScript(
     auxiliaryData?: Record<string, any>
     entryPoint?: string
     includeStrictVerifiers?: boolean
+    sourceMap?: Buffer
     nodeEnv: string
   }
-) {
+): { script: Buffer; processedSourceMap?: string } {
   const includeStrictVerifiers = opts.includeStrictVerifiers ?? false
   const auxiliaryDataString = JSON.stringify(opts.auxiliaryData || {})
 
@@ -111,7 +122,9 @@ export function assembleScript(
     auxiliaryData: auxiliaryDataString,
     customRequireDefinitions: defs.code,
     includeStrictVerifiers,
+    sourceMap: opts.sourceMap,
     nodeEnv: opts.nodeEnv,
+    basedir,
   }
   return scriptFromBlueprint(config)
 }
@@ -129,6 +142,7 @@ export async function createBundleAsync(
   warnings: CreateBundleResult['warnings']
   meta: Exclude<CreateBundleResult['metafile'], undefined>
   bundle: Buffer
+  sourceMap?: Buffer
 }> {
   return createBundle(opts)
 }
@@ -144,14 +158,25 @@ export async function createBundleAsync(
 export async function createSnapshotScript(
   opts: CreateSnapshotScriptOpts
 ): Promise<{ snapshotScript: Buffer; meta: Metadata; bundle: Buffer }> {
-  const { bundle, meta } = await createBundleAsync(opts)
+  const { bundle, sourceMap, meta } = await createBundleAsync(opts)
 
   logDebug('Assembling snapshot script')
-  const script = assembleScript(bundle, opts.baseDirPath, opts.entryFilePath, {
-    auxiliaryData: opts.auxiliaryData,
-    includeStrictVerifiers: opts.includeStrictVerifiers,
-    nodeEnv: opts.nodeEnv,
-  })
+  const { processedSourceMap, script } = assembleScript(
+    bundle,
+    opts.baseDirPath,
+    opts.entryFilePath,
+    {
+      auxiliaryData: opts.auxiliaryData,
+      includeStrictVerifiers: opts.includeStrictVerifiers,
+      sourceMap,
+      nodeEnv: opts.nodeEnv,
+    }
+  )
+
+  if (opts.sourcemapExternalPath != null && processedSourceMap != null) {
+    logInfo('Writing external sourcemaps to "%s"', opts.sourcemapExternalPath)
+    await fs.writeFile(opts.sourcemapExternalPath, processedSourceMap, 'utf8')
+  }
 
   return { snapshotScript: script, meta: meta as Metadata, bundle }
 }
@@ -175,7 +200,8 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
       : '') +
     ' --metafile' +
     ` ${popts.entryFilePath}` +
-    (!!opts.includeStrictVerifiers ? ' --doctor' : '')
+    (!!opts.includeStrictVerifiers ? ' --doctor' : '') +
+    (!!opts.sourcemap ? ' --sourcemap' : '')
 
   logTrace('Running "%s"', cmd)
 
@@ -195,15 +221,35 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
       'expected metafile to include contents buffer'
     )
 
-    const bundle = { contents: stringToBuffer(outfiles[0].contents) }
+    const bundleContents = outfiles[0].contents
+    const bundle = { contents: stringToBuffer(bundleContents) }
+
+    const includedSourcemaps = outfiles.length === 2
+    if (!!opts.sourcemap) {
+      assert(
+        includedSourcemaps,
+        'should include sourcemap when --sourcemap is provided'
+      )
+    } else {
+      assert(
+        !includedSourcemaps,
+        'should only include sourcemap when --sourcemap is provided'
+      )
+    }
+    const sourceMap = includedSourcemaps
+      ? { contents: stringToBuffer(outfiles[1].contents) }
+      : undefined
+
     const metadata: Metadata = JSON.parse(
       stringToBuffer(metafile.contents).toString()
     )
-    return Promise.resolve({
+    const result: CreateBundleResult = {
       warnings,
       outputFiles: [bundle],
+      sourceMap,
       metafile: metadata,
-    })
+    }
+    return Promise.resolve(result)
   } catch (err) {
     if (err.stderr != null) {
       logError(err.stderr.toString())
@@ -217,10 +263,10 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
 }
 
 async function createBundle(opts: CreateBundleOpts) {
-  const { warnings, bundle, meta } = await packherd({
+  const { warnings, bundle, sourceMap, meta } = await packherd({
     entryFile: opts.entryFilePath,
     nodeModulesOnly: opts.nodeModulesOnly,
     createBundle: makePackherdCreateBundle(opts),
   })
-  return { warnings, bundle: bundle as Buffer, meta }
+  return { warnings, bundle, sourceMap, meta }
 }

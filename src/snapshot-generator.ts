@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert'
 import debug from 'debug'
 import fs from 'fs'
-import { dirname, join } from 'path'
+import { dirname, join, basename } from 'path'
 import { minify } from 'terser'
 import { createSnapshotScript } from './create-snapshot-script'
 import { SnapshotVerifier } from './snapshot-verifier'
@@ -9,7 +9,7 @@ import { determineDeferred } from './doctor/determine-deferred'
 import {
   backupName,
   checkDirSync,
-  electronSnapshotPath,
+  installedElectronResourcesFilePath,
   ensureDirSync,
   fileExistsSync,
   getBundlerPath,
@@ -80,7 +80,7 @@ export class SnapshotGenerator {
   private readonly _snapshotVerifier: SnapshotVerifier
   private readonly _flags: GeneratorFlags
 
-  private mksnapshotBinPath?: string
+  private snapshotBinPath?: string
   private v8ContextFile?: string
 
   snapshotScript?: Buffer
@@ -179,6 +179,7 @@ export class SnapshotGenerator {
     }
 
     let result
+    const sourcemapExternalPath = `${this.snapshotScriptPath}.map`
     try {
       result = await createSnapshotScript({
         baseDirPath: this.projectBaseDir,
@@ -190,6 +191,8 @@ export class SnapshotGenerator {
         auxiliaryData: this.auxiliaryData,
         nodeModulesOnly: this.nodeModulesOnly,
         nodeEnv: this.nodeEnv,
+        sourcemap: true,
+        sourcemapExternalPath,
       })
     } catch (err) {
       logError('Failed creating script')
@@ -318,11 +321,11 @@ export class SnapshotGenerator {
         args
       )
       this.v8ContextFile = v8ContextFile
-      this.mksnapshotBinPath = join(this.snapshotBinDir, snapshotBlobFile)
+      this.snapshotBinPath = join(this.snapshotBinDir, snapshotBlobFile)
 
-      if (!fileExistsSync(this.mksnapshotBinPath)) {
+      if (!fileExistsSync(this.snapshotBinPath)) {
         logError(
-          `Cannot find ${this.mksnapshotBinPath} which should've been created.\n` +
+          `Cannot find ${this.snapshotBinPath} which should've been created.\n` +
             `This could be due to the mksnapshot command silently failing.`
         )
         runInstructions()
@@ -351,37 +354,44 @@ export class SnapshotGenerator {
       'Cannot install when MakeSnapshot flag is not set'
     )
     assert(
-      this.mksnapshotBinPath != null && fileExistsSync(this.mksnapshotBinPath),
+      this.snapshotBinPath != null && fileExistsSync(this.snapshotBinPath),
       'Run `makeSnapshot` first to create snapshot bin file ' +
-        this.mksnapshotBinPath
+        this.snapshotBinPath
     )
     assert(
       this.v8ContextFile != null,
       'mksnapshot ran but v8ContextFile was not set'
     )
 
-    const electronSnapshotBin = electronSnapshotPath(
+    const electronV8ContextBin = installedElectronResourcesFilePath(
       this.projectBaseDir,
       this.v8ContextFile
     )
-    const electronSnapshotDir = dirname(electronSnapshotBin)
-    checkDirSync(electronSnapshotDir)
+    const electronResourcesDir = dirname(electronV8ContextBin)
+    checkDirSync(electronResourcesDir)
 
     const v8ContextBackupName = backupName(this.v8ContextFile)
-    const originalSnapshotBin = join(electronSnapshotDir, v8ContextBackupName)
+    const originalV8ContextBin = join(electronResourcesDir, v8ContextBackupName)
 
-    if (!fileExistsSync(originalSnapshotBin)) {
+    if (!fileExistsSync(originalV8ContextBin)) {
       logInfo(
-        `Backing up original electron snapshot to '${originalSnapshotBin}'`
+        `Backing up original electron v8-context to '${originalV8ContextBin}'`
       )
       assert(
-        fileExistsSync(electronSnapshotBin),
+        fileExistsSync(electronV8ContextBin),
         'cannot find original electron snapshot'
       )
-      fs.copyFileSync(electronSnapshotBin, originalSnapshotBin)
+      fs.copyFileSync(electronV8ContextBin, originalV8ContextBin)
     }
-    logInfo(`Moving snapshot bin to '${electronSnapshotBin}'`)
-    fs.renameSync(this.mksnapshotBinPath, electronSnapshotBin)
+    const v8ContextFullPath = join(this.projectBaseDir, this.v8ContextFile)
+    logInfo(`Moving ${this.v8ContextFile} to '${electronV8ContextBin}'`)
+    fs.renameSync(v8ContextFullPath, electronV8ContextBin)
+
+    const snapshotBinFile = basename(this.snapshotBinPath)
+    const electronSnapshotBin = join(electronResourcesDir, snapshotBinFile)
+
+    logInfo(`Moving ${snapshotBinFile} to ${electronSnapshotBin}`)
+    fs.renameSync(this.snapshotBinPath, electronSnapshotBin)
   }
 
   async makeAndInstallSnapshot() {
@@ -404,7 +414,7 @@ export function uninstallSnapshot(projectBaseDir: string, version?: string) {
   version = version ?? resolveElectronVersion(projectBaseDir)
   const { v8ContextFile } = getMetadata(version)
 
-  const electronSnapshotBin = electronSnapshotPath(
+  const electronSnapshotBin = installedElectronResourcesFilePath(
     projectBaseDir,
     v8ContextFile
   )

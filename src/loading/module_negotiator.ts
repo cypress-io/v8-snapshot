@@ -2,8 +2,9 @@ import { strict as assert } from 'assert'
 import fs from 'fs'
 import type { ModuleMapper } from 'packherd'
 import path from 'path'
+import { EMBEDDED } from '../constants'
 
-const EMBEDDED = '<embedded>:'
+const EMBEDDED_FRAME_PREFIX = `${EMBEDDED}:`
 // This is the frame in the stack from which the bundled require will get called, however this may
 // change in the future, i.e. when this library or any of its dependents like packherd change.
 // For now we assume it doesn't too much and live with things being a bit brittle as
@@ -61,7 +62,7 @@ export class ModuleNegotiator {
     const frames = stack.split('\n')
     for (let frame of EMBEDDED_FRAMES) {
       if (frames.length <= frame) return false
-      if (frames[frame].includes(EMBEDDED)) {
+      if (frames[frame].includes(EMBEDDED_FRAME_PREFIX)) {
         return true
       }
     }

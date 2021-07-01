@@ -30,16 +30,19 @@
   "dependencies": {
     "@thlorenz/electron-mksnapshot": "^0.1.0",
     "ansi-colors": "^4.1.1",
+    "convert-source-map": "^1.8.0",
     "debug": "^4.1.1",
     "packherd": "^0.3.1",
     "resolve-from": "^5.0.0",
     "snapbuild-darwin-x64": "^0.2.2",
+    "source-map-js": "^0.6.2",
     "supports-color": "^8.1.1",
     "terser": "^5.3.2",
     "tslib": "^2.0.1",
     "worker-nodes": "^2.3.0"
   },
   "devDependencies": {
+    "@types/convert-source-map": "^1.5.1",
     "@types/debug": "^4.1.5",
     "@types/node": "^12.20.4",
     "@types/tape": "^4.13.0",

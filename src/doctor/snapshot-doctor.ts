@@ -567,6 +567,7 @@ export class SnapshotDoctor {
         includeStrictVerifiers: true,
         deferred: deferredArg,
         norewrite: norewriteArg,
+        sourcemap: false,
       })
 
       return { warnings, meta: meta as Metadata, bundle }

@@ -1,4 +1,7 @@
 import fs from 'fs'
+import { BUNDLE_WRAPPER_OPEN } from './create-snapshot-script'
+import { inlineSourceMapComment } from './sourcemap/inline-sourcemap'
+import { processSourceMap } from './sourcemap/process-sourcemap'
 
 function read(part: string, indent = '  ') {
   const p = require.resolve(`./blueprint/${part}`)
@@ -19,7 +22,10 @@ export type BlueprintConfig = {
   customRequireDefinitions: Buffer
   includeStrictVerifiers: boolean
   nodeEnv: string
+  basedir: string
+  sourceMap: Buffer | undefined
 }
+
 export function scriptFromBlueprint(config: BlueprintConfig) {
   const {
     processPlatform,
@@ -29,6 +35,8 @@ export function scriptFromBlueprint(config: BlueprintConfig) {
     customRequireDefinitions,
     includeStrictVerifiers,
     nodeEnv,
+    basedir,
+    sourceMap,
   } = config
 
   const wrapperOpen = Buffer.from(
@@ -103,14 +111,48 @@ function generateSnapshot() {
     setGlobals: ${setGlobals},
   }
 }
-
-snapshotAuxiliaryData.snapshotSections = []
 var snapshotResult = generateSnapshot.call({})
-
 generateSnapshot = null
 `,
     'utf8'
   )
 
-  return Buffer.concat([wrapperOpen, customRequireDefinitions, wrapperClose])
+  const buffers = [wrapperOpen, customRequireDefinitions, wrapperClose]
+
+  // Now we rendered the prelude and can calculate the bundle line offset and thus
+  // process and include source maps. Since it is expensive we only do this if we
+  // have a valid sourcemap.
+  let offsetToBundle: number | undefined = undefined
+
+  let processedSourceMap: string | undefined
+  if (sourceMap != null) {
+    offsetToBundle =
+      newLinesInBuffer(wrapperOpen) + newLinesInBuffer(BUNDLE_WRAPPER_OPEN) + 1
+
+    processedSourceMap = processSourceMap(sourceMap, basedir, offsetToBundle)
+
+    // Embed the sourcemaps as a JS object for fast retrieval
+    if (processedSourceMap != null) {
+      buffers.push(
+        Buffer.from(
+          `snapshotAuxiliaryData.sourceMap = ${processedSourceMap}`,
+          'utf8'
+        )
+      )
+    }
+
+    // Inline the sourcemap comment (even though DevTools doesn't properly pick that up)
+    const sourceMapComment = inlineSourceMapComment(processedSourceMap)
+    if (sourceMapComment != null) {
+      buffers.push(Buffer.from(sourceMapComment, 'utf8'))
+    }
+  }
+  return { script: Buffer.concat(buffers), processedSourceMap }
+}
+
+const CR_CODE = '\n'.charCodeAt(0)
+
+function newLinesInBuffer(buf: Buffer) {
+  const newLines = buf.filter((x) => x === CR_CODE)
+  return newLines.length
 }

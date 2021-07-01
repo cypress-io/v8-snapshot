@@ -7,7 +7,7 @@
     "start": "DEBUG='(packherd|snapgen):*' PROJECT_BASE_DIR=`pwd` electron -r ./app/hook-require.js app",
     "start-as-node": "ELECTRON_RUN_AS_NODE=1 DEBUG='(packherd|snapgen):*' PROJECT_BASE_DIR=`pwd` electron -r ./app/hook-require.js app",
     "debug": "DEBUG='(packherd|snapgen):*' PROJECT_BASE_DIR=`pwd` electron --inspect-brk -r ./app/hook-require.js app",
-    "install-snapshot": "DEBUG='(packherd|snapgen):*' node ./snapshot/install-snapshot.js",
+    "install-snapshot": "DEBUG='(packherd|snapgen):*' node --enable-source-maps ./snapshot/install-snapshot.js",
     "uninstall-snapshot": "DEBUG='(packherd|snapgen):*' node ./snapshot/uninstall-snapshot.js"
   },
   "author": "Thorsten Lorenz <thlorenz@gmx.de>",
@@ -18,7 +18,6 @@
     "tmpfile": "^0.2.0"
   },
   "devDependencies": {
-    "electron": "12.0.0",
-    "electron-mksnapshot": "12.0.0"
+    "electron": "12.0.0-beta.14"
   }
 }

@@ -127,10 +127,14 @@ export function resolveElectronVersion(root: string): string {
 export function backupName(orig: string) {
   const file = path.basename(orig)
   const ext = path.extname(orig)
-  return `${file}.orig.${ext}`
+  const extLen = ext.length
+  return `${file.slice(0, -extLen)}.orig${ext}`
 }
 
-export function electronSnapshotPath(root: string, v8ContextFile: string) {
+export function installedElectronResourcesFilePath(
+  root: string,
+  electronFile: string
+) {
   const electron = path.dirname(resolveFrom(root, 'electron'))
   let location
   switch (process.platform) {
@@ -155,7 +159,7 @@ export function electronSnapshotPath(root: string, v8ContextFile: string) {
   }
 
   const snapshotLocation = path.join(electron, location)
-  return path.join(snapshotLocation, v8ContextFile)
+  return path.join(snapshotLocation, electronFile)
 }
 // at Object.__commonJS../node_modules/mute-stream/mute.js (/Volumes/d/dev/cy/perf-tr1/v8-snapshot/example-multi/cache/snapshot.js:10555:43)
 const commonJsModuleRx = /(at Object.__commonJS\.)([^(]+)([^ :]+) *:(\d+)(.+)/

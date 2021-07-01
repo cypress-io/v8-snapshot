@@ -57,7 +57,7 @@ export function processScript({
       entryPoint,
       includeStrictVerifiers: true,
       nodeEnv,
-    })
+    }).script
   } catch (err) {
     return { outcome: 'failed:assembleScript', error: err }
   }

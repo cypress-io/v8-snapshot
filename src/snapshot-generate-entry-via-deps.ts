@@ -52,6 +52,7 @@ class SnapshotEntryGeneratorViaWalk {
       baseDirPath: this.projectBaseDir,
       entryFilePath: this.entryFile,
       nodeModulesOnly: this.nodeModulesOnly,
+      sourcemap: false,
     }
     const { meta } = await createBundleAsync(opts)
     return meta as Metadata

@@ -1,4 +1,5 @@
 import type { CreateBundleResult } from 'packherd'
+import { RawSourceMap } from 'source-map-js'
 
 export type Entries<T> = {
   [K in keyof T]: [K, T[K]]
@@ -82,4 +83,8 @@ export type Snapshot = {
     definitions: Record<string, NodeRequireFunction>
     cache: Record<string, NodeModule>
   }
+}
+
+export type SnapshotAuxiliaryData = {
+  sourceMap?: RawSourceMap
 }
