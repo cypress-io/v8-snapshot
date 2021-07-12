@@ -11,7 +11,7 @@ export function inlineSourceMapComment(sourceMap?: string): string | undefined {
 
   try {
     const base64 = convertSourceMap.fromJSON(sourceMap).toBase64()
-    return `${INLINE_BASE64_SOURCEMAP_HEADER}${base64}`
+    return `\n${INLINE_BASE64_SOURCEMAP_HEADER}${base64}`
   } catch (err) {
     logError('Failed to parse sourcemaps')
     logError(err)
