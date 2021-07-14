@@ -1,6 +1,6 @@
 {
   "name": "native-modules",
-  "dependencies": {
+  "optionalDependencies": {
     "fsevents": "^2.3.2"
   },
   "devDependencies": {
