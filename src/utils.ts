@@ -1,16 +1,12 @@
 import { blueBright, gray, green, yellow } from 'ansi-colors'
 import fs from 'fs'
-import os from 'os'
 import crypto from 'crypto'
 import path from 'path'
+import { binary } from 'snapbuild'
 import resolveFrom from 'resolve-from'
 
 import debug from 'debug'
 const logDebug = debug('snapgen:debug')
-
-const BUNDLERS = new Map([
-  ['darwin-x64', require.resolve('snapbuild-darwin-x64/bin/snapshot')],
-])
 
 export function getBundlerPath() {
   if (process.env.SNAPSHOT_BUNDLER != null) {
@@ -19,16 +15,8 @@ export function getBundlerPath() {
     return bundler
   }
 
-  const platformKey = `${os.platform()}-${os.arch()}`
-  const bundler = BUNDLERS.get(platformKey)
-  if (bundler == null) {
-    throw new Error(
-      `No snapshot bundler known for your platform ${platformKey}\n` +
-        `Please provide the path to the executable via 'SNAPSHOT_BUNDLER=/path/to/snapshot'`
-    )
-  }
-  logDebug('Using installed snapshot bundler (%s)', bundler)
-  return bundler
+  logDebug('Using installed SNAPSHOT_BUNDLER (%s)', binary)
+  return binary
 }
 
 function canAccessSync(p: string) {
