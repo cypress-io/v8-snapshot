@@ -217,10 +217,8 @@ export class SnapshotDoctor {
 
     logInfo('Optimizing')
 
-    const {
-      optimizedDeferred,
-      includingImplicitsDeferred,
-    } = await this._optimizeDeferred(meta, sortedDeferred, sortedNorewrite)
+    const { optimizedDeferred, includingImplicitsDeferred } =
+      await this._optimizeDeferred(meta, sortedDeferred, sortedNorewrite)
 
     logInfo({ allDeferred: sortedDeferred, len: sortedDeferred.length })
     logInfo({ optimizedDeferred, len: optimizedDeferred.size })
@@ -480,62 +478,60 @@ export class SnapshotDoctor {
             nextStage = this._findNextStage(healState, circulars)
           }
         }
-        const promises = nextStage.map(
-          async (key): Promise<void> => {
-            logDebug('Testing entry in isolation "%s"', key)
-            const result = await this._scriptProcessor.processScript({
-              bundlePath,
-              bundleHash,
-              baseDirPath: this.baseDirPath,
-              entryFilePath: this.entryFilePath,
-              entryPoint: `./${key}`,
-              nodeEnv: this.nodeEnv,
-            })
+        const promises = nextStage.map(async (key): Promise<void> => {
+          logDebug('Testing entry in isolation "%s"', key)
+          const result = await this._scriptProcessor.processScript({
+            bundlePath,
+            bundleHash,
+            baseDirPath: this.baseDirPath,
+            entryFilePath: this.entryFilePath,
+            entryPoint: `./${key}`,
+            nodeEnv: this.nodeEnv,
+          })
 
-            assert(result != null, 'expected result from script processor')
+          assert(result != null, 'expected result from script processor')
 
-            switch (result.outcome) {
-              case 'completed': {
-                healState.healthy.add(key)
-                logDebug('Verified as healthy "%s"', key)
-                break
-              }
-              case 'failed:assembleScript':
-              case 'failed:verifyScript': {
-                logError('%s script with entry "%s"', result.outcome, key)
-                logError(result.error!.toString())
+          switch (result.outcome) {
+            case 'completed': {
+              healState.healthy.add(key)
+              logDebug('Verified as healthy "%s"', key)
+              break
+            }
+            case 'failed:assembleScript':
+            case 'failed:verifyScript': {
+              logError('%s script with entry "%s"', result.outcome, key)
+              logError(result.error!.toString())
 
-                const warning = this._warningsProcessor.warningFromError(
-                  result.error!,
-                  key,
-                  healState
-                )
-                if (warning != null) {
-                  switch (warning.consequence) {
-                    case WarningConsequence.Defer: {
-                      logInfo('Deferring "%s"', key)
-                      healState.needDefer.add(key)
-                      break
-                    }
-                    case WarningConsequence.NoRewrite: {
-                      logInfo(
-                        'Not rewriting "%s" as it results in incorrect code',
-                        key
-                      )
-                      healState.needNorewrite.add(key)
-                      break
-                    }
-                    case WarningConsequence.None: {
-                      console.error(result.error)
-                      assert.fail('I do not know what to do with this error')
-                    }
+              const warning = this._warningsProcessor.warningFromError(
+                result.error!,
+                key,
+                healState
+              )
+              if (warning != null) {
+                switch (warning.consequence) {
+                  case WarningConsequence.Defer: {
+                    logInfo('Deferring "%s"', key)
+                    healState.needDefer.add(key)
+                    break
+                  }
+                  case WarningConsequence.NoRewrite: {
+                    logInfo(
+                      'Not rewriting "%s" as it results in incorrect code',
+                      key
+                    )
+                    healState.needNorewrite.add(key)
+                    break
+                  }
+                  case WarningConsequence.None: {
+                    console.error(result.error)
+                    assert.fail('I do not know what to do with this error')
                   }
                 }
-                break
               }
+              break
             }
           }
-        )
+        })
         await Promise.all(promises)
       }
     } /* END using (bundlePath) */

@@ -136,9 +136,7 @@ export function assembleScript(
  * @param opts
  * @return promise of the paths and contents of the created bundle and related metadata
  */
-export async function createBundleAsync(
-  opts: CreateBundleOpts
-): Promise<{
+export async function createBundleAsync(opts: CreateBundleOpts): Promise<{
   warnings: CreateBundleResult['warnings']
   meta: Exclude<CreateBundleResult['metafile'], undefined>
   bundle: Buffer
@@ -185,82 +183,81 @@ function stringToBuffer(contents: string) {
   return Buffer.from(contents, 'hex')
 }
 
-const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle = (
-  opts: CreateBundleOpts
-) => (popts: PackherdCreateBundleOpts) => {
-  const basedir = path.resolve(process.cwd(), opts.baseDirPath)
-  const cmd =
-    opts.bundlerPath +
-    ` --basedir=${basedir}` +
-    (opts.deferred != null && opts.deferred.length > 0
-      ? ` --deferred='${opts.deferred.join(',')}'`
-      : '') +
-    (opts.norewrite != null && opts.norewrite.length > 0
-      ? ` --norewrite='${opts.norewrite.join(',')}'`
-      : '') +
-    ' --metafile' +
-    ` ${popts.entryFilePath}` +
-    (!!opts.includeStrictVerifiers ? ' --doctor' : '') +
-    (!!opts.sourcemap ? ' --sourcemap' : '')
+const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
+  (opts: CreateBundleOpts) => (popts: PackherdCreateBundleOpts) => {
+    const basedir = path.resolve(process.cwd(), opts.baseDirPath)
+    const cmd =
+      opts.bundlerPath +
+      ` --basedir=${basedir}` +
+      (opts.deferred != null && opts.deferred.length > 0
+        ? ` --deferred='${opts.deferred.join(',')}'`
+        : '') +
+      (opts.norewrite != null && opts.norewrite.length > 0
+        ? ` --norewrite='${opts.norewrite.join(',')}'`
+        : '') +
+      ' --metafile' +
+      ` ${popts.entryFilePath}` +
+      (!!opts.includeStrictVerifiers ? ' --doctor' : '') +
+      (!!opts.sourcemap ? ' --sourcemap' : '')
 
-  logTrace('Running "%s"', cmd)
+    logTrace('Running "%s"', cmd)
 
-  const _MB = 1024 * 1024
-  try {
-    const stdout = execSync(cmd, {
-      maxBuffer: 200 * _MB,
-      cwd: basedir,
-      stdio: ['pipe', 'pipe', 'ignore'],
-    })
-    const { warnings, outfiles, metafile } = JSON.parse(stdout.toString())
+    const _MB = 1024 * 1024
+    try {
+      const stdout = execSync(cmd, {
+        maxBuffer: 200 * _MB,
+        cwd: basedir,
+        stdio: ['pipe', 'pipe', 'ignore'],
+      })
+      const { warnings, outfiles, metafile } = JSON.parse(stdout.toString())
 
-    assert(outfiles.length >= 1, 'need at least one outfile')
-    assert(metafile != null, 'expected metafile to be included in result')
-    assert(
-      metafile.contents != null,
-      'expected metafile to include contents buffer'
-    )
-
-    const bundleContents = outfiles[0].contents
-    const bundle = { contents: stringToBuffer(bundleContents) }
-
-    const includedSourcemaps = outfiles.length === 2
-    if (!!opts.sourcemap) {
+      assert(outfiles.length >= 1, 'need at least one outfile')
+      assert(metafile != null, 'expected metafile to be included in result')
       assert(
-        includedSourcemaps,
-        'should include sourcemap when --sourcemap is provided'
+        metafile.contents != null,
+        'expected metafile to include contents buffer'
       )
-    } else {
-      assert(
-        !includedSourcemaps,
-        'should only include sourcemap when --sourcemap is provided'
-      )
-    }
-    const sourceMap = includedSourcemaps
-      ? { contents: stringToBuffer(outfiles[1].contents) }
-      : undefined
 
-    const metadata: Metadata = JSON.parse(
-      stringToBuffer(metafile.contents).toString()
-    )
-    const result: CreateBundleResult = {
-      warnings,
-      outputFiles: [bundle],
-      sourceMap,
-      metafile: metadata,
+      const bundleContents = outfiles[0].contents
+      const bundle = { contents: stringToBuffer(bundleContents) }
+
+      const includedSourcemaps = outfiles.length === 2
+      if (!!opts.sourcemap) {
+        assert(
+          includedSourcemaps,
+          'should include sourcemap when --sourcemap is provided'
+        )
+      } else {
+        assert(
+          !includedSourcemaps,
+          'should only include sourcemap when --sourcemap is provided'
+        )
+      }
+      const sourceMap = includedSourcemaps
+        ? { contents: stringToBuffer(outfiles[1].contents) }
+        : undefined
+
+      const metadata: Metadata = JSON.parse(
+        stringToBuffer(metafile.contents).toString()
+      )
+      const result: CreateBundleResult = {
+        warnings,
+        outputFiles: [bundle],
+        sourceMap,
+        metafile: metadata,
+      }
+      return Promise.resolve(result)
+    } catch (err) {
+      if (err.stderr != null) {
+        logError(err.stderr.toString())
+      }
+      if (err.stdout != null) {
+        logDebug(err.stdout.toString())
+      }
+      logError(err)
+      return Promise.reject(new Error(`Failed command: "${cmd}"`))
     }
-    return Promise.resolve(result)
-  } catch (err) {
-    if (err.stderr != null) {
-      logError(err.stderr.toString())
-    }
-    if (err.stdout != null) {
-      logDebug(err.stdout.toString())
-    }
-    logError(err)
-    return Promise.reject(new Error(`Failed command: "${cmd}"`))
   }
-}
 
 async function createBundle(opts: CreateBundleOpts) {
   const { warnings, bundle, sourceMap, meta } = await packherd({

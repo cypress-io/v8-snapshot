@@ -11,7 +11,7 @@
     "test": "tape dist/tests/**/*.js",
     "debug-test": "node --inspect-brk -r ./tests/utils/hook-require.js tests/**/*.ts",
     "lint": "prettier -c ./src/",
-    "lint:fix": "prettier --format ./src",
+    "lint:fix": "prettier --write ./src",
     "watch": "tsc -p ./tsconfig.json --watch"
   },
   "directories": {
