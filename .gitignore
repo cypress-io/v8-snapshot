@@ -2,3 +2,4 @@
 dist/
 cache/
 *.bin
+yarn.lock
