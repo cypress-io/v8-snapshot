@@ -10,6 +10,7 @@ const exec = promisify(execOrig)
 const projectBaseDir = path.join(__dirname, 'fixtures', 'rewrites')
 const cacheDir = path.join(projectBaseDir, 'cache')
 const snapshotEntryFile = path.join(projectBaseDir, 'entry.js')
+const v8snapshotRoot = path.join(__dirname, '..', '..', '..')
 
 test('esbuild: rewriting mutli assignments and multi exports', async (t) => {
   const generator = new SnapshotGenerator(projectBaseDir, snapshotEntryFile, {
@@ -26,7 +27,7 @@ test('esbuild: rewriting mutli assignments and multi exports', async (t) => {
     DEBUG_COLORS: 1,
   }
   const cmd =
-    `node ${projectBaseDir}/node_modules/.bin/electron` +
+    `node ${v8snapshotRoot}/node_modules/.bin/electron` +
     ` -r ${projectBaseDir}/hook-require.js` +
     ` ${projectBaseDir}/app.js`
 
