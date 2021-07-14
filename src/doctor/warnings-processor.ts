@@ -6,12 +6,14 @@ export const SNAPSHOT_CACHE_FAILURE = '[SNAPSHOT_CACHE_FAILURE]'
 export const UNKNOWN = 'UNKNOWN'
 
 // This error is raised for missing Node.js globals like Buffer
-export const REFERENCE_ERROR_DEFER = /^(Reference|Type)?Error: (.+ is not defined|Cannot read property)/i
+export const REFERENCE_ERROR_DEFER =
+  /^(Reference|Type)?Error: (.+ is not defined|Cannot read property)/i
 
 // This error is raised due to missing functions, most likely due to incorrect rewrite
 // Note that the `__.+__ is not defined` part catches rewrite errors that led to a functions
 // replacement to be used before defined or similar
-export const REFERENCE_ERROR_NOREWRITE = /^(Reference|Type)?Error: (.+ is not a function|__.+__ is not defined)/i
+export const REFERENCE_ERROR_NOREWRITE =
+  /^(Reference|Type)?Error: (.+ is not a function|__.+__ is not defined)/i
 
 export type WarningsProcessHistory = {
   deferred: Set<string>
