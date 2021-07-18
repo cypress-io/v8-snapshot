@@ -1,5 +1,6 @@
 DIR := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 TESTS_DIR = $(DIR)/dist/tests
+RIMRAF:=$(DIR)/node_modules/.bin/rimraf
 
 build:
 	yarn build
@@ -11,7 +12,7 @@ prep-loading:
 	cd $(TESTS_DIR)/loading/fixtures/external-from-healthy && (if [ ! -d './node_modules' ]; then yarn install; fi)
 	cd $(TESTS_DIR)/loading/fixtures/esm                   && (if [ ! -d './node_modules' ]; then yarn install; fi)
 	cd $(TESTS_DIR)/loading/fixtures/native-modules        && (if [ ! -d './node_modules' ]; then yarn install; fi)
-	rm -rf $(TESTS_DIR)/loading/fixtures/external-from-healthy/node_modules/bluebird && \
+	$(RIMRAF) $(TESTS_DIR)/loading/fixtures/external-from-healthy/node_modules/bluebird && \
 		cp -R \
 			$(TESTS_DIR)/loading/fixtures/external-from-healthy/fake-bluebird \
 			$(TESTS_DIR)/loading/fixtures/external-from-healthy/node_modules/bluebird
@@ -25,8 +26,8 @@ copy-fixtures:
 	cp -R $(DIR)/src/tests/loading/fixtures $(TESTS_DIR)/loading/fixtures
 
 clean-fixtures:
-	rm -rf $(TESTS_DIR)/esbuild/fixtures
-	rm -rf $(TESTS_DIR)/doctor/fixtures
-	rm -rf $(TESTS_DIR)/loading/fixtures
+	$(RIMRAF) $(TESTS_DIR)/esbuild/fixtures
+	$(RIMRAF) $(TESTS_DIR)/doctor/fixtures
+	$(RIMRAF) $(TESTS_DIR)/loading/fixtures
 
 .PHONY: build clean-fixtures copy-fixtures prep-loading pretest
