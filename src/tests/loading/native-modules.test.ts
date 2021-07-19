@@ -11,7 +11,6 @@ if (process.platform == 'darwin') {
   const projectBaseDir = path.join(__dirname, 'fixtures', 'native-modules')
   const cacheDir = path.join(projectBaseDir, 'cache')
   const snapshotEntryFile = path.join(projectBaseDir, 'entry.js')
-  const v8snapshotRoot = path.join(__dirname, '..', '..', '..')
 
   test('native modules: app loading and using fsevents which has native module component', async (t) => {
     const generator = new SnapshotGenerator(projectBaseDir, snapshotEntryFile, {
@@ -28,7 +27,7 @@ if (process.platform == 'darwin') {
       DEBUG_COLORS: 1,
     }
     const cmd =
-      `node ${v8snapshotRoot}/node_modules/.bin/electron` +
+      `node ${require.resolve('electron/cli')}` +
       ` -r ${projectBaseDir}/hook-require.js` +
       ` ${projectBaseDir}/app.js`
 
