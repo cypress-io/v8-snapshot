@@ -3,23 +3,19 @@ TESTS_DIR = $(DIR)/dist/tests
 RIMRAF:=$(DIR)/node_modules/.bin/rimraf
 CPR:=$(DIR)/node_modules/.bin/cpr
 
+PRETEST_INSTALLS:=$(TESTS_DIR)/loading/fixtures/deferred-from-healthy/node_modules
+PRETEST_INSTALLS+=$(TESTS_DIR)/loading/fixtures/external-from-healthy/node_modules
+PRETEST_INSTALLS+=$(TESTS_DIR)/loading/fixtures/esm/node_modules
+PRETEST_INSTALLS+=$(TESTS_DIR)/loading/fixtures/native-modules/node_modules
+
 build:
 	yarn build
 
-pretest: build clean-fixtures copy-fixtures prep-loading prep-esbuild
-
-prep-loading:
-	cd $(TESTS_DIR)/loading/fixtures/deferred-from-healthy && (if [ ! -d './node_modules' ]; then yarn install; fi)
-	cd $(TESTS_DIR)/loading/fixtures/external-from-healthy && (if [ ! -d './node_modules' ]; then yarn install; fi)
-	cd $(TESTS_DIR)/loading/fixtures/esm                   && (if [ ! -d './node_modules' ]; then yarn install; fi)
-	cd $(TESTS_DIR)/loading/fixtures/native-modules        && (if [ ! -d './node_modules' ]; then yarn install; fi)
+pretest: build clean-fixtures copy-fixtures $(PRETEST_INSTALLS) prep-loading
 	$(RIMRAF) $(TESTS_DIR)/loading/fixtures/external-from-healthy/node_modules/bluebird && \
 		$(CPR) \
 			$(TESTS_DIR)/loading/fixtures/external-from-healthy/fake-bluebird \
 			$(TESTS_DIR)/loading/fixtures/external-from-healthy/node_modules/bluebird
-
-prep-esbuild:
-	cd $(TESTS_DIR)/esbuild/fixtures/rewrites && (if [ ! -d './node_modules' ]; then yarn install; fi)
 
 copy-fixtures:
 	$(CPR) $(DIR)/src/tests/esbuild/fixtures $(TESTS_DIR)/esbuild/fixtures
@@ -31,4 +27,19 @@ clean-fixtures:
 	$(RIMRAF) $(TESTS_DIR)/doctor/fixtures
 	$(RIMRAF) $(TESTS_DIR)/loading/fixtures
 
-.PHONY: build clean-fixtures copy-fixtures prep-loading pretest
+$(TESTS_DIR)/loading/fixtures/deferred-from-healthy/node_modules:
+	cd $(abspath $@/..) && yarn install
+
+$(TESTS_DIR)/loading/fixtures/external-from-healthy/node_modules:
+	cd $(abspath $@/..) && yarn install
+
+$(TESTS_DIR)/loading/fixtures/esm/node_modules:
+	cd $(abspath $@/..) && yarn install
+
+$(TESTS_DIR)/loading/fixtures/native-modules/node_modules:
+	cd $(abspath $@/..) && yarn install
+
+$(TESTS_DIR)/esbuild/fixtures/rewrites/node_modules:
+	cd $(abspath $@/..) && yarn install
+
+.PHONY: build clean-fixtures copy-fixtures prep-loading pretest test
