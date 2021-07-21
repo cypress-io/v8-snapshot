@@ -183,23 +183,40 @@ function stringToBuffer(contents: string) {
   return Buffer.from(contents, 'hex')
 }
 
+function argumentify(arr: string[]) {
+  // esbuild stores modules in sub directories with backslash on windows, i.e. './lib\\deferred.js'
+  // so we need to send the keys of deferred and norewrite modules in the same manner
+  return path.sep === '/'
+    ? arr.map((x) => {
+        const PREFIX = x.startsWith('./') ? '' : './'
+        return `${PREFIX}${x}`
+      })
+    : arr.map((x) => {
+        if (x.startsWith('./')) x = x.slice(2)
+        return `./${x.replace(/\//g, path.sep)}`
+      })
+}
+
 const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
   (opts: CreateBundleOpts) => (popts: PackherdCreateBundleOpts) => {
     const basedir = path.resolve(process.cwd(), opts.baseDirPath)
-    const cmd =
-      opts.bundlerPath +
-      ` --basedir=${basedir}` +
-      (opts.deferred != null && opts.deferred.length > 0
-        ? ` --deferred='${opts.deferred.join(',')}'`
-        : '') +
-      (opts.norewrite != null && opts.norewrite.length > 0
-        ? ` --norewrite='${opts.norewrite.join(',')}'`
-        : '') +
-      ' --metafile' +
-      ` ${popts.entryFilePath}` +
-      (!!opts.includeStrictVerifiers ? ' --doctor' : '') +
-      (!!opts.sourcemap ? ' --sourcemap' : '')
 
+    const args = [`--basedir=${basedir}`, popts.entryFilePath, '--metafile']
+
+    if (opts.deferred != null && opts.deferred.length > 0) {
+      args.push(`--deferred='${argumentify(opts.deferred).join(',')}'`)
+    }
+    if (opts.norewrite != null && opts.norewrite.length > 0) {
+      args.push(`--norewrite='${argumentify(opts.norewrite).join(',')}'`)
+    }
+    if (!!opts.includeStrictVerifiers) {
+      args.push('--doctor')
+    }
+    if (!!opts.sourcemap) {
+      args.push('--sourcemap')
+    }
+
+    const cmd = `${opts.bundlerPath} ${args.join(' ')}`
     logTrace('Running "%s"', cmd)
 
     const _MB = 1024 * 1024

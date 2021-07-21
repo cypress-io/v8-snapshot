@@ -132,12 +132,6 @@ function unpathify(keys: Set<string>) {
   return unpathified
 }
 
-function argumentify(set?: Set<string>) {
-  return set != null && set.size > 0
-    ? Array.from(set).map((x) => `./${x}`)
-    : undefined
-}
-
 export class SnapshotDoctor {
   private readonly baseDirPath: string
   private readonly entryFilePath: string
@@ -551,10 +545,9 @@ export class SnapshotDoctor {
     bundle: Buffer
     warnings: Warning[]
   }> {
+    const deferredArg = deferred == null ? undefined : Array.from(deferred)
+    const norewriteArg = norewrite == null ? undefined : Array.from(norewrite)
     try {
-      const deferredArg = argumentify(deferred)
-      const norewriteArg = argumentify(norewrite)
-
       const { warnings, meta, bundle } = await createBundleAsync({
         baseDirPath: this.baseDirPath,
         entryFilePath: this.entryFilePath,
