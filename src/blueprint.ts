@@ -1,4 +1,5 @@
 import fs from 'fs'
+import path from 'path'
 import { BUNDLE_WRAPPER_OPEN } from './create-snapshot-script'
 import { inlineSourceMapComment } from './sourcemap/inline-sourcemap'
 import { processSourceMap } from './sourcemap/process-sourcemap'
@@ -26,6 +27,7 @@ export type BlueprintConfig = {
   sourceMap: Buffer | undefined
 }
 
+const pathSep = path.sep == '\\' ? '\\\\' : path.sep
 export function scriptFromBlueprint(config: BlueprintConfig) {
   const {
     processPlatform,
@@ -41,6 +43,7 @@ export function scriptFromBlueprint(config: BlueprintConfig) {
 
   const wrapperOpen = Buffer.from(
     `
+const PATH_SEP = '${pathSep}'
 var snapshotAuxiliaryData = ${auxiliaryData}
 
 function generateSnapshot() {
