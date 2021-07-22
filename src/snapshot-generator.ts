@@ -290,9 +290,9 @@ export class SnapshotGenerator {
         deferred,
         norewrite,
         nodeModulesOnly: this.nodeModulesOnly,
-        sourcemapEmbed: this.sourcemapEmbed,
-        sourcemapInline: this.sourcemapInline,
-        sourcemap: true,
+        sourcemapEmbed: false,
+        sourcemapInline: false,
+        sourcemap: false,
         auxiliaryData: this.auxiliaryData,
         nodeEnv: this.nodeEnv,
       })

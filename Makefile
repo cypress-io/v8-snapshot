@@ -22,11 +22,13 @@ copy-fixtures:
 	$(CPR) $(DIR)/src/tests/esbuild/fixtures $(TESTS_DIR)/esbuild/fixtures
 	$(CPR) $(DIR)/src/tests/doctor/fixtures $(TESTS_DIR)/doctor/fixtures
 	$(CPR) $(DIR)/src/tests/loading/fixtures $(TESTS_DIR)/loading/fixtures
+	$(CPR) $(DIR)/src/tests/sourcemap/fixtures $(TESTS_DIR)/sourcemap/fixtures
 
 clean-fixtures:
 	$(RIMRAF) $(TESTS_DIR)/esbuild/fixtures
 	$(RIMRAF) $(TESTS_DIR)/doctor/fixtures
 	$(RIMRAF) $(TESTS_DIR)/loading/fixtures
+	$(RIMRAF) $(TESTS_DIR)/sourcemap/fixtures
 
 $(TESTS_DIR)/loading/fixtures/deferred-from-healthy/node_modules:
 	cd $(abspath $@/..) && yarn install

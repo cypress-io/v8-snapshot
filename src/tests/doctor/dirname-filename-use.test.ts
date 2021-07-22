@@ -1,7 +1,7 @@
 import spok from 'spok'
 import path from 'path'
 import test from 'tape'
-import { readResult } from './utils/bundle'
+import { readBundleResult } from '../utils/bundle'
 import { SnapshotGenerator } from '../../snapshot-generator'
 import { Flag } from '../../snapshot-generator-flags'
 
@@ -16,7 +16,7 @@ test('snapshot: using dir/file name delayed and during init ', async (t) => {
     flags: Flag.Script,
   })
   await generator.createExportBundle()
-  const { meta, exported } = readResult(cacheDir)
+  const { meta, exported } = readBundleResult(cacheDir)
 
   spok(t, meta, {
     $topic: 'snapshot meta',
