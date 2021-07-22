@@ -7,11 +7,12 @@ PRETEST_INSTALLS:=$(TESTS_DIR)/loading/fixtures/deferred-from-healthy/node_modul
 PRETEST_INSTALLS+=$(TESTS_DIR)/loading/fixtures/external-from-healthy/node_modules
 PRETEST_INSTALLS+=$(TESTS_DIR)/loading/fixtures/esm/node_modules
 PRETEST_INSTALLS+=$(TESTS_DIR)/loading/fixtures/native-modules/node_modules
+PRETEST_INSTALLS+=$(DIR)/example-express/node_modules
 
 build:
 	yarn build
 
-pretest: build clean-fixtures copy-fixtures $(PRETEST_INSTALLS) prep-loading
+pretest: build clean-fixtures copy-fixtures $(PRETEST_INSTALLS)
 	$(RIMRAF) $(TESTS_DIR)/loading/fixtures/external-from-healthy/node_modules/bluebird && \
 		$(CPR) \
 			$(TESTS_DIR)/loading/fixtures/external-from-healthy/fake-bluebird \
@@ -42,4 +43,7 @@ $(TESTS_DIR)/loading/fixtures/native-modules/node_modules:
 $(TESTS_DIR)/esbuild/fixtures/rewrites/node_modules:
 	cd $(abspath $@/..) && yarn install
 
-.PHONY: build clean-fixtures copy-fixtures prep-loading pretest test
+$(DIR)/example-express/node_modules:
+	cd $(abspath $@/..) && yarn install
+
+.PHONY: build clean-fixtures copy-fixtures pretest
