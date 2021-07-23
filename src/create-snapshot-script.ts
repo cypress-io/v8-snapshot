@@ -122,7 +122,9 @@ export function assembleScript(
 
   const relSourcemapExternalPath =
     opts.sourcemapExternalPath != null
-      ? path.relative(basedir, opts.sourcemapExternalPath)
+      ? path
+          .relative(basedir, opts.sourcemapExternalPath)
+          .replace(path.sep, '/') // consistent url even on unixlike and windows
       : undefined
 
   const config: BlueprintConfig = {
