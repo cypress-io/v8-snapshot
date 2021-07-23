@@ -15,11 +15,13 @@ const getModuleKey: GetModuleKey = (moduleUri, relPath) => {
   // NOTE(thlorenz): this works for cases for which the root of the app
   // is up to one level below node_modules.
   if (/^[a-zA-Z]/.test(relPath)) {
-    // Change things like `node_modules/...` to `./node_modules/...`
+    // Change things like `node_modules/..` to `./node_modules/..`
     relPath = `./${relPath}`
   }
-  // WINDOWS: won't work if windows paths are back slashes
-  const key = relPath.replace(/^\.\.\//, './')
+  const key = relPath
+    // Normalize to use forward slashes as modules are cached that way
+    .replace(/\\/g, '/')
+    .replace(/^\.\.\//, './')
   logTrace('key "%s" for [ %s | %s ]', key, relPath, moduleUri)
   return key
 }
