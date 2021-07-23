@@ -47,6 +47,8 @@ export type CreateBundleOpts = {
   includeStrictVerifiers?: boolean
   sourcemap?: boolean
   sourcemapExternalPath?: string
+  sourcemapEmbed: boolean
+  sourcemapInline: boolean
 }
 
 export type CreateSnapshotScriptOpts = CreateBundleOpts & {
@@ -99,6 +101,9 @@ export function assembleScript(
     entryPoint?: string
     includeStrictVerifiers?: boolean
     sourceMap?: Buffer
+    sourcemapEmbed: boolean
+    sourcemapInline: boolean
+    sourcemapExternalPath: string | undefined
     nodeEnv: string
   }
 ): { script: Buffer; processedSourceMap?: string } {
@@ -115,6 +120,11 @@ export function assembleScript(
 
   const defs = requireDefinitions(bundle, mainModuleRequirePath)
 
+  const relSourcemapExternalPath =
+    opts.sourcemapExternalPath != null
+      ? path.relative(basedir, opts.sourcemapExternalPath)
+      : undefined
+
   const config: BlueprintConfig = {
     processPlatform: process.platform,
     processNodeVersion: process.version,
@@ -123,6 +133,9 @@ export function assembleScript(
     customRequireDefinitions: defs.code,
     includeStrictVerifiers,
     sourceMap: opts.sourceMap,
+    sourcemapEmbed: opts.sourcemapEmbed,
+    sourcemapInline: opts.sourcemapInline,
+    sourcemapExternalPath: relSourcemapExternalPath,
     nodeEnv: opts.nodeEnv,
     basedir,
   }
@@ -167,6 +180,9 @@ export async function createSnapshotScript(
       auxiliaryData: opts.auxiliaryData,
       includeStrictVerifiers: opts.includeStrictVerifiers,
       sourceMap,
+      sourcemapEmbed: opts.sourcemapEmbed,
+      sourcemapInline: opts.sourcemapInline,
+      sourcemapExternalPath: opts.sourcemapExternalPath,
       nodeEnv: opts.nodeEnv,
     }
   )

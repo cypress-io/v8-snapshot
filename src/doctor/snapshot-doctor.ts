@@ -30,7 +30,12 @@ const logError = debug('snapgen:error')
 
 export type SnapshotDoctorOpts = Omit<
   CreateSnapshotScriptOpts,
-  'deferred' | 'includeStrictVerifiers'
+  | 'deferred'
+  | 'includeStrictVerifiers'
+  | 'sourcemap'
+  | 'sourcemapEmbed'
+  | 'sourcemapInline'
+  | 'sourcemapExternalPath'
 > & {
   maxWorkers?: number
   previousDeferred: Set<string>
@@ -390,6 +395,9 @@ export class SnapshotDoctor {
       entryFilePath: this.entryFilePath,
       bundlerPath: this.bundlerPath,
       nodeModulesOnly: this.nodeModulesOnly,
+      sourcemapEmbed: false,
+      sourcemapInline: false,
+      sourcemap: false,
       deferred,
       norewrite,
       includeStrictVerifiers: true,
@@ -553,10 +561,12 @@ export class SnapshotDoctor {
         entryFilePath: this.entryFilePath,
         bundlerPath: this.bundlerPath,
         nodeModulesOnly: this.nodeModulesOnly,
+        sourcemapEmbed: false,
+        sourcemapInline: false,
+        sourcemap: false,
         includeStrictVerifiers: true,
         deferred: deferredArg,
         norewrite: norewriteArg,
-        sourcemap: false,
       })
 
       return { warnings, meta: meta as Metadata, bundle }

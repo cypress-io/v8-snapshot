@@ -30,6 +30,8 @@ type GenerationOpts = {
   cacheDir: string
   snapshotBinDir: string
   nodeModulesOnly: boolean
+  sourcemapEmbed: boolean
+  sourcemapInline: boolean
   includeStrictVerifiers: boolean
   previousHealthy?: string[]
   previousDeferred?: string[]
@@ -50,6 +52,8 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
     cacheDir: join(projectBaseDir, 'cache'),
     snapshotBinDir: projectBaseDir,
     nodeModulesOnly: true,
+    sourcemapEmbed: false,
+    sourcemapInline: false,
     includeStrictVerifiers: false,
     previousDeferred: [],
     previousHealthy: [],
@@ -69,6 +73,8 @@ export class SnapshotGenerator {
   private readonly auxiliaryData?: Record<string, any>
   private readonly electronVersion: string
   private readonly nodeModulesOnly: boolean
+  private readonly sourcemapEmbed: boolean
+  private readonly sourcemapInline: boolean
   private readonly includeStrictVerifiers: boolean
   private readonly maxWorkers?: number
   private readonly previousDeferred: Set<string>
@@ -99,6 +105,8 @@ export class SnapshotGenerator {
       snapshotBinDir,
       maxWorkers,
       nodeModulesOnly,
+      sourcemapEmbed,
+      sourcemapInline,
       includeStrictVerifiers,
       previousDeferred,
       previousHealthy,
@@ -127,6 +135,8 @@ export class SnapshotGenerator {
     this.electronVersion =
       electronVersion ?? resolveElectronVersion(projectBaseDir)
     this.nodeModulesOnly = nodeModulesOnly
+    this.sourcemapEmbed = sourcemapEmbed
+    this.sourcemapInline = sourcemapInline
     this.includeStrictVerifiers = includeStrictVerifiers
     this.previousDeferred = new Set(previousDeferred)
     this.previousHealthy = new Set(previousHealthy)
@@ -144,6 +154,8 @@ export class SnapshotGenerator {
       snapshotBinDir,
       snapshotScriptPath: this.snapshotScriptPath,
       nodeModulesOnly: this.nodeModulesOnly,
+      sourcemapEmbed: this.sourcemapEmbed,
+      sourcemapInline: this.sourcemapInline,
       includeStrictVerifiers: this.includeStrictVerifiers,
       previousDeferred: this.previousDeferred.size,
       previousHealthy: this.previousHealthy.size,
@@ -190,9 +202,11 @@ export class SnapshotGenerator {
         norewrite,
         auxiliaryData: this.auxiliaryData,
         nodeModulesOnly: this.nodeModulesOnly,
-        nodeEnv: this.nodeEnv,
+        sourcemapEmbed: this.sourcemapEmbed,
+        sourcemapInline: this.sourcemapInline,
         sourcemap: true,
         sourcemapExternalPath,
+        nodeEnv: this.nodeEnv,
       })
     } catch (err) {
       logError('Failed creating script')
@@ -276,6 +290,9 @@ export class SnapshotGenerator {
         deferred,
         norewrite,
         nodeModulesOnly: this.nodeModulesOnly,
+        sourcemapEmbed: false,
+        sourcemapInline: false,
+        sourcemap: false,
         auxiliaryData: this.auxiliaryData,
         nodeEnv: this.nodeEnv,
       })

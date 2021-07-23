@@ -1,7 +1,7 @@
 import spok from 'spok'
 import path from 'path'
 import test from 'tape'
-import { readResult } from './utils/bundle'
+import { readBundleResult } from '../utils/bundle'
 import { SnapshotGenerator } from '../../snapshot-generator'
 import { Flag } from '../../snapshot-generator-flags'
 
@@ -17,7 +17,7 @@ test('doctor: entry points to dependents of a module that is statically deferred
     flags: Flag.Script,
   })
   await generator.createExportBundle()
-  const { meta, exported } = readResult(cacheDir)
+  const { meta, exported } = readBundleResult(cacheDir)
 
   spok(t, meta, {
     $topic: 'snapshot meta',

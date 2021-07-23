@@ -3,6 +3,9 @@ import path from 'path'
 import { BUNDLE_WRAPPER_OPEN } from './create-snapshot-script'
 import { inlineSourceMapComment } from './sourcemap/inline-sourcemap'
 import { processSourceMap } from './sourcemap/process-sourcemap'
+import debug from 'debug'
+
+const logDebug = debug('snapgen:debug')
 
 function read(part: string, indent = '  ') {
   const p = require.resolve(`./blueprint/${part}`)
@@ -25,6 +28,9 @@ export type BlueprintConfig = {
   nodeEnv: string
   basedir: string
   sourceMap: Buffer | undefined
+  sourcemapInline: boolean
+  sourcemapEmbed: boolean
+  sourcemapExternalPath: string | undefined
 }
 
 const pathSep = path.sep == '\\' ? '\\\\' : path.sep
@@ -39,6 +45,9 @@ export function scriptFromBlueprint(config: BlueprintConfig) {
     nodeEnv,
     basedir,
     sourceMap,
+    sourcemapInline,
+    sourcemapEmbed,
+    sourcemapExternalPath,
   } = config
 
   const wrapperOpen = Buffer.from(
@@ -128,26 +137,41 @@ generateSnapshot = null
   let offsetToBundle: number | undefined = undefined
 
   let processedSourceMap: string | undefined
-  if (sourceMap != null) {
+  if (
+    (sourcemapEmbed || sourcemapInline || sourcemapExternalPath != null) &&
+    sourceMap != null
+  ) {
     offsetToBundle =
       newLinesInBuffer(wrapperOpen) + newLinesInBuffer(BUNDLE_WRAPPER_OPEN) + 1
 
     processedSourceMap = processSourceMap(sourceMap, basedir, offsetToBundle)
 
     // Embed the sourcemaps as a JS object for fast retrieval
-    if (processedSourceMap != null) {
+    if (sourcemapEmbed && processedSourceMap != null) {
+      logDebug('[sourcemap] embedding')
       buffers.push(
         Buffer.from(
-          `snapshotAuxiliaryData.sourceMap = ${processedSourceMap}`,
+          `snapshotAuxiliaryData.sourceMap = ${processedSourceMap}\n`,
           'utf8'
         )
       )
     }
 
-    // Inline the sourcemap comment (even though DevTools doesn't properly pick that up)
-    const sourceMapComment = inlineSourceMapComment(processedSourceMap)
-    if (sourceMapComment != null) {
-      buffers.push(Buffer.from(sourceMapComment, 'utf8'))
+    if (sourcemapInline && processedSourceMap != null) {
+      logDebug('[sourcemap] inlining')
+      // Inline the sourcemap comment (even though DevTools doesn't properly pick that up)
+      const sourceMapComment = inlineSourceMapComment(processedSourceMap)
+      if (sourceMapComment != null) {
+        buffers.push(Buffer.from(sourceMapComment, 'utf8'))
+      }
+    } else if (sourcemapExternalPath != null) {
+      logDebug(
+        '[sourcemap] adding mapping url to load "%s"',
+        sourcemapExternalPath
+      )
+      buffers.push(
+        Buffer.from(`// #sourceMappingUrl=${sourcemapExternalPath}`, 'utf8')
+      )
     }
   }
   return { script: Buffer.concat(buffers), processedSourceMap }
