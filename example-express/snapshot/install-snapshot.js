@@ -2,15 +2,28 @@
 
 'use strict'
 const path = require('path')
-const { SnapshotGenerator, prettyPrintError } = require('../../')
+const {
+  SnapshotGenerator,
+  prettyPrintError,
+  generateBundlerMetadata,
+} = require('../../')
 
 const projectBaseDir = path.join(__dirname, '../')
 const snapshotEntryFile = require.resolve('./snapshot.js')
+const appEntryFile = require.resolve('../app/index')
 
 const cacheDir = path.resolve(__dirname, '../cache')
 
 ;(async () => {
   try {
+    const meta = await generateBundlerMetadata(
+      projectBaseDir,
+      snapshotEntryFile,
+      {
+        entryFile: appEntryFile,
+        nodeModulesOnly: false,
+      }
+    )
     const snapshotGenerator = new SnapshotGenerator(
       projectBaseDir,
       snapshotEntryFile,
@@ -18,6 +31,7 @@ const cacheDir = path.resolve(__dirname, '../cache')
         cacheDir,
         minify: false,
         nodeModulesOnly: false,
+        resolverMap: meta.resolverMap,
       }
     )
     await snapshotGenerator.createScript()
