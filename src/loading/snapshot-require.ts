@@ -11,19 +11,39 @@ const logError = debug('snapshot:error')
 const logDebug = debug('snapshot:debug')
 const logTrace = debug('snapshot:trace')
 
-const getModuleKey: GetModuleKey = (moduleUri, relPath) => {
-  // NOTE(thlorenz): this works for cases for which the root of the app
-  // is up to one level below node_modules.
-  if (/^[a-zA-Z]/.test(relPath)) {
-    // Change things like `node_modules/..` to `./node_modules/..`
-    relPath = `./${relPath}`
+const RESOLVER_MAP_KEY_SEP = '***'
+
+function createGetModuleKey(
+  projectBaseDir: string,
+  resolverMap?: Record<string, string>
+) {
+  const getModuleKey: GetModuleKey = ({
+    moduleUri,
+    moduleRelativePath,
+    parent,
+  }) => {
+    if (resolverMap != null && parent != null) {
+      const relParentDir = path.relative(projectBaseDir, parent.path)
+      const resolverKey = `${relParentDir}${RESOLVER_MAP_KEY_SEP}${moduleUri}`
+      const resolved = resolverMap[resolverKey]
+      // Module cache prefixes with `./` while the resolver map doesn't
+      if (resolved != null) return `./${resolved}`
+    }
+
+    // NOTE(thlorenz): this works for cases for which the root of the app
+    // is up to one level below node_modules.
+    if (/^[a-zA-Z]/.test(moduleRelativePath)) {
+      // Change things like `node_modules/..` to `./node_modules/..`
+      moduleRelativePath = `./${moduleRelativePath}`
+    }
+    const key = moduleRelativePath
+      // Normalize to use forward slashes as modules are cached that way
+      .replace(/\\/g, '/')
+      .replace(/^\.\.\//, './')
+    logTrace('key "%s" for [ %s | %s ]', key, moduleRelativePath, moduleUri)
+    return key
   }
-  const key = relPath
-    // Normalize to use forward slashes as modules are cached that way
-    .replace(/\\/g, '/')
-    .replace(/^\.\.\//, './')
-  logTrace('key "%s" for [ %s | %s ]', key, relPath, moduleUri)
-  return key
+  return getModuleKey
 }
 
 export type SnapshotRequireOpts = {
@@ -90,6 +110,12 @@ export function snapshotRequire(
     )
 
     logDebug('initializing packherd require')
+    const getModuleKey = createGetModuleKey(
+      projectBaseDir,
+      // @ts-ignore global snapshotAuxiliaryData
+      snapshotAuxiliaryData.resolverMap
+    )
+
     packherdRequire(projectBaseDir, {
       diagnostics,
       moduleExports,
