@@ -16,6 +16,7 @@ export type Metadata = CreateBundleResult['metafile'] & {
       imports: { path: string }[]
     }
   >
+  resolverMap: Record<string, string>
 }
 
 export type ProcessScriptOpts = {
