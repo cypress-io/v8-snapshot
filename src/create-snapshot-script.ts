@@ -52,6 +52,7 @@ export type CreateBundleOpts = {
 }
 
 export type CreateSnapshotScriptOpts = CreateBundleOpts & {
+  resolverMap?: Record<string, string>
   auxiliaryData?: Record<string, any>
   nodeEnv: string
 }
@@ -105,19 +106,25 @@ export function assembleScript(
     sourcemapInline: boolean
     sourcemapExternalPath: string | undefined
     nodeEnv: string
+    resolverMap?: Record<string, string>
     meta?: Metadata
   }
 ): { script: Buffer; processedSourceMap?: string } {
   const includeStrictVerifiers = opts.includeStrictVerifiers ?? false
   const auxiliaryData = Object.assign({}, opts.auxiliaryData)
-  if (opts.meta?.resolverMap != null) {
+
+  // Prefer the provided resolver map over the one found in the current meta data.
+  // This allows us to use the app entry file when generating this map and another
+  // snapshotting specific entry, possibly generated, to create the snapshot.
+  const resolverMap = opts.resolverMap ?? opts.meta?.resolverMap
+  if (resolverMap != null) {
     if (logDebug.enabled) {
       logDebug(
         'Embedding resolver map with %d entries into snapshot',
-        Object.keys(opts.meta.resolverMap).length
+        Object.keys(resolverMap).length
       )
     }
-    auxiliaryData.resolverMap = opts.meta.resolverMap
+    auxiliaryData.resolverMap = resolverMap
   }
 
   const auxiliaryDataString = JSON.stringify(auxiliaryData)
@@ -198,6 +205,7 @@ export async function createSnapshotScript(
       sourcemapInline: opts.sourcemapInline,
       sourcemapExternalPath: opts.sourcemapExternalPath,
       nodeEnv: opts.nodeEnv,
+      resolverMap: opts.resolverMap,
       meta,
     }
   )
