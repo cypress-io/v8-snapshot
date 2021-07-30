@@ -11,19 +11,51 @@ const logError = debug('snapshot:error')
 const logDebug = debug('snapshot:debug')
 const logTrace = debug('snapshot:trace')
 
-const getModuleKey: GetModuleKey = (moduleUri, relPath) => {
-  // NOTE(thlorenz): this works for cases for which the root of the app
-  // is up to one level below node_modules.
-  if (/^[a-zA-Z]/.test(relPath)) {
-    // Change things like `node_modules/..` to `./node_modules/..`
-    relPath = `./${relPath}`
+const RESOLVER_MAP_KEY_SEP = '***'
+
+function createGetModuleKey(resolverMap?: Record<string, string>) {
+  const getModuleKey: GetModuleKey = ({ moduleUri, baseDir, parent }) => {
+    if (resolverMap != null && parent != null) {
+      const relParentDir = path.relative(baseDir, parent.path)
+      const resolverKey = `${relParentDir}${RESOLVER_MAP_KEY_SEP}${moduleUri}`
+      const resolved = resolverMap[resolverKey]
+      // Module cache prefixes with `./` while the resolver map doesn't
+      if (resolved != null) {
+        const moduleKey = `./${resolved}`
+        return { moduleKey, moduleRelativePath: moduleKey }
+      }
+    }
+
+    const moduleUriIsAbsolutePath = path.isAbsolute(moduleUri)
+
+    // If we cannot resolve it via the map and it is a node_module id we return as is as it has to be
+    // resolved via Node.js
+    if (!moduleUriIsAbsolutePath && !moduleUri.startsWith('.')) {
+      return { moduleKey: undefined, moduleRelativePath: undefined }
+    }
+
+    let moduleRelativePath = moduleUriIsAbsolutePath
+      ? path.relative(baseDir, moduleUri)
+      : moduleUri
+
+    if (!moduleRelativePath.startsWith('.')) {
+      // Change things like `node_modules/..` to `./node_modules/..`
+      moduleRelativePath = `./${moduleRelativePath}`
+    }
+    const moduleKey = moduleRelativePath
+      // Normalize to use forward slashes as modules are cached that way
+      .replace(/\\/g, '/')
+      .replace(/^\.\.\//, './')
+    logTrace(
+      'key "%s" for [ %s | %s ]',
+      moduleKey,
+      moduleRelativePath,
+      moduleUri
+    )
+
+    return { moduleKey, moduleRelativePath }
   }
-  const key = relPath
-    // Normalize to use forward slashes as modules are cached that way
-    .replace(/\\/g, '/')
-    .replace(/^\.\.\//, './')
-  logTrace('key "%s" for [ %s | %s ]', key, relPath, moduleUri)
-  return key
+  return getModuleKey
 }
 
 export type SnapshotRequireOpts = {
@@ -90,6 +122,17 @@ export function snapshotRequire(
     )
 
     logDebug('initializing packherd require')
+
+    let resolverMap: Record<string, string> | undefined
+
+    // @ts-ignore global snapshotAuxiliaryData
+    if (typeof snapshotAuxiliaryData !== 'undefined') {
+      // @ts-ignore global snapshotAuxiliaryData
+      resolverMap = snapshotAuxiliaryData.resolverMap
+    }
+
+    const getModuleKey = createGetModuleKey(resolverMap)
+
     packherdRequire(projectBaseDir, {
       diagnostics,
       moduleExports,

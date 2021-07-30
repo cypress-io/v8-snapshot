@@ -52,6 +52,7 @@ export type CreateBundleOpts = {
 }
 
 export type CreateSnapshotScriptOpts = CreateBundleOpts & {
+  resolverMap?: Record<string, string>
   auxiliaryData?: Record<string, any>
   nodeEnv: string
 }
@@ -105,10 +106,28 @@ export function assembleScript(
     sourcemapInline: boolean
     sourcemapExternalPath: string | undefined
     nodeEnv: string
+    resolverMap?: Record<string, string>
+    meta?: Metadata
   }
 ): { script: Buffer; processedSourceMap?: string } {
   const includeStrictVerifiers = opts.includeStrictVerifiers ?? false
-  const auxiliaryDataString = JSON.stringify(opts.auxiliaryData || {})
+  const auxiliaryData = Object.assign({}, opts.auxiliaryData)
+
+  // Prefer the provided resolver map over the one found in the current meta data.
+  // This allows us to use the app entry file when generating this map and another
+  // snapshotting specific entry, possibly generated, to create the snapshot.
+  const resolverMap = opts.resolverMap ?? opts.meta?.resolverMap
+  if (resolverMap != null) {
+    if (logDebug.enabled) {
+      logDebug(
+        'Embedding resolver map with %d entries into snapshot',
+        Object.keys(resolverMap).length
+      )
+    }
+    auxiliaryData.resolverMap = resolverMap
+  }
+
+  const auxiliaryDataString = JSON.stringify(auxiliaryData)
 
   const mainModuleRequirePath =
     opts.entryPoint ?? getMainModuleRequirePath(basedir, entryFilePath)
@@ -153,7 +172,7 @@ export function assembleScript(
  */
 export async function createBundleAsync(opts: CreateBundleOpts): Promise<{
   warnings: CreateBundleResult['warnings']
-  meta: Exclude<CreateBundleResult['metafile'], undefined>
+  meta: Metadata
   bundle: Buffer
   sourceMap?: Buffer
 }> {
@@ -186,6 +205,8 @@ export async function createSnapshotScript(
       sourcemapInline: opts.sourcemapInline,
       sourcemapExternalPath: opts.sourcemapExternalPath,
       nodeEnv: opts.nodeEnv,
+      resolverMap: opts.resolverMap,
+      meta,
     }
   )
 
@@ -307,5 +328,5 @@ async function createBundle(opts: CreateBundleOpts) {
     nodeModulesOnly: opts.nodeModulesOnly,
     createBundle: makePackherdCreateBundle(opts),
   })
-  return { warnings, bundle, sourceMap, meta }
+  return { warnings, bundle, sourceMap, meta: meta as Metadata }
 }

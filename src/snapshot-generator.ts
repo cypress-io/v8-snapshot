@@ -37,6 +37,7 @@ type GenerationOpts = {
   previousDeferred?: string[]
   previousNoRewrite?: string[]
   forceNoRewrite?: string[]
+  resolverMap?: Record<string, string>
   auxiliaryData?: Record<string, any>
   electronVersion?: string
   maxWorkers?: number
@@ -70,6 +71,7 @@ export class SnapshotGenerator {
   private readonly snapshotScriptPath: string
   private readonly snapshotExportScriptPath: string
   private readonly snapshotBinDir: string
+  private readonly resolverMap?: Record<string, string>
   private readonly auxiliaryData?: Record<string, any>
   private readonly electronVersion: string
   private readonly nodeModulesOnly: boolean
@@ -132,6 +134,7 @@ export class SnapshotGenerator {
     this.snapshotScriptPath = join(cacheDir, 'snapshot.js')
     this.snapshotExportScriptPath = join(cacheDir, 'snapshot-bundle.js')
     this.auxiliaryData = opts.auxiliaryData
+    this.resolverMap = opts.resolverMap
     this.electronVersion =
       electronVersion ?? resolveElectronVersion(projectBaseDir)
     this.nodeModulesOnly = nodeModulesOnly
@@ -200,6 +203,7 @@ export class SnapshotGenerator {
         includeStrictVerifiers: false,
         deferred,
         norewrite,
+        resolverMap: this.resolverMap,
         auxiliaryData: this.auxiliaryData,
         nodeModulesOnly: this.nodeModulesOnly,
         sourcemapEmbed: this.sourcemapEmbed,
@@ -293,6 +297,7 @@ export class SnapshotGenerator {
         sourcemapEmbed: false,
         sourcemapInline: false,
         sourcemap: false,
+        resolverMap: this.resolverMap,
         auxiliaryData: this.auxiliaryData,
         nodeEnv: this.nodeEnv,
       })
