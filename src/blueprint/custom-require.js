@@ -18,7 +18,7 @@ function customRequire(modulePath, parent = {}) {
       ? `./${modulePath.slice(2).replace(/\//g, '\\')}`
       : modulePath.replace(/\//g, '\\')
   }
-  let module = customRequire.cache[modulePath]
+  let module = customRequire.exports[modulePath]
 
   if (!module) {
     // NOTE: the modulePath may be relative to the projectBaseDir, however since
@@ -46,7 +46,7 @@ function customRequire(modulePath, parent = {}) {
 
     if (customRequire.definitions.hasOwnProperty(modulePath)) {
       module.parent = parent
-      customRequire.cache[modulePath] = module
+      customRequire.exports[modulePath] = module
       customRequire.definitions[modulePath].apply(module.exports, [
         module.exports,
         module,
@@ -61,7 +61,7 @@ function customRequire(modulePath, parent = {}) {
     } else {
       try {
         module.exports = require(modulePath)
-        customRequire.cache[modulePath] = module
+        customRequire.exports[modulePath] = module
       } catch (err) {
         // If we're running in doctor (strict) mode avoid trying to resolve core modules by path
         if (require.isStrict) {
@@ -78,7 +78,7 @@ function customRequire(modulePath, parent = {}) {
 }
 
 customRequire.extensions = {}
-customRequire.cache = {}
+customRequire.exports = {}
 
 customRequire.resolve = function (mod) {
   try {

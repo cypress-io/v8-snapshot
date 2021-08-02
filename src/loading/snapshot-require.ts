@@ -5,6 +5,7 @@ import { packherdRequire } from 'packherd/dist/src/require.js'
 import { moduleMapper } from './module_negotiator'
 import { Snapshot, SnapshotAuxiliaryData } from '../types'
 import { EMBEDDED } from '../constants'
+import Module from 'module'
 
 const logInfo = debug('snapshot:info')
 const logError = debug('snapshot:error')
@@ -76,7 +77,7 @@ const DEFAULT_SNAPSHOT_REQUIRE_OPTS = {
 function getCaches(sr: Snapshot | undefined, useCache: boolean) {
   if (typeof sr !== 'undefined') {
     return {
-      moduleExports: useCache ? sr.customRequire.cache : undefined,
+      moduleExports: useCache ? sr.customRequire.exports : undefined,
       moduleDefinitions: sr.customRequire.definitions,
     }
   } else {
@@ -184,6 +185,11 @@ export function snapshotRequire(
         pathResolver,
         require
       )
+
+      // @ts-ignore private module var
+      require.cache = Module._cache
+      // @ts-ignore global snapshotResult
+      snapshotResult.customRequire.cache = require.cache
     }
   }
 }
