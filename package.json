@@ -32,7 +32,7 @@
     "ansi-colors": "^4.1.1",
     "convert-source-map": "^1.8.0",
     "debug": "^4.1.1",
-    "packherd": "^0.7.0",
+    "packherd": "^0.8.0",
     "resolve-from": "^5.0.0",
     "snapbuild": "^0.0.126",
     "source-map-js": "^0.6.2",
