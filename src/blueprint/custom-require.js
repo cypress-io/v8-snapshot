@@ -37,7 +37,7 @@ function customRequire(modulePath, parent = {}) {
       require: customRequire,
       filename,
       id: filename,
-      path: filename,
+      path: dirname,
     }
 
     function define(callback) {
@@ -80,9 +80,23 @@ function customRequire(modulePath, parent = {}) {
 customRequire.extensions = {}
 customRequire.exports = {}
 
-customRequire.resolve = function (mod) {
+function createResolveOpts(relFilename, relDirname) {
+  const filename = __pathResolver.resolve(relFilename)
+  const dirname = __pathResolver.resolve(relDirname)
+
+  return {
+    relFilename,
+    relPath: relDirname,
+    filename,
+    path: dirname,
+    fromSnapshot: true,
+  }
+}
+
+customRequire.resolve = function (mod, relFilename, relDirname) {
   try {
-    return require.resolve(mod)
+    const opts = createResolveOpts(relFilename, relDirname)
+    return require.resolve(mod, opts)
   } catch (err) {
     // console.error(err.toString())
     // console.error('Failed to resolve', mod)
