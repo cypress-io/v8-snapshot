@@ -5,6 +5,7 @@ import { packherdRequire } from 'packherd/dist/src/require.js'
 import { moduleMapper } from './module_negotiator'
 import { Snapshot, SnapshotAuxiliaryData } from '../types'
 import { EMBEDDED } from '../constants'
+import Module from 'module'
 
 const logInfo = debug('snapshot:info')
 const logError = debug('snapshot:error')
@@ -14,9 +15,9 @@ const logTrace = debug('snapshot:trace')
 const RESOLVER_MAP_KEY_SEP = '***'
 
 function createGetModuleKey(resolverMap?: Record<string, string>) {
-  const getModuleKey: GetModuleKey = ({ moduleUri, baseDir, parent }) => {
-    if (resolverMap != null && parent != null) {
-      const relParentDir = path.relative(baseDir, parent.path)
+  const getModuleKey: GetModuleKey = ({ moduleUri, baseDir, opts }) => {
+    if (resolverMap != null && opts != null) {
+      const relParentDir = opts.relPath ?? path.relative(baseDir, opts.path)
       const resolverKey = `${relParentDir}${RESOLVER_MAP_KEY_SEP}${moduleUri}`
       const resolved = resolverMap[resolverKey]
       // Module cache prefixes with `./` while the resolver map doesn't
@@ -24,6 +25,10 @@ function createGetModuleKey(resolverMap?: Record<string, string>) {
         const moduleKey = `./${resolved}`
         return { moduleKey, moduleRelativePath: moduleKey }
       }
+    } else if (opts == null || opts.fromSnapshot) {
+      // If a parent is not set then the require came straight out of the snapshot
+      // For require.resolve we set `fromSnapshot: true` in that case
+      return { moduleKey: moduleUri, moduleRelativePath: moduleUri }
     }
 
     const moduleUriIsAbsolutePath = path.isAbsolute(moduleUri)
@@ -76,7 +81,7 @@ const DEFAULT_SNAPSHOT_REQUIRE_OPTS = {
 function getCaches(sr: Snapshot | undefined, useCache: boolean) {
   if (typeof sr !== 'undefined') {
     return {
-      moduleExports: useCache ? sr.customRequire.cache : undefined,
+      moduleExports: useCache ? sr.customRequire.exports : undefined,
       moduleDefinitions: sr.customRequire.definitions,
     }
   } else {
@@ -133,7 +138,7 @@ export function snapshotRequire(
 
     const getModuleKey = createGetModuleKey(resolverMap)
 
-    packherdRequire(projectBaseDir, {
+    const { resolve } = packherdRequire(projectBaseDir, {
       diagnostics,
       moduleExports,
       moduleDefinitions,
@@ -184,6 +189,14 @@ export function snapshotRequire(
         pathResolver,
         require
       )
+
+      // @ts-ignore private module var
+      require.cache = Module._cache
+      // @ts-ignore global snapshotResult
+      snapshotResult.customRequire.cache = require.cache
+
+      // @ts-ignore opts not exactly matching
+      require.resolve = resolve
     }
   }
 }

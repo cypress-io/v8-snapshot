@@ -1,6 +1,8 @@
 import type { CreateBundleResult } from 'packherd'
 import { RawSourceMap } from 'source-map-js'
 
+type NodeRequireFunction = typeof require
+
 export type Entries<T> = {
   [K in keyof T]: [K, T[K]]
 }[keyof T][]
@@ -82,6 +84,8 @@ export type ModuleBuildin = typeof import('module') & {
 export type Snapshot = {
   customRequire: {
     definitions: Record<string, NodeRequireFunction>
+    exports: Record<string, NodeModule>
+    // Module._cache === require.cache
     cache: Record<string, NodeModule>
   }
 }

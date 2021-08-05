@@ -18,7 +18,7 @@ function customRequire(modulePath, parent = {}) {
       ? `./${modulePath.slice(2).replace(/\//g, '\\')}`
       : modulePath.replace(/\//g, '\\')
   }
-  let module = customRequire.cache[modulePath]
+  let module = customRequire.exports[modulePath]
 
   if (!module) {
     // NOTE: the modulePath may be relative to the projectBaseDir, however since
@@ -37,7 +37,7 @@ function customRequire(modulePath, parent = {}) {
       require: customRequire,
       filename,
       id: filename,
-      path: filename,
+      path: dirname,
     }
 
     function define(callback) {
@@ -46,7 +46,7 @@ function customRequire(modulePath, parent = {}) {
 
     if (customRequire.definitions.hasOwnProperty(modulePath)) {
       module.parent = parent
-      customRequire.cache[modulePath] = module
+      customRequire.exports[modulePath] = module
       customRequire.definitions[modulePath].apply(module.exports, [
         module.exports,
         module,
@@ -61,7 +61,7 @@ function customRequire(modulePath, parent = {}) {
     } else {
       try {
         module.exports = require(modulePath)
-        customRequire.cache[modulePath] = module
+        customRequire.exports[modulePath] = module
       } catch (err) {
         // If we're running in doctor (strict) mode avoid trying to resolve core modules by path
         if (require.isStrict) {
@@ -78,11 +78,25 @@ function customRequire(modulePath, parent = {}) {
 }
 
 customRequire.extensions = {}
-customRequire.cache = {}
+customRequire.exports = {}
 
-customRequire.resolve = function (mod) {
+function createResolveOpts(relFilename, relDirname) {
+  const filename = __pathResolver.resolve(relFilename)
+  const dirname = __pathResolver.resolve(relDirname)
+
+  return {
+    relFilename,
+    relPath: relDirname,
+    filename,
+    path: dirname,
+    fromSnapshot: true,
+  }
+}
+
+customRequire.resolve = function (mod, relFilename, relDirname) {
   try {
-    return require.resolve(mod)
+    const opts = createResolveOpts(relFilename, relDirname)
+    return require.resolve(mod, opts)
   } catch (err) {
     // console.error(err.toString())
     // console.error('Failed to resolve', mod)

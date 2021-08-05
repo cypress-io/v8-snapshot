@@ -32,7 +32,7 @@
     "ansi-colors": "^4.1.1",
     "convert-source-map": "^1.8.0",
     "debug": "^4.1.1",
-    "packherd": "^0.7.0",
+    "packherd": "^0.8.0",
     "resolve-from": "^5.0.0",
     "snapbuild": "^0.0.126",
     "source-map-js": "^0.6.2",
@@ -44,7 +44,7 @@
   "devDependencies": {
     "@types/convert-source-map": "^1.5.1",
     "@types/debug": "^4.1.5",
-    "@types/node": "^12.20.4",
+    "@types/node": "^14.14.20",
     "@types/rimraf": "^3.0.1",
     "@types/tape": "^4.13.0",
     "cpr": "^3.0.1",
