@@ -44,7 +44,7 @@
   "devDependencies": {
     "@types/convert-source-map": "^1.5.1",
     "@types/debug": "^4.1.5",
-    "@types/node": "^12.20.4",
+    "@types/node": "^14.14.20",
     "@types/rimraf": "^3.0.1",
     "@types/tape": "^4.13.0",
     "cpr": "^3.0.1",

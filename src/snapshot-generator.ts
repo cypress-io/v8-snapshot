@@ -252,6 +252,7 @@ export class SnapshotGenerator {
       const minified = await minify(this.snapshotScript!.toString(), {
         sourceMap: false,
       })
+      assert(minified.code != null, 'Should return minified code')
       return fs.promises.writeFile(this.snapshotScriptPath, minified.code)
     }
     return fs.promises.writeFile(this.snapshotScriptPath, this.snapshotScript)
