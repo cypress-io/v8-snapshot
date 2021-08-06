@@ -16,6 +16,19 @@ const RESOLVER_MAP_KEY_SEP = '***'
 
 function createGetModuleKey(resolverMap?: Record<string, string>) {
   const getModuleKey: GetModuleKey = ({ moduleUri, baseDir, opts }) => {
+    // -----------------
+    // customRequire.resolve
+    // -----------------
+    if (opts?.fromSnapshot && opts?.isResolve && moduleUri.startsWith('./')) {
+      // Resolve calls are relative to the module they are resolved from
+      const fullPath = path.resolve(opts.path, moduleUri)
+      const moduleRelativePath = path.relative(baseDir, fullPath)
+      return { moduleKey: moduleRelativePath, moduleRelativePath }
+    }
+
+    // -----------------
+    // require
+    // -----------------
     if (resolverMap != null && opts != null) {
       const relParentDir = opts.relPath ?? path.relative(baseDir, opts.path)
       const resolverKey = `${relParentDir}${RESOLVER_MAP_KEY_SEP}${moduleUri}`
@@ -138,16 +151,19 @@ export function snapshotRequire(
 
     const getModuleKey = createGetModuleKey(resolverMap)
 
-    const { resolve } = packherdRequire(projectBaseDir, {
-      diagnostics,
-      moduleExports,
-      moduleDefinitions,
-      getModuleKey,
-      moduleMapper,
-      requireStatsFile: opts.requireStatsFile,
-      transpileOpts: opts.transpileOpts,
-      sourceMapLookup: getSourceMapLookup(),
-    })
+    const { resolve, shouldBypassCache, registerModuleLoad } = packherdRequire(
+      projectBaseDir,
+      {
+        diagnostics,
+        moduleExports,
+        moduleDefinitions,
+        getModuleKey,
+        moduleMapper,
+        requireStatsFile: opts.requireStatsFile,
+        transpileOpts: opts.transpileOpts,
+        sourceMapLookup: getSourceMapLookup(),
+      }
+    )
 
     // @ts-ignore global snapshotResult
     if (typeof snapshotResult !== 'undefined') {
@@ -197,6 +213,10 @@ export function snapshotRequire(
 
       // @ts-ignore opts not exactly matching
       require.resolve = resolve
+      // @ts-ignore custom method on require
+      require.shouldBypassCache = shouldBypassCache
+      // @ts-ignore custom method on require
+      require.registerModuleLoad = registerModuleLoad
     }
   }
 }
