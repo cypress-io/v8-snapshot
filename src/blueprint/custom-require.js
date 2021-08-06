@@ -20,7 +20,13 @@ function customRequire(modulePath, parent = {}) {
   }
   let module = customRequire.exports[modulePath]
 
-  if (!module) {
+  const cannotUseCached =
+    module == null
+      ? true
+      : typeof require.shouldBypassCache === 'function' &&
+        require.shouldBypassCache(module)
+
+  if (cannotUseCached) {
     // NOTE: the modulePath may be relative to the projectBaseDir, however since
     // access to __dirname/__filename is redirected to a path resolver via the esbuild
     // snapshot rewriter we don't have to "fix" it here.
@@ -74,6 +80,10 @@ function customRequire(modulePath, parent = {}) {
     }
   }
 
+  if (typeof require.registerModuleLoad === 'function') {
+    require.registerModuleLoad(module)
+  }
+
   return module.exports
 }
 
@@ -90,12 +100,16 @@ function createResolveOpts(relFilename, relDirname) {
     filename,
     path: dirname,
     fromSnapshot: true,
+    isResolve: true,
   }
 }
 
 customRequire.resolve = function (mod, relFilename, relDirname) {
   try {
-    const opts = createResolveOpts(relFilename, relDirname)
+    const opts =
+      relFilename != null && relDirname != null
+        ? createResolveOpts(relFilename, relDirname)
+        : undefined
     return require.resolve(mod, opts)
   } catch (err) {
     // console.error(err.toString())
