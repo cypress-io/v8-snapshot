@@ -15,7 +15,10 @@ export type Metadata = CreateBundleResult['metafile'] & {
       fileInfo: {
         fullPath: string
       }
-      imports: { path: string }[]
+      imports: {
+        path: string
+        kind: 'require-call'
+      }[]
     }
   >
   resolverMap: Record<string, string>
