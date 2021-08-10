@@ -36,9 +36,7 @@ function allDependencies(
 type DependencyMapArray = Array<
   [string, { directDeps: string[]; allDeps: string[] }]
 >
-export function dependencyMapToArray(
-  dependencyMap: Map<string, DependencyNode>
-) {
+function dependencyMapToArray(dependencyMap: Map<string, DependencyNode>) {
   const arr: DependencyMapArray = []
 
   for (const [k, { directDeps, allDeps }] of dependencyMap.entries()) {
@@ -48,6 +46,12 @@ export function dependencyMapToArray(
     ])
   }
 
+  return arr
+}
+
+export function dependencyMapArrayFromInputs(inputs: Metadata['inputs']) {
+  const map = buildDependencyMap(inputs)
+  const arr = dependencyMapToArray(map)
   return arr
 }
 
