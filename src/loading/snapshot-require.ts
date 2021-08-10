@@ -1,11 +1,16 @@
 import debug from 'debug'
 import path from 'path'
-import type { GetModuleKey, PackherdTranspileOpts } from 'packherd'
+import type {
+  GetModuleKey,
+  ModuleNeedsReload,
+  PackherdTranspileOpts,
+} from 'packherd'
 import { packherdRequire } from 'packherd/dist/src/require.js'
 import { moduleMapper } from './module_negotiator'
 import { Snapshot, SnapshotAuxiliaryData } from '../types'
 import { EMBEDDED } from '../constants'
 import Module from 'module'
+import { DependencyMap, DependencyMapArray } from '../meta/dependency-map'
 
 const logInfo = debug('snapshot:info')
 const logError = debug('snapshot:error')
@@ -76,6 +81,33 @@ function createGetModuleKey(resolverMap?: Record<string, string>) {
   return getModuleKey
 }
 
+function createModuleNeedsReload(
+  dependencyMapArray: DependencyMapArray,
+  projectBaseDir: string
+) {
+  const map = DependencyMap.fromDepArrayAndBaseDir(
+    dependencyMapArray,
+    projectBaseDir
+  )
+
+  const moduleNeedsReload: ModuleNeedsReload = (
+    moduleId: string,
+    loadedModules: Set<string>,
+    moduleCache: Record<string, NodeModule>
+  ) => {
+    if (moduleCache[moduleId] != null) return false
+    return (
+      map.loadedButNotCached(moduleId, loadedModules, moduleCache) ||
+      map.criticalDependencyLoadedButNotCached(
+        moduleId,
+        loadedModules,
+        moduleCache
+      )
+    )
+  }
+  return moduleNeedsReload
+}
+
 export type SnapshotRequireOpts = {
   useCache?: boolean
   diagnostics?: boolean
@@ -142,11 +174,22 @@ export function snapshotRequire(
     logDebug('initializing packherd require')
 
     let resolverMap: Record<string, string> | undefined
+    let moduleNeedsReload: ModuleNeedsReload | undefined
 
     // @ts-ignore global snapshotAuxiliaryData
     if (typeof snapshotAuxiliaryData !== 'undefined') {
       // @ts-ignore global snapshotAuxiliaryData
       resolverMap = snapshotAuxiliaryData.resolverMap
+      const dependencyMapArray: DependencyMapArray =
+        // @ts-ignore global snapshotAuxiliaryData
+        snapshotAuxiliaryData.dependencyMapArray
+
+      if (dependencyMapArray != null) {
+        moduleNeedsReload = createModuleNeedsReload(
+          dependencyMapArray,
+          projectBaseDir
+        )
+      }
     }
 
     const getModuleKey = createGetModuleKey(resolverMap)
@@ -162,6 +205,7 @@ export function snapshotRequire(
         requireStatsFile: opts.requireStatsFile,
         transpileOpts: opts.transpileOpts,
         sourceMapLookup: getSourceMapLookup(),
+        moduleNeedsReload,
       }
     )
 

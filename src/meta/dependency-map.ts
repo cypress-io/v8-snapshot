@@ -33,7 +33,7 @@ function allDependencies(
   return acc
 }
 
-type DependencyMapArray = Array<
+export type DependencyMapArray = Array<
   [string, { directDeps: string[]; allDeps: string[] }]
 >
 function dependencyMapToArray(dependencyMap: Map<string, DependencyNode>) {
@@ -55,17 +55,18 @@ export function dependencyMapArrayFromInputs(inputs: Metadata['inputs']) {
   return arr
 }
 
-export function dependencyArrayToResolvedMap(
+function dependencyArrayToResolvedMap(
   arr: DependencyMapArray,
   projectBaseDir: string
 ) {
   const map: Map<string, DependencyNode> = new Map()
   for (const [k, { directDeps, allDeps }] of arr) {
+    const resolvedKey = path.resolve(projectBaseDir, k)
     const resolvedDirectDeps = directDeps.map((x) =>
       path.resolve(projectBaseDir, x)
     )
     const resolvedAllDeps = allDeps.map((x) => path.resolve(projectBaseDir, x))
-    map.set(k, {
+    map.set(resolvedKey, {
       directDeps: new Set(resolvedDirectDeps),
       allDeps: new Set(resolvedAllDeps),
     })
@@ -140,5 +141,13 @@ export class DependencyMap {
       }
     }
     return false
+  }
+
+  static fromDepArrayAndBaseDir(
+    arr: DependencyMapArray,
+    projectBaseDir: string
+  ) {
+    const map = dependencyArrayToResolvedMap(arr, projectBaseDir)
+    return new DependencyMap(map)
   }
 }
