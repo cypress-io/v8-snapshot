@@ -7,3 +7,5 @@ function init() {
   require('./fixtures/sync-deps.js')
   require('stealthy-require')
 }
+
+module.exports = init

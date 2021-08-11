@@ -33,13 +33,22 @@ test('stealthy-require: all cached ', async (t) => {
     ` -r ${projectBaseDir}/hook-require.js` +
     ` ${projectBaseDir}/spec/non-native.js`
 
-  console.log('RUNNING')
   try {
     const { stdout, stderr } = await exec(cmd, { env })
-    console.log('stdout')
-    console.log(stdout)
-    console.log('stderr')
-    console.log(stderr)
+    const lines = stdout.split('\n')
+    if (lines[lines.length - 2] !== '# PASS') {
+      console.error('stdout:')
+      console.error(stdout)
+      console.error('stderr:')
+      console.error(stderr)
+      t.fail('stdout had #FAIL')
+    } else {
+      console.error('stderr:')
+      console.error(stderr)
+      console.error('stdout:')
+      console.error(stdout)
+      t.pass('stdout did not have #FAIL')
+    }
   } catch (err) {
     t.fail(err.toString())
   }
