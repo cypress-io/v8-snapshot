@@ -15,20 +15,30 @@ export function buildDependencyMap(inputs: Metadata['inputs']) {
     })
   }
 
-  for (const node of dependencyMap.values()) {
-    node.allDeps = allDependencies(dependencyMap, node, node.allDeps)
+  for (const [id, node] of dependencyMap.entries()) {
+    node.allDeps = allDependencies(
+      id,
+      dependencyMap,
+      node,
+      node.allDeps,
+      new Set()
+    )
   }
   return dependencyMap
 }
 
 function allDependencies(
+  rootId: string,
   map: Map<string, DependencyNode>,
   node: DependencyNode,
-  acc: Set<string>
+  acc: Set<string>,
+  visited: Set<string>
 ) {
   for (const x of node.directDeps) {
-    acc.add(x)
-    allDependencies(map, map.get(x)!, acc)
+    if (visited.has(x)) continue
+    visited.add(x)
+    if (x !== rootId) acc.add(x)
+    allDependencies(rootId, map, map.get(x)!, acc, visited)
   }
   return acc
 }
@@ -77,6 +87,17 @@ function dependencyArrayToResolvedMap(
 export class DependencyMap {
   constructor(private readonly dependencyMap: Map<string, DependencyNode>) {}
 
+  allDepsOf(nodeId: string) {
+    const node = this.dependencyMap.get(nodeId)
+    assert(node != null, `Node with ${nodeId} needs to be in map`)
+    return Array.from(node.allDeps)
+  }
+
+  directDepsOf(nodeId: string) {
+    const node = this.dependencyMap.get(nodeId)
+    assert(node != null, `Node with ${nodeId} needs to be in map`)
+    return Array.from(node.directDeps)
+  }
   loadedButNotCached(
     id: string,
     loaded: Set<string>,
