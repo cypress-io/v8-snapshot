@@ -22,9 +22,10 @@ const RESOLVER_MAP_KEY_SEP = '***'
 function createGetModuleKey(resolverMap?: Record<string, string>) {
   const getModuleKey: GetModuleKey = ({ moduleUri, baseDir, opts }) => {
     // -----------------
-    // customRequire.resolve or require with path
+    // customRequire.resolve or require with relative path
     // -----------------
-    if (opts?.path != null) {
+    const isRelativeLocalUri = moduleUri.startsWith('.')
+    if (isRelativeLocalUri && opts?.path != null) {
       // Resolve calls are relative to the module they are resolved from
       const fullPath = path.resolve(opts.path, moduleUri)
       const moduleRelativePath = path.relative(baseDir, fullPath)
