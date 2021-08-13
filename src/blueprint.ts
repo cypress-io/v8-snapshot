@@ -106,9 +106,6 @@ function generateSnapshot() {
 
   ${globals}
   ${includeStrictVerifiers ? strictGlobals : ''}
-
-  const coreStubs = {
-  }
 `,
     'utf8'
   )
