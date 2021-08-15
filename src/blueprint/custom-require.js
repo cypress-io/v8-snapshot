@@ -87,9 +87,6 @@ function customRequire(
       try {
         // TODO: we get here for core modules, we should be able to shortcut this higher up
         if (!snapshotting) {
-          if (modulePath === 'bluebird') {
-            debugger
-          }
           const { exports, fullPath } = require._tryLoad(
             modulePath,
             parent,
