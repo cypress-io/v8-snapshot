@@ -15,69 +15,33 @@ import { DependencyMap, DependencyMapArray } from '../meta/dependency-map'
 const logInfo = debug('snapshot:info')
 const logError = debug('snapshot:error')
 const logDebug = debug('snapshot:debug')
-const logTrace = debug('snapshot:trace')
 
 const RESOLVER_MAP_KEY_SEP = '***'
 
 function createGetModuleKey(resolverMap?: Record<string, string>) {
   const getModuleKey: GetModuleKey = ({ moduleUri, baseDir, opts }) => {
-    // -----------------
-    // customRequire.resolve or require with relative path
-    // -----------------
-    const isRelativeLocalUri = moduleUri.startsWith('.')
-    if (isRelativeLocalUri && opts?.path != null) {
-      // Resolve calls are relative to the module they are resolved from
-      const fullPath = path.resolve(opts.path, moduleUri)
-      const moduleRelativePath = path.relative(baseDir, fullPath)
-      return { moduleKey: moduleRelativePath, moduleRelativePath }
-    }
-
-    // -----------------
-    // require
-    // -----------------
-    if (resolverMap != null && opts != null) {
-      const relParentDir = opts.relPath ?? path.relative(baseDir, opts.path)
-      const resolverKey = `${relParentDir}${RESOLVER_MAP_KEY_SEP}${moduleUri}`
-      const resolved = resolverMap[resolverKey]
-      // Module cache prefixes with `./` while the resolver map doesn't
-      if (resolved != null) {
-        const moduleKey = `./${resolved}`
-        return { moduleKey, moduleRelativePath: moduleKey }
-      }
-    } else if (opts == null || opts.fromSnapshot) {
-      // If a parent is not set then the require came straight out of the snapshot
-      // For require.resolve we set `fromSnapshot: true` in that case
-      return { moduleKey: moduleUri, moduleRelativePath: moduleUri }
-    }
-
-    const moduleUriIsAbsolutePath = path.isAbsolute(moduleUri)
-
-    // If we cannot resolve it via the map and it is a node_module id we return as is as it has to be
-    // resolved via Node.js
-    if (!moduleUriIsAbsolutePath && !moduleUri.startsWith('.')) {
+    // We can only reliably resolve modules without the Node.js machinery if we can find it in the
+    // resolver map. For instance resolving `./util` involves probing the file system to resolve to
+    // either `util.js`, `util.json` or possibly `util/index.js`
+    // We could make an assumption that `./util.js` resolves to that file, but it could also refer
+    // to `./util.js/index.js`
+    // The same is true even if `path.isAbsolute` is given, i.e. `/Volumes/dev/util.js` could either be
+    // a file or a directory, so we still couldn't be sure.
+    if (resolverMap == null || opts == null) {
       return { moduleKey: undefined, moduleRelativePath: undefined }
     }
 
-    let moduleRelativePath = moduleUriIsAbsolutePath
-      ? path.relative(baseDir, moduleUri)
-      : moduleUri
+    const relParentDir = opts.relPath ?? path.relative(baseDir, opts.path)
+    const resolverKey = `${relParentDir}${RESOLVER_MAP_KEY_SEP}${moduleUri}`
 
-    if (!moduleRelativePath.startsWith('.')) {
-      // Change things like `node_modules/..` to `./node_modules/..`
-      moduleRelativePath = `./${moduleRelativePath}`
+    const resolved = resolverMap[resolverKey]
+    // Module cache prefixes with `./` while the resolver map doesn't
+    if (resolved != null) {
+      const moduleKey = `./${resolved}`
+      return { moduleKey, moduleRelativePath: moduleKey }
     }
-    const moduleKey = moduleRelativePath
-      // Normalize to use forward slashes as modules are cached that way
-      .replace(/\\/g, '/')
-      .replace(/^\.\.\//, './')
-    logTrace(
-      'key "%s" for [ %s | %s ]',
-      moduleKey,
-      moduleRelativePath,
-      moduleUri
-    )
 
-    return { moduleKey, moduleRelativePath }
+    return { moduleKey: undefined, moduleRelativePath: undefined }
   }
   return getModuleKey
 }
@@ -195,9 +159,8 @@ export function snapshotRequire(
 
     const getModuleKey = createGetModuleKey(resolverMap)
 
-    const { resolve, shouldBypassCache, registerModuleLoad } = packherdRequire(
-      projectBaseDir,
-      {
+    const { resolve, shouldBypassCache, registerModuleLoad, tryLoad } =
+      packherdRequire(projectBaseDir, {
         diagnostics,
         moduleExports,
         moduleDefinitions,
@@ -207,8 +170,7 @@ export function snapshotRequire(
         transpileOpts: opts.transpileOpts,
         sourceMapLookup: getSourceMapLookup(),
         moduleNeedsReload,
-      }
-    )
+      })
 
     // @ts-ignore global snapshotResult
     if (typeof snapshotResult !== 'undefined') {
@@ -256,6 +218,8 @@ export function snapshotRequire(
       // @ts-ignore global snapshotResult
       snapshotResult.customRequire.cache = require.cache
 
+      // @ts-ignore custom method on require
+      require._tryLoad = tryLoad
       // @ts-ignore opts not exactly matching
       require.resolve = resolve
       // @ts-ignore custom method on require
