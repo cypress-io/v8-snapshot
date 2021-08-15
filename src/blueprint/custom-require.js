@@ -14,8 +14,7 @@ function customRequire(
   parentRelDirname
 ) {
   const snapshotting = generateSnapshot != null
-  let key = modulePathFromAppRoot ?? modulePath
-
+  let key = modulePathFromAppRoot
   // Windows
   if (PATH_SEP !== '/') {
     modulePath = modulePath.startsWith('./')
@@ -28,10 +27,14 @@ function customRequire(
         : key.replace(/\//g, '\\')
     }
   }
+  const loader /* NodeModule? */ =
+    this !== global && this.id != null && this.filename != null
+      ? this
+      : undefined
 
-  let module = customRequire.exports[key]
-  if (module != null) {
-    const loader /* NodeModule */ = this
+  let mod
+  mod = customRequire.exports[key]
+  if (mod != null) {
     const { parent, filename, dirname } = resolvePathsAndParent(
       snapshotting,
       modulePathFromAppRoot,
@@ -39,17 +42,17 @@ function customRequire(
       parentRelDirname,
       loader
     )
-    module.parent = parent
-    module.id = filename
-    module.filename = filename
-    module.dirname = dirname
+    mod.parent = parent
+    mod.id = filename
+    mod.filename = filename
+    mod.dirname = dirname
   }
 
   const cannotUseCached =
-    module == null ||
+    mod == null ||
     (!snapshotting &&
       typeof require.shouldBypassCache === 'function' &&
-      require.shouldBypassCache(module))
+      require.shouldBypassCache(mod))
 
   if (cannotUseCached) {
     var { parent, filename, dirname } = resolvePathsAndParent(
@@ -59,7 +62,7 @@ function customRequire(
       parentRelDirname
     )
 
-    module = {
+    mod = {
       exports: {},
       children: [],
       loaded: true,
@@ -71,24 +74,36 @@ function customRequire(
       path: dirname,
     }
 
-    function define(callback) {
-      callback(customRequire, module.exports, module)
-    }
-
     if (customRequire.definitions.hasOwnProperty(key)) {
-      customRequire.exports[key] = module
-      customRequire.definitions[key].apply(module.exports, [
-        module.exports,
-        module,
+      customRequire.exports[key] = mod
+      customRequire.definitions[key].apply(mod.exports, [
+        mod.exports,
+        mod,
         filename,
         dirname,
         customRequire,
-        define,
       ])
     } else {
       try {
-        module.exports = require(modulePath)
-        customRequire.exports[modulePath] = module
+        // TODO: we get here for core modules, we should be able to shortcut this higher up
+        if (!snapshotting) {
+          if (modulePath === 'bluebird') {
+            debugger
+          }
+          const { exports, fullPath } = require._tryLoad(
+            modulePath,
+            parent,
+            false
+          )
+          const cachedMod = require.cache[fullPath]
+          if (cachedMod != null) {
+            mod = cachedMod
+          } else {
+            mod.exports = exports
+          }
+        } else {
+          mod.exports = require(modulePath)
+        }
       } catch (err) {
         // If we're running in doctor (strict) mode avoid trying to resolve core modules by path
         if (require.isStrict) {
@@ -104,10 +119,10 @@ function customRequire(
   }
 
   if (typeof require.registerModuleLoad === 'function') {
-    require.registerModuleLoad(module)
+    require.registerModuleLoad(mod)
   }
 
-  return module.exports
+  return mod.exports
 }
 
 customRequire.extensions = {}
@@ -118,7 +133,7 @@ function resolvePathsAndParent(
   modulePathFromAppRoot,
   parentRelFilename,
   parentRelDirname,
-  loader /* NodeModule */
+  loader /* NodeModule? */
 ) {
   let filename, dirname, parentFilename, parentDirname
 
@@ -149,6 +164,7 @@ function createResolveOpts(relFilename, relDirname) {
   const dirname = __pathResolver.resolve(relDirname)
 
   return {
+    id: filename,
     relFilename,
     relPath: relDirname,
     filename,
