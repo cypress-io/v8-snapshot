@@ -132,11 +132,13 @@ export class DependencyMap {
         indirectsToReach.add(childId)
     }
     if (indirectsToReach.size > 0) {
+      const visited: Set<string> = new Set()
       return this._reachableWithoutHittingCache(
         node,
         indirectsToReach,
         loaded,
-        cache
+        cache,
+        visited
       )
     }
     return false
@@ -146,16 +148,25 @@ export class DependencyMap {
     node: DependencyNode,
     toReach: Set<string>,
     loaded: Set<string>,
-    cache: Record<string, NodeModule>
+    cache: Record<string, NodeModule>,
+    visited: Set<string>
   ) {
     // Walk the tree until we either hit a module that is cached or is one of the modules we try to reach
     for (const child of node.directDeps) {
+      if (visited.has(child)) continue
+      visited.add(child)
       if (toReach.has(child)) return true
       if (cache[child] == null) {
         const childNode = this.dependencyMap.get(child)
         if (
           childNode != null &&
-          this._reachableWithoutHittingCache(childNode, toReach, loaded, cache)
+          this._reachableWithoutHittingCache(
+            childNode,
+            toReach,
+            loaded,
+            cache,
+            visited
+          )
         ) {
           return true
         }
