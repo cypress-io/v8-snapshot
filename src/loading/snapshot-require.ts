@@ -226,6 +226,8 @@ export function snapshotRequire(
       require.shouldBypassCache = shouldBypassCache
       // @ts-ignore custom method on require
       require.registerModuleLoad = registerModuleLoad
+      // @ts-ignore custom property on require
+      require.builtInModules = new Set(Module.builtinModules)
     }
   }
 }

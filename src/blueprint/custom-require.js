@@ -14,6 +14,16 @@ function customRequire(
   parentRelDirname
 ) {
   const snapshotting = generateSnapshot != null
+
+  // Short circuit core modules
+  if (
+    !snapshotting &&
+    require.builtInModules != null &&
+    require.builtInModules.has(modulePath)
+  ) {
+    return require(modulePath)
+  }
+
   let key = modulePathFromAppRoot
   // Windows
   if (PATH_SEP !== '/') {
@@ -57,7 +67,7 @@ function customRequire(
   if (cannotUseCached) {
     var { parent, filename, dirname } = resolvePathsAndParent(
       snapshotting,
-      modulePathFromAppRoot ?? modulePath,
+      modulePathFromAppRoot,
       parentRelFilename,
       parentRelDirname
     )
@@ -85,7 +95,6 @@ function customRequire(
       ])
     } else {
       try {
-        // TODO: we get here for core modules, we should be able to shortcut this higher up
         if (!snapshotting) {
           const { exports, fullPath } = require._tryLoad(
             modulePath,
@@ -134,12 +143,16 @@ function resolvePathsAndParent(
 ) {
   let filename, dirname, parentFilename, parentDirname
 
+  if (modulePathFromAppRoot == null) {
+    throw new Error('Cannot resolve paths without modulePathFromAppRoot')
+  }
+
   if (snapshotting || !modulePathFromAppRoot.startsWith('.')) {
     filename = modulePathFromAppRoot
     dirname = filename.split(PATH_SEP).slice(0, -1).join(PATH_SEP)
     parentFilename = parentRelFilename
     parentDirname = parentRelDirname
-  } else {
+  } else if (modulePathFromAppRoot != null) {
     filename = __pathResolver.resolve(modulePathFromAppRoot)
     dirname = __pathResolver.resolve(
       filename.split(PATH_SEP).slice(0, -1).join(PATH_SEP)
@@ -147,7 +160,6 @@ function resolvePathsAndParent(
     parentFilename = __pathResolver.resolve(parentRelFilename)
     parentDirname = __pathResolver.resolve(parentRelDirname)
   }
-
   const parent = loader ?? {
     id: parentFilename,
     filename: parentFilename,
