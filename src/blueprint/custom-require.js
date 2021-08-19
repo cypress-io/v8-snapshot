@@ -38,7 +38,7 @@ function customRequire(
     }
   }
   const loader /* NodeModule? */ =
-    this !== global && this.id != null && this.filename != null
+    this != null && this !== global && this.id != null && this.filename != null
       ? this
       : undefined
 
@@ -109,6 +109,7 @@ function customRequire(
           }
         } else {
           mod.exports = require(modulePath)
+          customRequire.exports[modulePath] = mod
         }
       } catch (err) {
         // If we're running in doctor (strict) mode avoid trying to resolve core modules by path
