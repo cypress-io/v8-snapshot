@@ -76,9 +76,8 @@ try {
 
     t.equal(req1, req3, 'req1 === req3')
 
-    // TODO:
-    // t.equal(req1, req2.dep, 'req1 === req2.dep')
-    // t.equal(req1.dep, req2.dep.dep, 'req1.dep === req2.dep.dep')
+    t.equal(req1, req2.dep, 'req1 === req2.dep')
+    t.equal(req1.dep, req2.dep.dep, 'req1.dep === req2.dep.dep')
 
     // We aren't updating module children when snapshot is used thus len doesn't change.
     // t.equal(lenChildrenAfterReq2, lenChildrenBeforeReq2 + 1, 'len children')
