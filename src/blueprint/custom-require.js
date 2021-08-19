@@ -45,6 +45,9 @@ function customRequire(
   let mod
   mod = customRequire.exports[key]
   if (mod != null) {
+    if (modulePathFromAppRoot == null && snapshotting) {
+      modulePathFromAppRoot = modulePath
+    }
     const { parent, filename, dirname } = resolvePathsAndParent(
       snapshotting,
       modulePathFromAppRoot,
@@ -65,6 +68,9 @@ function customRequire(
       require.shouldBypassCache(mod))
 
   if (cannotUseCached) {
+    if (modulePathFromAppRoot == null && snapshotting) {
+      modulePathFromAppRoot = modulePath
+    }
     var { parent, filename, dirname } = resolvePathsAndParent(
       snapshotting,
       modulePathFromAppRoot,
