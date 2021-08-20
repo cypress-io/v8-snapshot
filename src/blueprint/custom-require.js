@@ -23,7 +23,6 @@ function customRequire(
   ) {
     return require(modulePath)
   }
-
   let key = modulePathFromAppRoot
   // Windows
   if (PATH_SEP !== '/') {
@@ -37,15 +36,16 @@ function customRequire(
         : key.replace(/\//g, '\\')
     }
   }
+
   const loader /* NodeModule? */ =
     this != null && this !== global && this.id != null && this.filename != null
       ? this
       : undefined
 
-  let mod
+  let mod, loadedFrom
   mod = customRequire.exports[key]
   if (mod != null) {
-    if (modulePathFromAppRoot == null && snapshotting) {
+    if (modulePathFromAppRoot == null /*&& snapshotting */) {
       modulePathFromAppRoot = modulePath
     }
     const { parent, filename, dirname } = resolvePathsAndParent(
@@ -59,6 +59,7 @@ function customRequire(
     mod.id = filename
     mod.filename = filename
     mod.dirname = dirname
+    loadedFrom = 'exports'
   }
 
   const cannotUseCached =
@@ -68,7 +69,7 @@ function customRequire(
       require.shouldBypassCache(mod))
 
   if (cannotUseCached) {
-    if (modulePathFromAppRoot == null && snapshotting) {
+    if (modulePathFromAppRoot == null /* && snapshotting */) {
       modulePathFromAppRoot = modulePath
     }
     var { parent, filename, dirname } = resolvePathsAndParent(
@@ -99,9 +100,11 @@ function customRequire(
         dirname,
         customRequire,
       ])
+      loadedFrom = 'definitions'
     } else {
       try {
         if (!snapshotting) {
+          loadedFrom = 'Counted already'
           const { exports, fullPath } = require._tryLoad(
             modulePath,
             parent,
@@ -132,7 +135,7 @@ function customRequire(
   }
 
   if (typeof require.registerModuleLoad === 'function') {
-    require.registerModuleLoad(mod)
+    require.registerModuleLoad(mod, loadedFrom)
   }
 
   return mod.exports
