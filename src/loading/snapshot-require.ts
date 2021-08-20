@@ -6,7 +6,6 @@ import type {
   PackherdTranspileOpts,
 } from 'packherd'
 import { packherdRequire } from 'packherd/dist/src/require.js'
-import { moduleMapper } from './module_negotiator'
 import { Snapshot, SnapshotAuxiliaryData } from '../types'
 import { EMBEDDED } from '../constants'
 import Module from 'module'
@@ -165,7 +164,6 @@ export function snapshotRequire(
         moduleExports,
         moduleDefinitions,
         getModuleKey,
-        moduleMapper,
         requireStatsFile: opts.requireStatsFile,
         transpileOpts: opts.transpileOpts,
         sourceMapLookup: getSourceMapLookup(),
