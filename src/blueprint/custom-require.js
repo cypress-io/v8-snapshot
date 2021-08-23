@@ -42,8 +42,8 @@ function customRequire(
       ? this
       : undefined
 
-  let mod, loadedFrom
-  mod = customRequire.exports[key]
+  let loadedFrom
+  let mod = key == null ? null : customRequire.exports[key]
   if (mod != null) {
     if (modulePathFromAppRoot == null /*&& snapshotting */) {
       modulePathFromAppRoot = modulePath
@@ -72,7 +72,7 @@ function customRequire(
     if (modulePathFromAppRoot == null /* && snapshotting */) {
       modulePathFromAppRoot = modulePath
     }
-    var { parent, filename, dirname } = resolvePathsAndParent(
+    const { parent, filename, dirname } = resolvePathsAndParent(
       snapshotting,
       modulePathFromAppRoot,
       parentRelFilename,
@@ -170,11 +170,15 @@ function resolvePathsAndParent(
     parentFilename = __pathResolver.resolve(parentRelFilename)
     parentDirname = __pathResolver.resolve(parentRelDirname)
   }
-  const parent = loader ?? {
-    id: parentFilename,
-    filename: parentFilename,
-    path: parentDirname,
-  }
+  const parent =
+    loader ??
+    (parentFilename == null || parentDirname == null
+      ? null
+      : {
+          id: parentFilename,
+          filename: parentFilename,
+          path: parentDirname,
+        })
   return { parent, filename, dirname }
 }
 
@@ -207,6 +211,7 @@ customRequire.resolve = function (mod, relFilename, relDirname) {
     throw err
   }
 }
+
 //
 // </custom-require>
 //

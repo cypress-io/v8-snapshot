@@ -29,13 +29,15 @@ test('require: loading from full path provided via variable', async (t) => {
     ` -r ${projectBaseDir}/hook-require.js` +
     ` ${projectBaseDir}/app.js`
 
+  let stdout: string | undefined
+  let stderr: string | undefined
   try {
-    const { stdout, stderr } = await exec(cmd, { env })
-    console.log(stdout)
-    console.log(stderr)
+    ;({ stdout, stderr } = await exec(cmd, { env }))
     const res = JSON.parse(stdout.trim())
     t.equal(res.version, '1.1.1')
   } catch (err) {
+    console.log(stdout)
+    console.log(stderr)
     t.fail(err.toString())
   }
 })
