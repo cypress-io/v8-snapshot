@@ -11,6 +11,7 @@ import {
   CreateBundleOpts as PackherdCreateBundleOpts,
   CreateBundleResult,
 } from 'packherd'
+import { dependencyMapArrayFromInputs } from './meta/dependency-map'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
@@ -125,6 +126,11 @@ export function assembleScript(
       )
     }
     auxiliaryData.resolverMap = resolverMap
+  }
+  if (opts.meta?.inputs != null) {
+    const mapArray = dependencyMapArrayFromInputs(opts.meta.inputs)
+    logDebug('Embedding dependency map into snapshot')
+    auxiliaryData.dependencyMapArray = mapArray
   }
 
   const auxiliaryDataString = JSON.stringify(auxiliaryData)

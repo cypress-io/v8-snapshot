@@ -32,9 +32,14 @@ if (process.platform == 'darwin') {
       ` ${projectBaseDir}/app.js`
 
     try {
-      const { stdout } = await exec(cmd, { env })
-      const res = JSON.parse(stdout.trim())
-      spok(t, res, { itemIsDir: 131072 })
+      const { stdout, stderr } = await exec(cmd, { env })
+      try {
+        const res = JSON.parse(stdout.trim())
+        spok(t, res, { itemIsDir: 131072 })
+      } catch (err) {
+        console.log(stderr)
+        throw err
+      }
     } catch (err) {
       t.fail(err.toString())
     }

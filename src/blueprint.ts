@@ -106,9 +106,6 @@ function generateSnapshot() {
 
   ${globals}
   ${includeStrictVerifiers ? strictGlobals : ''}
-
-  const coreStubs = {
-  }
 `,
     'utf8'
   )
@@ -117,7 +114,7 @@ function generateSnapshot() {
   ${customRequire}
   ${includeStrictVerifiers ? 'require.isStrict = true' : ''}
 
-  customRequire(${mainModuleRequirePath})
+  customRequire(${mainModuleRequirePath}, ${mainModuleRequirePath})
   return {
     customRequire,
     setGlobals: ${setGlobals},
