@@ -28,7 +28,10 @@ class SnapshotEntryGeneratorViaWalk {
     const meta = await this.getMetadata()
     const paths = this._resolveRelativePaths(meta)
     paths.sort()
-    return paths.map((x) => `exports['${x}'] = require('${x}')`).join('\n')
+    return paths
+      .map((x) => x.replace(/\\/g, '/'))
+      .map((x) => `exports['${x}'] = require('${x}')`)
+      .join('\n')
   }
 
   private _resolveRelativePaths(meta: Metadata) {
