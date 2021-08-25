@@ -9,8 +9,6 @@
     "prepublish": "rimraf ./dist/tests",
     "pretest": "make pretest",
     "test": "tape dist/tests/**/*.test.js",
-    "wip": "tape dist/tests/loading/require-full-path-var.test.js",
-    "wip-dev": "DEBUG=_ node --inspect-brk -r ./tests/utils/hook-require.js dist/tests/loading/",
     "debug-test": "node --inspect-brk -r ./tests/utils/hook-require.js tests/**/*.ts",
     "lint": "prettier -c ./src/",
     "lint:fix": "prettier --write ./src",
