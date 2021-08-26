@@ -4,7 +4,7 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import { execSync, ExecSyncOptions, StdioOptions } from 'child_process'
 import { BlueprintConfig, scriptFromBlueprint } from './blueprint'
-import { Metadata } from './types'
+import { CreateBundleOpts, CreateSnapshotScriptOpts, Metadata } from './types'
 import {
   CreateBundle,
   packherd,
@@ -12,6 +12,8 @@ import {
   CreateBundleResult,
 } from 'packherd'
 import { dependencyMapArrayFromInputs } from './meta/dependency-map'
+import { writeConfigJSON } from './write-config-json'
+import { tryRemoveFileSync } from './utils'
 
 const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
@@ -37,26 +39,6 @@ export const BUNDLE_WRAPPER_CLOSE = Buffer.from(
 `,
   'utf8'
 )
-
-export type CreateBundleOpts = {
-  baseDirPath: string
-  entryFilePath: string
-  bundlerPath: string
-  nodeModulesOnly: boolean
-  deferred?: string[]
-  norewrite?: string[]
-  includeStrictVerifiers?: boolean
-  sourcemap?: boolean
-  sourcemapExternalPath?: string
-  sourcemapEmbed: boolean
-  sourcemapInline: boolean
-}
-
-export type CreateSnapshotScriptOpts = CreateBundleOpts & {
-  resolverMap?: Record<string, string>
-  auxiliaryData?: Record<string, any>
-  nodeEnv: string
-}
 
 export type CreateSnapshotScript = (
   opts: CreateSnapshotScriptOpts
@@ -228,41 +210,18 @@ function stringToBuffer(contents: string) {
   return Buffer.from(contents, 'hex')
 }
 
-function argumentify(arr: string[]) {
-  // esbuild stores modules in sub directories with backslash on windows, i.e. './lib\\deferred.js'
-  // so we need to send the keys of deferred and norewrite modules in the same manner
-  return path.sep === '/'
-    ? arr.map((x) => {
-        const PREFIX = x.startsWith('./') ? '' : './'
-        return `${PREFIX}${x}`
-      })
-    : arr.map((x) => {
-        if (x.startsWith('./')) x = x.slice(2)
-        return `./${x.replace(/\//g, path.sep)}`
-      })
-}
-
 const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
   (opts: CreateBundleOpts) => (popts: PackherdCreateBundleOpts) => {
     const basedir = path.resolve(process.cwd(), opts.baseDirPath)
+    const { configPath, config } = writeConfigJSON(
+      opts,
+      popts.entryFilePath,
+      basedir
+    )
 
-    const args = [`--basedir=${basedir}`, popts.entryFilePath, '--metafile']
-
-    if (opts.deferred != null && opts.deferred.length > 0) {
-      args.push(`--deferred='${argumentify(opts.deferred).join(',')}'`)
-    }
-    if (opts.norewrite != null && opts.norewrite.length > 0) {
-      args.push(`--norewrite='${argumentify(opts.norewrite).join(',')}'`)
-    }
-    if (!!opts.includeStrictVerifiers) {
-      args.push('--doctor')
-    }
-    if (!!opts.sourcemap) {
-      args.push('--sourcemap')
-    }
-
-    const cmd = `${opts.bundlerPath} ${args.join(' ')}`
-    logTrace('Running "%s"', cmd)
+    const cmd = `${opts.bundlerPath} ${configPath}`
+    logDebug('Running "%s"', cmd)
+    logTrace(config)
 
     const _MB = 1024 * 1024
     const execOpts: ExecSyncOptions = Object.assign(
@@ -294,12 +253,12 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
       if (!!opts.sourcemap) {
         assert(
           includedSourcemaps,
-          'should include sourcemap when --sourcemap is provided'
+          'should include sourcemap when sourcemap is configured'
         )
       } else {
         assert(
           !includedSourcemaps,
-          'should only include sourcemap when --sourcemap is provided'
+          'should only include sourcemap when sourcemap is configured'
         )
       }
       const sourceMap = includedSourcemaps
@@ -325,6 +284,13 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
       }
       logError(err)
       return Promise.reject(new Error(`Failed command: "${cmd}"`))
+    } finally {
+      const err = tryRemoveFileSync(configPath)
+      // We log the error here, but don't fail since the config file might not have been created and thus removing it
+      // fails. Also removing this temp file is not essential to snapshot creation.
+      if (err != null) {
+        logError(err)
+      }
     }
   }
 

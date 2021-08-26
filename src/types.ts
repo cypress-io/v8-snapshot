@@ -24,6 +24,26 @@ export type Metadata = CreateBundleResult['metafile'] & {
   resolverMap: Record<string, string>
 }
 
+export type CreateBundleOpts = {
+  baseDirPath: string
+  entryFilePath: string
+  bundlerPath: string
+  nodeModulesOnly: boolean
+  deferred?: string[]
+  norewrite?: string[]
+  includeStrictVerifiers?: boolean
+  sourcemap?: boolean
+  sourcemapExternalPath?: string
+  sourcemapEmbed: boolean
+  sourcemapInline: boolean
+}
+
+export type CreateSnapshotScriptOpts = CreateBundleOpts & {
+  resolverMap?: Record<string, string>
+  auxiliaryData?: Record<string, any>
+  nodeEnv: string
+}
+
 export type ProcessScriptOpts = {
   bundleHash: string
   bundlePath: string
@@ -57,31 +77,6 @@ export type SnapshotResult = {
     cache: Record<string, NodeModule>
     definitions: Record<string, ModuleDefinition>
   }
-}
-
-export type ModuleResolveResult = {
-  resolved: 'module' | 'path'
-  fullPath: string
-  relPath: string
-}
-
-export type ModuleLoadResult = ModuleResolveResult & {
-  exports: NodeModule
-  origin: 'cache' | 'definitions' | 'Module._load'
-}
-
-export type ModuleBuildin = typeof import('module') & {
-  _resolveFilename(
-    moduleUri: string,
-    parent: NodeModule | undefined,
-    isMain: boolean
-  ): string
-  _load(
-    request: string,
-    parent: NodeModule | undefined,
-    isMain: boolean
-  ): NodeModule
-  _cache: Record<string, NodeModule>
 }
 
 export type Snapshot = {
