@@ -107,6 +107,17 @@ export function fileExistsSync(p: string) {
   }
 }
 
+export async function tryRemoveFileSync(p: string) {
+  if (!fileExistsSync(p)) {
+    return new Error(`Cannot access ${p} in order to delete it`)
+  }
+  try {
+    fs.unlinkSync(p)
+  } catch (err) {
+    return err
+  }
+}
+
 export function resolveElectronVersion(root: string): string {
   const electron = resolveFrom(root, 'electron')
   return require(path.join(path.dirname(electron), 'package.json')).version

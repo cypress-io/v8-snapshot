@@ -2,9 +2,9 @@ import debug from 'debug'
 import { strict as assert } from 'assert'
 import os from 'os'
 import WorkerNodes from 'worker-nodes'
-import { CreateSnapshotScriptOpts } from '../create-snapshot-script'
 import {
   BundleAndProcessScriptResult,
+  CreateSnapshotScriptOpts,
   ProcessScriptOpts,
   ProcessScriptResult,
 } from '../types'

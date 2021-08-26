@@ -4,12 +4,9 @@ import fs from 'fs'
 import { tmpdir } from 'os'
 import path from 'path'
 import { circularImports } from './circular-imports'
-import {
-  createBundleAsync,
-  CreateSnapshotScriptOpts,
-} from '../create-snapshot-script'
+import { createBundleAsync } from '../create-snapshot-script'
 import { AsyncScriptProcessor } from './process-script.async'
-import { Entries, Metadata } from '../types'
+import { CreateSnapshotScriptOpts, Entries, Metadata } from '../types'
 import {
   bundleFileNameFromHash,
   createHash,

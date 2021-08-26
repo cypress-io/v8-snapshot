@@ -1,8 +1,8 @@
 import debug from 'debug'
 import path from 'path'
 import { promises as fs } from 'fs'
-import { createBundleAsync, CreateBundleOpts } from './create-snapshot-script'
-import { Metadata } from './types'
+import { createBundleAsync } from './create-snapshot-script'
+import { CreateBundleOpts, Metadata } from './types'
 import { getBundlerPath } from './utils'
 
 const snapshotUtils = require('../package.json').name

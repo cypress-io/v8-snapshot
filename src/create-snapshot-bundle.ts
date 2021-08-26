@@ -1,8 +1,5 @@
-import {
-  CreateSnapshotScriptOpts,
-  createBundleAsync,
-} from './create-snapshot-script'
-import { Metadata } from './types'
+import { createBundleAsync } from './create-snapshot-script'
+import { CreateSnapshotScriptOpts, Metadata } from './types'
 
 const prelude = `function get_process() {
   if (typeof process === 'undefined') return undefined
