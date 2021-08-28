@@ -35,7 +35,7 @@ test('require: loading from full path provided via variable', async (t) => {
     ;({ stdout, stderr } = await exec(cmd, { env }))
     const res = JSON.parse(stdout.trim())
     t.equal(res.version, '1.1.1')
-  } catch (err) {
+  } catch (err: any) {
     console.log(stdout)
     console.log(stderr)
     t.fail(err.toString())

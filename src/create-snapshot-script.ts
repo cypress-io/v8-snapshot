@@ -277,7 +277,7 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
         metafile: metadata,
       }
       return Promise.resolve(result)
-    } catch (err) {
+    } catch (err: any) {
       if (err.stderr != null) {
         logError(err.stderr.toString())
       }

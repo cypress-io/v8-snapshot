@@ -39,7 +39,7 @@ test('doctor: entry requires a module that has is detected norewrite', async (t)
     ;({ stdout, stderr } = await exec(cmd, { env }))
     const res = JSON.parse(stdout.trim())
     t.equal(res.patchedCwd, process.cwd())
-  } catch (err) {
+  } catch (err: any) {
     console.log(stdout)
     console.log(stderr)
     t.fail(err.toString())

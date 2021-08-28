@@ -17,7 +17,7 @@ const metadataFile = path.join(cacheDir, 'snapshot-meta.json')
 test('integration: install snapshot for example-express', async (t) => {
   try {
     await rmrf(cacheDir)
-  } catch (err) {
+  } catch (err: any) {
     t.fail(err.toString())
     return t.end()
   }
@@ -28,7 +28,7 @@ test('integration: install snapshot for example-express', async (t) => {
     const metadata = require(metadataFile)
     spok(t, metadata, EXPECTED)
     t.end()
-  } catch (err) {
+  } catch (err: any) {
     t.fail(err.toString())
   }
 })

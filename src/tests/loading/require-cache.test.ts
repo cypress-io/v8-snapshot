@@ -39,7 +39,7 @@ test('require: cached module modifies require cache', async (t) => {
     const { sync1, sync2, rand1, rand2 } = JSON.parse(stdout.trim())
     t.notEqual(sync1, sync2, 'sync deps export should be different')
     t.notEqual(rand1, rand2, 'rand deps export should be different')
-  } catch (err) {
+  } catch (err: any) {
     t.fail(err.toString())
   }
 })
@@ -71,7 +71,7 @@ test('require: uncached module modifies require cache', async (t) => {
     const { sync1, sync2, rand1, rand2 } = JSON.parse(stdout.trim())
     t.notEqual(sync1, sync2, 'sync deps export should be different')
     t.notEqual(rand1, rand2, 'rand deps export should be different')
-  } catch (err) {
+  } catch (err: any) {
     t.fail(err.toString())
   }
 })

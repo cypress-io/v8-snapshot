@@ -38,7 +38,7 @@ test('esbuild: windows-issues', async (t) => {
       'babel-unsupported',
       'loads ./babel/unsupportedIterableToArray.js'
     )
-  } catch (err) {
+  } catch (err: any) {
     console.log(stdout)
     console.log(stderr)
     t.fail(err.toString())

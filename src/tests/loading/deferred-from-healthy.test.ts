@@ -34,7 +34,7 @@ test('negotiator: healthy module requires a deferred one', async (t) => {
     const { stdout } = await exec(cmd, { env })
     const res = JSON.parse(stdout.trim())
     spok(t, res, { healthyCodeLen: spok.ge(100) })
-  } catch (err) {
+  } catch (err: any) {
     t.fail(err.toString())
   }
 })

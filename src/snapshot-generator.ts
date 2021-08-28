@@ -356,7 +356,7 @@ export class SnapshotGenerator {
         return null
       }
       return { v8ContextFile: this.v8ContextFile! }
-    } catch (err) {
+    } catch (err: any) {
       if (err.stderr != null) {
         logError(err.stderr.toString())
       }

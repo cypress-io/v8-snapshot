@@ -33,7 +33,7 @@ test('negotiator: healthy module requires an external one', async (t) => {
     const { stdout } = await exec(cmd, { env })
     const res = JSON.parse(stdout.trim())
     t.equal(res.healthyString, 'FAKE BLUEBIRD')
-  } catch (err) {
+  } catch (err: any) {
     t.fail(err.toString())
   }
 })
