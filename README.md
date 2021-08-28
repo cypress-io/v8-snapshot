@@ -2,8 +2,8 @@
 
 Tool to create a snapshot for Electron applications.
 
-## Caveat
+## Env Vars
 
-Current version installs OSX 64-bit version of the esbuild based snapshot compiler tool.
-
-In the future a _smart_ installer will pull down the appropriate one for your architecture.
+- `SNAPSHOT_BUNDLER` overrides Go tool to create the JavaScript bundle used to snapshot
+- `SNAPSHOT_KEEP_CONFIG` when set will not delete the temporary JSON config file that is
+	provided to the snapshot bundler

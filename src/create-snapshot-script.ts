@@ -20,6 +20,8 @@ const logDebug = debug('snapgen:debug')
 const logTrace = debug('snapgen:trace')
 const logError = debug('snapgen:error')
 
+const keepConfig = process.env.SNAPSHOT_KEEP_CONFIG != null
+
 export const BUNDLE_WRAPPER_OPEN = Buffer.from(
   `
   //
@@ -285,11 +287,15 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
       logError(err)
       return Promise.reject(new Error(`Failed command: "${cmd}"`))
     } finally {
-      const err = tryRemoveFileSync(configPath)
-      // We log the error here, but don't fail since the config file might not have been created and thus removing it
-      // fails. Also removing this temp file is not essential to snapshot creation.
-      if (err != null) {
-        logError(err)
+      if (!keepConfig) {
+        const err = tryRemoveFileSync(configPath)
+        // We log the error here, but don't fail since the config file might not have been created and thus removing it
+        // fails. Also removing this temp file is not essential to snapshot creation.
+        if (err != null) {
+          logError(err)
+        }
+      } else {
+        logInfo('Kept config at %s', configPath)
       }
     }
   }
