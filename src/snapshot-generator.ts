@@ -163,6 +163,7 @@ export class SnapshotGenerator {
       previousDeferred: this.previousDeferred.size,
       previousHealthy: this.previousHealthy.size,
       previousNoRewrite: this.previousNoRewrite.size,
+      forceNoRewrite: this.forceNoRewrite.size,
       auxiliaryData: auxiliaryDataKeys,
       verify,
     })
