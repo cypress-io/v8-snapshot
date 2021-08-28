@@ -234,7 +234,7 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
       // Windows doesn't properly support piping stdio
       process.platform === 'win32'
         ? {}
-        : { stdio: ['pipe', 'pipe', 'ignore'] as StdioOptions }
+        : { stdio: ['pipe', 'pipe', 'pipe'] as StdioOptions }
     )
 
     try {
