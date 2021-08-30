@@ -61,13 +61,13 @@ export function processScript({
       sourcemapInline: false,
       sourcemapExternalPath: undefined,
     }).script
-  } catch (err) {
+  } catch (err: any) {
     return { outcome: 'failed:assembleScript', error: err }
   }
 
   try {
     snapshotVerifier.verify(snapshotScript, `<snapshot:entry:${entryPoint}>`)
-  } catch (err) {
+  } catch (err: any) {
     return { outcome: 'failed:verifyScript', error: err }
   }
   return { outcome: 'completed' }

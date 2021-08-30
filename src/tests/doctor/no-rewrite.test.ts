@@ -1,17 +1,20 @@
 import path from 'path'
-import spok from 'spok'
 import test from 'tape'
 import { SnapshotGenerator } from '../../snapshot-generator'
 import { exec as execOrig } from 'child_process'
 import { promisify } from 'util'
 
+import rimraf from 'rimraf'
+const rmrf = promisify(rimraf)
+
 const exec = promisify(execOrig)
 
-const projectBaseDir = path.join(__dirname, 'fixtures', 'deferred-from-healthy')
+const projectBaseDir = path.join(__dirname, 'fixtures', 'no-rewrite')
 const cacheDir = path.join(projectBaseDir, 'cache')
 const snapshotEntryFile = path.join(projectBaseDir, 'entry.js')
 
-test('negotiator: healthy module requires a deferred one', async (t) => {
+test('doctor: entry requires a module that has is detected norewrite', async (t) => {
+  await rmrf(cacheDir)
   const generator = new SnapshotGenerator(projectBaseDir, snapshotEntryFile, {
     cacheDir,
     nodeModulesOnly: false,
@@ -30,11 +33,15 @@ test('negotiator: healthy module requires a deferred one', async (t) => {
     ` -r ${projectBaseDir}/hook-require.js` +
     ` ${projectBaseDir}/app.js`
 
+  let stdout: string | undefined
+  let stderr: string | undefined
   try {
-    const { stdout } = await exec(cmd, { env })
+    ;({ stdout, stderr } = await exec(cmd, { env }))
     const res = JSON.parse(stdout.trim())
-    spok(t, res, { healthyCodeLen: spok.ge(100) })
+    t.equal(res.patchedCwd, process.cwd())
   } catch (err: any) {
+    console.log(stdout)
+    console.log(stderr)
     t.fail(err.toString())
   }
 })

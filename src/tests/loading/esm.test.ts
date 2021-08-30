@@ -34,7 +34,7 @@ test('esm support: entry esm module importing a lodash function', async (t) => {
     const { stdout } = await exec(cmd, { env })
     const res = JSON.parse(stdout.trim())
     spok(t, res, { isObjectLike: true })
-  } catch (err) {
+  } catch (err: any) {
     t.fail(err.toString())
   }
 })

@@ -163,6 +163,7 @@ export class SnapshotGenerator {
       previousDeferred: this.previousDeferred.size,
       previousHealthy: this.previousHealthy.size,
       previousNoRewrite: this.previousNoRewrite.size,
+      forceNoRewrite: this.forceNoRewrite.size,
       auxiliaryData: auxiliaryDataKeys,
       verify,
     })
@@ -355,7 +356,7 @@ export class SnapshotGenerator {
         return null
       }
       return { v8ContextFile: this.v8ContextFile! }
-    } catch (err) {
+    } catch (err: any) {
       if (err.stderr != null) {
         logError(err.stderr.toString())
       }

@@ -40,7 +40,7 @@ if (process.platform == 'darwin') {
         console.log(stderr)
         throw err
       }
-    } catch (err) {
+    } catch (err: any) {
       t.fail(err.toString())
     }
   })

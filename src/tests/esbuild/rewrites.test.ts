@@ -43,7 +43,7 @@ test('esbuild: rewriting mutli assignments and multi exports', async (t) => {
         Base: { base: true, version: 1 },
       },
     })
-  } catch (err) {
+  } catch (err: any) {
     t.fail(err.toString())
   }
 })

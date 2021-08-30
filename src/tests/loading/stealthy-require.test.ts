@@ -49,7 +49,7 @@ test('stealthy-require: all cached ', async (t) => {
       console.error(stdout)
       t.pass('stdout did not have #FAIL')
     }
-  } catch (err) {
+  } catch (err: any) {
     t.fail(err.toString())
   }
 })
