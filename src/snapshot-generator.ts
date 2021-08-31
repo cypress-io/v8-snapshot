@@ -43,6 +43,7 @@ type GenerationOpts = {
   maxWorkers?: number
   flags: Flag
   nodeEnv: string
+  addCacheGitignore: boolean
 }
 
 function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
@@ -60,6 +61,7 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
     previousHealthy: [],
     flags: Flag.Script | Flag.MakeSnapshot | Flag.ReuseDoctorArtifacts,
     nodeEnv: 'development',
+    addCacheGitignore: true,
   }
 }
 
@@ -85,6 +87,7 @@ export class SnapshotGenerator {
   private readonly forceNoRewrite: Set<string>
   private readonly nodeEnv: string
   private readonly bundlerPath: string
+  private readonly addCacheGitignore: boolean
   private readonly _snapshotVerifier: SnapshotVerifier
   private readonly _flags: GeneratorFlags
 
@@ -117,6 +120,7 @@ export class SnapshotGenerator {
       flags: mode,
       nodeEnv,
       electronVersion,
+      addCacheGitignore,
     }: GenerationOpts = Object.assign(
       getDefaultGenerationOpts(projectBaseDir),
       opts
@@ -149,6 +153,7 @@ export class SnapshotGenerator {
     this.nodeEnv = nodeEnv
     this._flags = new GeneratorFlags(mode)
     this.bundlerPath = getBundlerPath()
+    this.addCacheGitignore = addCacheGitignore
 
     const auxiliaryDataKeys = Object.keys(this.auxiliaryData || {})
     logInfo({
@@ -166,7 +171,15 @@ export class SnapshotGenerator {
       forceNoRewrite: this.forceNoRewrite.size,
       auxiliaryData: auxiliaryDataKeys,
       verify,
+      addCacheGitignore,
     })
+  }
+
+  private _addGitignore() {
+    const gitignore = 'snapshot.js\nsnapshot.js.map'
+
+    const gitignorePath = join(this.cacheDir, '.gitignore')
+    return fs.promises.writeFile(gitignorePath, gitignore)
   }
 
   async createScript() {
@@ -255,6 +268,9 @@ export class SnapshotGenerator {
       })
       assert(minified.code != null, 'Should return minified code')
       return fs.promises.writeFile(this.snapshotScriptPath, minified.code)
+    }
+    if (this.addCacheGitignore) {
+      await this._addGitignore()
     }
     return fs.promises.writeFile(this.snapshotScriptPath, this.snapshotScript)
   }
