@@ -12,7 +12,7 @@ type SnapshotConfig = {
   norewrite: string[]
   metafile: boolean
   doctor: boolean
-  sourcemap: boolean
+  sourcemap: string | undefined
 }
 
 function isNonEmptyArray<T>(arr: T[] | undefined): arr is T[] {
@@ -41,7 +41,8 @@ function argumentify(arr: string[]) {
 export function writeConfigJSON(
   opts: CreateBundleOpts,
   entryfile: string,
-  basedir: string
+  basedir: string,
+  sourcemapExternalPath?: string
 ): { configPath: string; config: SnapshotConfig } {
   const deferred = isNonEmptyArray(opts.deferred)
     ? argumentify(opts.deferred)
@@ -49,6 +50,8 @@ export function writeConfigJSON(
   const norewrite = isNonEmptyArray(opts.norewrite)
     ? argumentify(opts.norewrite)
     : []
+
+  const sourcemap = opts.sourcemap != null ? sourcemapExternalPath : undefined
   const config: SnapshotConfig = {
     basedir,
     entryfile,
@@ -56,10 +59,11 @@ export function writeConfigJSON(
     norewrite,
     doctor: opts.includeStrictVerifiers ?? false,
     metafile: true,
-    sourcemap: opts.sourcemap ?? false,
+    sourcemap,
   }
   const json = JSON.stringify(config)
   const jsonBuffer = Buffer.from(json, 'utf8')
+  // TODO: set sourcemap path here and then go from there
   const configHash = createHash(jsonBuffer)
   const configPath = path.join(
     tmpdir(),

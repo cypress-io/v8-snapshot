@@ -1,6 +1,6 @@
 import debug from 'debug'
 import { strict as assert } from 'assert'
-import { promises as fs } from 'fs'
+import { readFileSync } from 'fs'
 import path from 'path'
 import { execSync, ExecSyncOptions, StdioOptions } from 'child_process'
 import { BlueprintConfig, scriptFromBlueprint } from './blueprint'
@@ -10,6 +10,7 @@ import {
   packherd,
   CreateBundleOpts as PackherdCreateBundleOpts,
   CreateBundleResult,
+  CreateBundleSourcemap,
 } from 'packherd'
 import { dependencyMapArrayFromInputs } from './meta/dependency-map'
 import { writeConfigJSON } from './write-config-json'
@@ -183,7 +184,7 @@ export async function createSnapshotScript(
   const { bundle, sourceMap, meta } = await createBundleAsync(opts)
 
   logDebug('Assembling snapshot script')
-  const { processedSourceMap, script } = assembleScript(
+  const { script } = assembleScript(
     bundle,
     opts.baseDirPath,
     opts.entryFilePath,
@@ -200,11 +201,6 @@ export async function createSnapshotScript(
     }
   )
 
-  if (opts.sourcemapExternalPath != null && processedSourceMap != null) {
-    logInfo('Writing external sourcemaps to "%s"', opts.sourcemapExternalPath)
-    await fs.writeFile(opts.sourcemapExternalPath, processedSourceMap, 'utf8')
-  }
-
   return { snapshotScript: script, meta: meta as Metadata, bundle }
 }
 
@@ -218,7 +214,8 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
     const { configPath, config } = writeConfigJSON(
       opts,
       popts.entryFilePath,
-      basedir
+      basedir,
+      opts.sourcemapExternalPath
     )
 
     const cmd = `${opts.bundlerPath} ${configPath}`
@@ -263,9 +260,31 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
           'should only include sourcemap when sourcemap is configured'
         )
       }
-      const sourceMap = includedSourcemaps
-        ? { contents: stringToBuffer(outfiles[1].contents) }
-        : undefined
+      assert(
+        opts.sourcemap != true || opts.sourcemapExternalPath != null,
+        'should include sourcemapExternalPath when sourcemap option is set'
+      )
+
+      if (opts.sourcemap) {
+        logInfo(
+          'External sourcemaps written to "%s"',
+          opts.sourcemapExternalPath
+        )
+      }
+
+      let sourceMap: CreateBundleSourcemap | undefined = undefined
+      if (opts.sourcemapExternalPath != null) {
+        try {
+          sourceMap = {
+            contents: readFileSync(opts.sourcemapExternalPath),
+          }
+        } catch (err: any) {
+          logError(
+            'Failed to read sourcemap from "%s"',
+            opts.sourcemapExternalPath
+          )
+        }
+      }
 
       const metadata: Metadata = JSON.parse(
         stringToBuffer(metafile.contents).toString()
