@@ -9,11 +9,11 @@ const rmrf = promisify(rimraf)
 
 const exec = promisify(execOrig)
 
-const projectBaseDir = path.join(__dirname, 'fixtures', 'no-rewrite')
+const projectBaseDir = path.join(__dirname, 'fixtures', 'deep-nested-deferred')
 const cacheDir = path.join(projectBaseDir, 'cache')
 const snapshotEntryFile = path.join(projectBaseDir, 'entry.js')
 
-test('doctor: entry requires a module that has is detected norewrite', async (t) => {
+test('doctor: entry requires a module that depends on a module needing to be deferred', async (t) => {
   await rmrf(cacheDir)
   const generator = new SnapshotGenerator(projectBaseDir, snapshotEntryFile, {
     cacheDir,
@@ -38,7 +38,8 @@ test('doctor: entry requires a module that has is detected norewrite', async (t)
   try {
     ;({ stdout, stderr } = await exec(cmd, { env }))
     const res = JSON.parse(stdout.trim())
-    t.equal(res.patchedCwd, process.cwd())
+    console.log(res)
+    t.equal(res.errname, 'Unknown system error -666')
   } catch (err: any) {
     console.log(stdout)
     console.log(stderr)
