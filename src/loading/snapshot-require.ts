@@ -18,6 +18,8 @@ const logDebug = debug('snapshot:debug')
 const RESOLVER_MAP_KEY_SEP = '***'
 
 function createGetModuleKey(resolverMap?: Record<string, string>) {
+  // moduleUri is expected to be forward slashed regardless of which OS we're running on
+  // The resolver map also only includes forward slashed paths
   const getModuleKey: GetModuleKey = ({ moduleUri, baseDir, opts }) => {
     // We can only reliably resolve modules without the Node.js machinery if we can find it in the
     // resolver map. For instance resolving `./util` involves probing the file system to resolve to
@@ -30,7 +32,8 @@ function createGetModuleKey(resolverMap?: Record<string, string>) {
       return { moduleKey: undefined, moduleRelativePath: undefined }
     }
 
-    const relParentDir = opts.relPath ?? path.relative(baseDir, opts.path)
+    // Use posix version of the path module to keep forward slashes going
+    const relParentDir = opts.relPath ?? path.posix.relative(baseDir, opts.path)
     const resolverKey = `${relParentDir}${RESOLVER_MAP_KEY_SEP}${moduleUri}`
 
     const resolved = resolverMap[resolverKey]
@@ -49,11 +52,14 @@ function createModuleNeedsReload(
   dependencyMapArray: DependencyMapArray,
   projectBaseDir: string
 ) {
+  // NOTE: dependency map uses native slashed keys/values
   const map = DependencyMap.fromDepArrayAndBaseDir(
     dependencyMapArray,
     projectBaseDir
   )
 
+  // NOTE: that all keys as well as moduleId are native slashed in order to normalize
+  // on Node.js Module._cache which is provided here as the `moduleCache`
   const moduleNeedsReload: ModuleNeedsReload = (
     moduleId: string,
     loadedModules: Set<string>,
