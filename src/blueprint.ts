@@ -4,6 +4,7 @@ import { BUNDLE_WRAPPER_OPEN } from './create-snapshot-script'
 import { inlineSourceMapComment } from './sourcemap/inline-sourcemap'
 import { processSourceMap } from './sourcemap/process-sourcemap'
 import debug from 'debug'
+import { forwardSlash } from './utils'
 
 const logDebug = debug('snapgen:debug')
 
@@ -49,6 +50,8 @@ export function scriptFromBlueprint(config: BlueprintConfig) {
     sourcemapEmbed,
     sourcemapExternalPath,
   } = config
+
+  const normalizedMainModuleRequirePath = forwardSlash(mainModuleRequirePath)
 
   const wrapperOpen = Buffer.from(
     `
@@ -114,7 +117,7 @@ function generateSnapshot() {
   ${customRequire}
   ${includeStrictVerifiers ? 'require.isStrict = true' : ''}
 
-  customRequire(${mainModuleRequirePath}, ${mainModuleRequirePath})
+  customRequire(${normalizedMainModuleRequirePath}, ${normalizedMainModuleRequirePath})
   return {
     customRequire,
     setGlobals: ${setGlobals},

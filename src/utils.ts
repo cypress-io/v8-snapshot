@@ -130,6 +130,11 @@ export function backupName(orig: string) {
   return `${file.slice(0, -extLen)}.orig${ext}`
 }
 
+export const forwardSlash =
+  path.sep === path.posix.sep
+    ? (p: string) => p
+    : (p: string) => p.replace(/(\\)+/g, '/')
+
 export function installedElectronResourcesFilePath(
   root: string,
   electronFile: string
