@@ -4,6 +4,7 @@ import test from 'tape'
 import { SnapshotGenerator } from '../../snapshot-generator'
 import { exec as execOrig } from 'child_process'
 import { promisify } from 'util'
+import { electronExecutable } from '../utils/consts'
 
 if (process.platform == 'darwin') {
   const exec = promisify(execOrig)
@@ -27,8 +28,7 @@ if (process.platform == 'darwin') {
       DEBUG_COLORS: 1,
     }
     const cmd =
-      `node ${require.resolve('electron/cli')}` +
-      ` -r ${projectBaseDir}/hook-require.js` +
+      `${electronExecutable} -r ${projectBaseDir}/hook-require.js` +
       ` ${projectBaseDir}/app.js`
 
     try {
