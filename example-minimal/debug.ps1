@@ -8,4 +8,4 @@ node ./snapshot/install-snapshot.js
 
 $env:DEBUG='(pack|snap)*(info|debug|error)*'
 $env:PROJECT_BASE_DIR=Get-Location
-.\node_modules\electron\dist\electron.exe -r ./app/hook-require.js ./app/index.js
+.\node_modules\electron\dist\electron.exe --inspect-brk -r ./app/hook-require.js ./app/index.js
