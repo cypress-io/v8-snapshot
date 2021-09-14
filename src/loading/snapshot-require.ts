@@ -8,6 +8,7 @@ import type {
 import { packherdRequire } from 'packherd/dist/src/require.js'
 import { Snapshot, SnapshotAuxiliaryData } from '../types'
 import { EMBEDDED } from '../constants'
+import { forwardSlash } from '../utils'
 import Module from 'module'
 import { DependencyMap, DependencyMapArray } from '../meta/dependency-map'
 
@@ -33,7 +34,9 @@ function createGetModuleKey(resolverMap?: Record<string, string>) {
     }
 
     // Use posix version of the path module to keep forward slashes going
-    const relParentDir = opts.relPath ?? path.posix.relative(baseDir, opts.path)
+    const relParentDir = forwardSlash(
+      opts.relPath ?? path.relative(baseDir, opts.path)
+    )
     const resolverKey = `${relParentDir}${RESOLVER_MAP_KEY_SEP}${moduleUri}`
 
     const resolved = resolverMap[resolverKey]
