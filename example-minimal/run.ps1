@@ -8,11 +8,13 @@ node ./snapshot/install-snapshot.js
 
 $env:DEBUG='(pack|snap)*(info|debug|error)*'
 
-
 //
 // Set env
 //
 $env:ELECTRON_RUN_AS_NODE=1
+
+$env:PROJECT_BASE_DIR=Get-Location
+.\node_modules\electron\dist\electron.exe -r ./app/hook-require.js ./app/index.js
 
 $env:PROJECT_BASE_DIR=Get-Location
 .\node_modules\electron\dist\electron.exe -r ./app/hook-require.js ./app/index.js
