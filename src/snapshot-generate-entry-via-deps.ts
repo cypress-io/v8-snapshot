@@ -96,6 +96,14 @@ export async function generateBundlerMetadata(
   return { ...meta, projectBaseDir }
 }
 
+/**
+ * Obtains all dependencies via `esbuild` metadata
+ *
+ * @param projectRoot root of the project whose dependencies we are collecting
+ * @param fullPathToSnapshotEntry path to the file to which to write the
+ * snapshot entry which will include all deps
+ * @param partial_opts
+ */
 export async function generateSnapshotEntryFromEntryDeps(
   projectBaseDir: string,
   fullPathToSnapshotEntry: string,

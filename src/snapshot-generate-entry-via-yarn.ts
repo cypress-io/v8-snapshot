@@ -42,6 +42,9 @@ function depWithoutVersion(dep: string): string {
       parts[0]
 }
 
+/**
+ * Extracts dependencies from a dep list obtained via `yarn`.
+ */
 export function extractDependencies(
   yarnList: YarnList,
   partial_opts?: Partial<ExtractDependenciesOpts>
@@ -63,6 +66,9 @@ export function extractDependencies(
 type CreateSnapshotScriptOpts = ExtractDependenciesOpts
 const DEFAULT_SNAPSHOT_SCRIPT_OPTS = Object.assign({}, DEFAULT_EXTRACT_OPTS)
 
+/**
+ * Creates a snapshot script from the provided list of deps obtained via `yarn`.
+ */
 export function createSnapshotScriptFromYarnScript(
   yarnList: YarnList,
   partial_opts?: Partial<CreateSnapshotScriptOpts>
@@ -79,6 +85,16 @@ const DEFAULT_GENERATE_SCRIPT_OPTS = Object.assign(
   { prod: true }
 )
 
+/**
+ * An alternative to obtaining dependencies which uses `yarn` and generating
+ * a snapshot entry file from them.
+ * At this point it is not used.
+ *
+ * @param projectRoot root of the project whose dependencies we are collecting
+ * @param fullPathToSnapshotEntry path to the file to which to write the
+ * snapshot entry
+ * @param partial_opts
+ */
 export async function generateSnapshotEntryFromYarnList(
   projectRoot: string,
   fullPathToSnapshotEntry: string,
