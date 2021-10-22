@@ -8,6 +8,12 @@ import resolveFrom from 'resolve-from'
 import debug from 'debug'
 const logDebug = debug('snapgen:debug')
 
+/**
+ * Gets the path of the Go bundler binary to use, either from the provided
+ * `SNAPSHOT_BUNDLER` env var or the installed binary.
+ *
+ * @category snapshot
+ */
 export function getBundlerPath() {
   if (process.env.SNAPSHOT_BUNDLER != null) {
     const bundler = path.resolve(process.env.SNAPSHOT_BUNDLER)
@@ -28,20 +34,36 @@ function canAccessSync(p: string) {
   }
 }
 
+/**
+ * Hashes the provided buffer using the Node.js `crypto` module
+ * @category utils
+ */
 export function createHash(s: Buffer) {
   return crypto.createHash('sha256').update(s).digest('hex')
 }
 
+/**
+ * Hashes the content of the provided file using the Node.js `crypto` module
+ * @category utils
+ */
 export async function createHashForFile(p: string) {
   const contents = await tryReadFile(p)
   if (contents == null) throw new Error(`Cannot obtain hash for '${p}`)
   return createHash(contents)
 }
 
+/**
+ * Derives a proper name for a bundle from the given hash.
+ * @category utils
+ */
 export function bundleFileNameFromHash(hash: string) {
   return `bundle.${hash}.js`
 }
 
+/**
+ * Determines if the given path is accessible to the current user.
+ * @category utils
+ */
 export async function canAccess(p: string) {
   try {
     await fs.promises.access(p)
@@ -51,11 +73,19 @@ export async function canAccess(p: string) {
   }
 }
 
+/**
+ * Tries to read the given file and returns it's contents if it succeeds.
+ * @category utils
+ */
 export async function tryReadFile(p: string): Promise<Buffer | undefined> {
   if (!(await canAccess(p))) return
   return fs.promises.readFile(p)
 }
 
+/**
+ * Removes the file if it exists and is accessible to the current user.
+ * @category utils
+ */
 export async function tryRemoveFile(p: string) {
   if (!(await canAccess(p))) {
     return new Error(`Cannot access ${p} in order to delete it`)
@@ -67,6 +97,14 @@ export async function tryRemoveFile(p: string) {
   }
 }
 
+/**
+ * Determines if the hash of the given string matches the provided hash.
+ * It includes the hash of the provided string in the result.
+ *
+ * @param p the string to check
+ * @param hash the hash to check against
+ * @category utils
+ */
 export async function matchFileHash(p: string, hash: string) {
   const contents = await tryReadFile(p)
   if (contents == null) throw new Error(`Cannot obtain hash for '${p}`)
@@ -74,6 +112,12 @@ export async function matchFileHash(p: string, hash: string) {
   return { hash: currentHash, match: hash === currentHash }
 }
 
+/**
+ * Ensures that the given directory exists by creating it recursively when necessary.
+ *
+ * @throws Error if the path already exists and is not a directory
+ * @category utils
+ */
 export function ensureDirSync(dir: string) {
   if (!canAccessSync(dir)) {
     fs.mkdirSync(dir, { recursive: true })
@@ -86,18 +130,32 @@ export function ensureDirSync(dir: string) {
   }
 }
 
+/**
+ * Checks that the provided path exists and is a file.
+ * @throws Error if it isn't found or isn't a file.
+ * @category utils
+ */
 export function checkFileSync(p: string) {
   if (!canAccessSync(p)) throw new Error(`Unable to find '${p}'`)
   const stat = fs.statSync(p)
   if (!stat.isFile()) throw new Error(`${p} is not a file`)
 }
 
+/**
+ * Checks that the provided path exists and is a directory.
+ * @throws Error if it isn't found or isn't a directory.
+ * @category utils
+ */
 export function checkDirSync(p: string) {
   if (!canAccessSync(p)) throw new Error(`Unable to find '${p}'`)
   const stat = fs.statSync(p)
   if (!stat.isDirectory()) throw new Error(`${p} is not a directory`)
 }
 
+/**
+ * Determines if the given path exists and is a file.
+ * @category utils
+ */
 export function fileExistsSync(p: string) {
   try {
     checkFileSync(p)
@@ -107,6 +165,11 @@ export function fileExistsSync(p: string) {
   }
 }
 
+/**
+ * Attempts to delete the file at the provided path.
+ * @return Error if the file cannot be accessed or cannot be removed
+ * @category utils
+ */
 export function tryRemoveFileSync(p: string) {
   if (!fileExistsSync(p)) {
     return new Error(`Cannot access ${p} in order to delete it`)
@@ -118,11 +181,23 @@ export function tryRemoveFileSync(p: string) {
   }
 }
 
+/**
+ * Resolves the version of the electron that would be used from the provided `root`.
+ * This is needed in order to use a compatible `mksnapshot` version
+ * {@link https://github.com/thlorenz/mksnapshot} when creating the snapshot from the
+ * snapshot script.
+ * @category snapshot
+ */
 export function resolveElectronVersion(root: string): string {
   const electron = resolveFrom(root, 'electron')
   return require(path.join(path.dirname(electron), 'package.json')).version
 }
 
+/**
+ * Determines the name to which the existing electron snapshot should be saved
+ * before replacing it with the enhanced version.
+ * @category snapshot
+ */
 export function backupName(orig: string) {
   const file = path.basename(orig)
   const ext = path.extname(orig)
@@ -130,11 +205,21 @@ export function backupName(orig: string) {
   return `${file.slice(0, -extLen)}.orig${ext}`
 }
 
+/**
+ * Normalizes the given path to have forward slashes at all times.
+ * This is used to resolve modules from the snapshot as they are always stored
+ * with forward slashes there.
+ * @category loader
+ */
 export const forwardSlash =
   path.sep === path.posix.sep
     ? (p: string) => p
     : (p: string) => p.replace(/(\\)+/g, '/')
 
+/**
+ * Determines the path where the electron binary is installed provided the project root.
+ * @category snapshot
+ */
 export function installedElectronResourcesFilePath(
   root: string,
   electronFile: string
@@ -167,6 +252,10 @@ export function installedElectronResourcesFilePath(
 }
 // at Object.__commonJS../node_modules/mute-stream/mute.js (/Volumes/d/dev/cy/perf-tr1/v8-snapshot/example-multi/cache/snapshot.js:10555:43)
 const commonJsModuleRx = /(at Object.__commonJS\.)([^(]+)([^ :]+) *:(\d+)(.+)/
+/**
+ * Pretty prints errors related to module's being included in the snapshot.
+ * @category snapshot
+ */
 export function prettyPrintError(err: Error, baseDirPath: string) {
   if (
     !(
