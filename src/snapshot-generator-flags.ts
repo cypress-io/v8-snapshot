@@ -1,11 +1,17 @@
 /**
- * Bitwise flags which means they can be combined, i.e. `Flags.Script | Flags.DoctorFresh`
+ * Bitwise flags which means they can be combined,
+ * i.e. `Flags.Script | Flags.DoctorFresh`
  */
 // prettier-ignore
 export enum Flag {
   None                 = 0x0000,
+  // if set a snapshto script is generated
   Script               = 0x0001,
+  // if set a snapshot binary is generated from the snapshot script
   MakeSnapshot         = 0x0002,
+  // if set the doctor will use previously collected information about which
+  // modules should be defererred, etc. as long as the yarn.lock file didn't
+  // change
   ReuseDoctorArtifacts = 0x0004,
 }
 

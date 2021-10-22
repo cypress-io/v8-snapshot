@@ -23,6 +23,29 @@ const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
 
+/**
+ *
+ * @property verify
+ * @property minify
+ * @property skipWriteOnVerificationFailure
+ * @property cacheDir
+ * @property snapshotBinDir
+ * @property nodeModulesOnly
+ * @property sourcemapEmbed
+ * @property sourcemapInline
+ * @property includeStrictVerifiers
+ * @property previousHealthy
+ * @property previousDeferred
+ * @property previousNoRewrite
+ * @property forceNoRewrite
+ * @property resolverMap
+ * @property auxiliaryData
+ * @property electronVersion
+ * @property maxWorkers
+ * @property flags
+ * @property nodeEnv
+ * @property addCacheGitignore
+ */
 type GenerationOpts = {
   verify: boolean
   minify: boolean
@@ -97,6 +120,12 @@ export class SnapshotGenerator {
   snapshotScript?: Buffer
   snapshotExportScript?: string
 
+  /**
+   *
+   * @param projectBaseDir
+   * @param snapshotEntryFile
+   * @param opts
+   */
   constructor(
     readonly projectBaseDir: string,
     readonly snapshotEntryFile: string,
@@ -182,10 +211,16 @@ export class SnapshotGenerator {
     return fs.promises.writeFile(gitignorePath, gitignore)
   }
 
+  /**
+   * Creates the snapshot script for the provided configuration
+   */
   async createScript() {
     let deferred
     let norewrite
     try {
+      // 1. Try to obtain a starting point so we don't always start from scratch
+      //    If we're bundling for the first time and no then this will
+      //    return empty arrays
       ;({ deferred, norewrite } = await determineDeferred(
         this.bundlerPath,
         this.projectBaseDir,
@@ -210,6 +245,8 @@ export class SnapshotGenerator {
     let result
     const sourcemapExternalPath = `${this.snapshotScriptPath}.map`
     try {
+      // 2. Create the initial snapshot script using whatever info we
+      // collected in step 1 as well as the provided configuration
       result = await createSnapshotScript({
         baseDirPath: this.projectBaseDir,
         entryFilePath: this.snapshotEntryFile,
@@ -240,6 +277,8 @@ export class SnapshotGenerator {
 
     this.snapshotScript = result.snapshotScript
 
+    // 3. Since we don't want the `mksnapshot` command to bomb with cryptic
+    //    errors w verify that the generated script is snapshot-able.
     if (this.verify) {
       logInfo('Verifying snapshot script')
       try {
@@ -261,6 +300,9 @@ export class SnapshotGenerator {
     }
     logInfo(`Writing snapshot script to ${this.snapshotScriptPath}`)
 
+    // Optionally minify, but I haven't seen any gains from doing that since
+    // the exports and/or export definitions are included in the snapshot
+    // and not the code itself
     if (this.minify) {
       logInfo('Minifying snapshot script')
       const minified = await minify(this.snapshotScript!.toString(), {
@@ -272,10 +314,20 @@ export class SnapshotGenerator {
     if (this.addCacheGitignore) {
       await this._addGitignore()
     }
+    // 4. Write the snapshot script to the configured file
     return fs.promises.writeFile(this.snapshotScriptPath, this.snapshotScript)
   }
 
+  /**
+   * Creates an export bundle.
+   * This is almost identical to `createScript` except that it will export
+   * all definitions.
+   * This is mostly useful for tests.
+   *
+   */
   async createExportBundle() {
+    // As the steps are almost identical to `createScript` no extra code
+    // comments were added.
     let deferred
     let norewrite
     try {
@@ -340,12 +392,21 @@ export class SnapshotGenerator {
     )
   }
 
+  /**
+   * This will call the `mksnapshot` command feeding it the snapshot script
+   * previously created via `createScript` which needs to be invoked before
+   * running this function.
+   *
+   * The resulting snapshot binary is written to `this.snapshotBinPath` and
+   * needs to be moved to the correct location by calling `installSnapshot`.
+   */
   async makeSnapshot() {
     function runInstructions() {
       const bin = require.resolve('@thlorenz/mksnapshot/dist/mksnapshot-bin')
       const cmd = `node ${bin} ${args.join(' ')}`
       logError(`Run:\n   ${cmd}\n to investigate.`)
     }
+    // 1. Check that everything is prepared to create the snapshot
     assert(
       this.snapshotScript != null,
       'Run `createScript` first to create snapshotScript'
@@ -354,6 +415,9 @@ export class SnapshotGenerator {
       this._flags.has(Flag.MakeSnapshot),
       'Cannot makeSnapshot when MakeSnapshot flag is not set'
     )
+
+    // 2. Run the `mksnapshot` binary providing it the path to our snapshot
+    //    script
     const args = [this.snapshotScriptPath, '--output_dir', this.snapshotBinDir]
     try {
       const { snapshotBlobFile, v8ContextFile } = await syncAndRun(
@@ -363,6 +427,8 @@ export class SnapshotGenerator {
       this.v8ContextFile = v8ContextFile
       this.snapshotBinPath = join(this.snapshotBinDir, snapshotBlobFile)
 
+      // 3. Verify that all worked out and the snapshot binary is where we
+      //    expect it
       if (!fileExistsSync(this.snapshotBinPath)) {
         logError(
           `Cannot find ${this.snapshotBinPath} which should've been created.\n` +
@@ -379,12 +445,24 @@ export class SnapshotGenerator {
       if (err.stdout != null) {
         logDebug(err.stdout.toString())
       }
+      // If things went wrong print instructions on how to execute the
+      // `mksnapshot` command directly to trouble shoot
       runInstructions()
       throw new Error('Failed `mksnapshot` command')
     }
   }
 
+  /**
+   * Calling this function will first back up the existing electron snapshot
+   * unless it was previously backed up. This allows to always revert back
+   * to a version of the app without any modified snapshot binary, see
+   * `uninstallSnapshot`.
+   *
+   * Then it will move the snapshot bin into the correct location such that
+   * when electron starts up it will load it.
+   */
   installSnapshot() {
+    // 1. Check that we performed all required steps
     assert(
       this.snapshotScript != null,
       'Run `createScript` and `makeSnapshot` first to create snapshot'
@@ -403,6 +481,7 @@ export class SnapshotGenerator {
       'mksnapshot ran but v8ContextFile was not set'
     )
 
+    // 2. Back up the original electron snapshot
     const electronV8ContextBin = installedElectronResourcesFilePath(
       this.projectBaseDir,
       this.v8ContextFile
@@ -427,6 +506,8 @@ export class SnapshotGenerator {
     logInfo(`Moving ${this.v8ContextFile} to '${electronV8ContextBin}'`)
     fs.renameSync(v8ContextFullPath, electronV8ContextBin)
 
+    // 3. Move the snapshot binary we want to install into the electron
+    //    snapshot location
     const snapshotBinFile = basename(this.snapshotBinPath)
     const electronSnapshotBin = join(electronResourcesDir, snapshotBinFile)
 
@@ -434,6 +515,10 @@ export class SnapshotGenerator {
     fs.renameSync(this.snapshotBinPath, electronSnapshotBin)
   }
 
+  /**
+   * Convenience function that invokes `makeSnapshot` followed by
+   * `installSnapshot`.
+   */
   async makeAndInstallSnapshot() {
     const res = await this.makeSnapshot()
     if (res != null) {
@@ -450,6 +535,15 @@ export class SnapshotGenerator {
   }
 }
 
+/**
+ * Invoking this will attempt to restore the original electron snapshot
+ * which was backed up during the `installSnapshot` step.
+ *
+ * @param projectBaseDir the root of the project whose snapshot we're trying
+ * to restore
+ * @param version the version of electron for which to restore the snapshot,
+ * will be determined automatically if not provided
+ */
 export function uninstallSnapshot(projectBaseDir: string, version?: string) {
   version = version ?? resolveElectronVersion(projectBaseDir)
   const { v8ContextFile } = getMetadata(version)

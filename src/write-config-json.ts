@@ -37,6 +37,11 @@ function argumentify(arr: string[]) {
 /**
  * Writes the config derived from the provided opts to the [configPath].
  * The [configPath] is assumed to be writable and no checks to ensure that are performed.
+ * This config is then used by the `esbuild` bundler to build the bundle and rewriting the code as indicated in the
+ * config.
+ * The main reason why we cannot just send it as an argument is windows.
+ *
+ * @category snapshot
  */
 export function writeConfigJSON(
   opts: CreateBundleOpts,
@@ -63,7 +68,6 @@ export function writeConfigJSON(
   }
   const json = JSON.stringify(config)
   const jsonBuffer = Buffer.from(json, 'utf8')
-  // TODO: set sourcemap path here and then go from there
   const configHash = createHash(jsonBuffer)
   const configPath = path.join(
     tmpdir(),
