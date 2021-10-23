@@ -24,29 +24,92 @@ const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
 
 /**
+ * Configure snapshot creation.
  *
- * @property verify
- * @property minify
- * @property skipWriteOnVerificationFailure
- * @property cacheDir
- * @property snapshotBinDir
- * @property nodeModulesOnly
- * @property sourcemapEmbed
- * @property sourcemapInline
- * @property includeStrictVerifiers
- * @property previousHealthy
- * @property previousDeferred
- * @property previousNoRewrite
- * @property forceNoRewrite
- * @property resolverMap
- * @property auxiliaryData
- * @property electronVersion
- * @property maxWorkers
- * @property flags
- * @property nodeEnv
- * @property addCacheGitignore
+ * @property verify if `true` the snapshot script will be verified for correctness and snapshot-ability
+ *
+ * @property minify if `true` the snapshot script will be minified before creating a snapshot from it (this is not actively used as no benefits from this were observed)
+ *
+ * @property skipWriteOnVerificationFailure if `true` the snapshot script will not be written to the file system if verification fails
+ *
+ * @property cacheDir the path to store the snapshot script and all snapshot generation related meta data in
+ *
+ * @property snapshotBinDir the path where to store the generated snapshot binary (before it is installed)
+ *
+ * @property nodeModulesOnly if `true` only node modules will be included in the snapshot and app modules are omitted
+ *
+ * @property sourcemapEmbed if `true` a sourcemap of modules included in the snapshot is embedded in the snapshot itself
+ *
+ * @property sourcemapInline if `true` a sourcemap of modules included in the snapshot is inlined into the snapshot script
+ *
+ * @property includeStrictVerifiers if `true` the snapshot script will include
+ * overrides to ensure that specific snapshot incompatible accesses, i.e. to a
+ * `Promise` constructor don't run during module initialization.
+ * This is turned on during the doctor step.
+ *
+ * @property previousHealthy relative paths to modules that were previously
+ * determined to be _healthy_ that is they can be included into the snapshot
+ * without being deferred
+ *
+ * @property previousDeferred relative paths to modules that were previously
+ * determnied as problematic, that is it cannot be initialized during snapshot
+ * creation and thus need to be _deferred_ during snapshot creation
+ *
+ * @property previousNoRewrite relative paths to modules that were previously
+ * determined to result in invalid code when the snapshot bundler rewrites
+ * their code and thus should not be rewritten
+ *
+ * @property forceNoRewrite relative paths to modules that we know will cause
+ * problems when rewritten and we manually want to exclude them from snapshot
+ * bundler rewrites
+ *
+ * @property resolverMap the map which will be embedded into the snapshot in
+ * order to resolve modules without relying on the Node.js module resolution
+ * mechanism which requires I/O.
+ *
+ * This map is determined via metadata that the bundler emits during bundle
+ * generation.  The keys are the directory relative to the project base dir,
+ * from which a module was resolved concatentated with the import request
+ * string (seprated by `'***'`, see ./loading/snapshot-require
+ * RESOLVER_MAP_KEY_SEP) and the value the fully resolved path relative to the
+ * project base dir.
+ *
+ * #### Example
+ *
+ *```text
+ * Given this statement inside:
+ *
+ *  /dev/project/base/pack-uno/lib/foo.js: `const bar = require('../bar')`
+ *
+ * which resolved to
+ *
+ *  /dev/project/base/pack-uno/bar/index.js
+ *
+ * The following is stored inside the map:
+ *
+ * `{ './pack-uno/lib***../bar': './pack-uno/bar/index.js' }`
+ * ```
+ *   `
+ * @property auxiliaryData any additional data to embed into the snapshot
+ *
+ * @property electronVersion the version of electron we're targeting with this
+ * snapshot
+ *
+ * @property maxWorkers the maximum amounts of workers to spawn in order to run
+ * verfications of a particular snapshot script provided different entry points
+ * in parallel (more info see ./doctor/snapshot-doctor.ts)
+ *
+ * @property flags snapshot script creation flags
+ *
+ * @property nodeEnv the string to provide to `process.env.NODE_ENV` during
+ * snapshot creation
+ *
+ * @property addCacheGitignore if `true` a `.gitignore` file is written to the
+ * `cacheDir` ignoring large artifacts like the snapshot script
+ *
+ * @category snapshot
  */
-type GenerationOpts = {
+export type GenerationOpts = {
   verify: boolean
   minify: boolean
   skipWriteOnVerificationFailure: boolean
@@ -88,43 +151,95 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
   }
 }
 
+/**
+ * The snapshot generator provides the top level API to create a snapshot
+ * script and then convert that into a snapshot binary and finally install it
+ * to the correct location.
+ *
+ * NOTE: that most fields are directly derived from {@link GenerationOpts} and
+ * you should refer to the documentation there for more info.
+ *
+ * @category snapshot
+ */
 export class SnapshotGenerator {
+  /** See {@link GenerationOpts} verify */
   private readonly verify: boolean
+  /** See {@link GenerationOpts} minify */
   private readonly minify: boolean
+  /** See {@link GenerationOpts} skipWriteOnVerificationFailure */
   private readonly skipWriteOnVerificationFailure: boolean
+  /** See {@link GenerationOpts} cacheDir */
   private readonly cacheDir: string
+  /** See {@link GenerationOpts} snapshotScriptPath */
   private readonly snapshotScriptPath: string
+  /** Path to store snapshot script inside {@link GenerationOpts} cacheDir */
   private readonly snapshotExportScriptPath: string
+  /** See {@link GenerationOpts} snapshotBinDir */
   private readonly snapshotBinDir: string
+  /** See {@link GenerationOpts} ?: */
   private readonly resolverMap?: Record<string, string>
+  /** See {@link GenerationOpts} ?: */
   private readonly auxiliaryData?: Record<string, any>
+  /** See {@link GenerationOpts} electronVersion */
   private readonly electronVersion: string
+  /** See {@link GenerationOpts} nodeModulesOnly */
   private readonly nodeModulesOnly: boolean
+  /** See {@link GenerationOpts} sourcemapEmbed */
   private readonly sourcemapEmbed: boolean
+  /** See {@link GenerationOpts} sourcemapInline */
   private readonly sourcemapInline: boolean
+  /** See {@link GenerationOpts} includeStrictVerifiers */
   private readonly includeStrictVerifiers: boolean
+  /** See {@link GenerationOpts} ?: */
   private readonly maxWorkers?: number
+  /** See {@link GenerationOpts} previousDeferred */
   private readonly previousDeferred: Set<string>
+  /** See {@link GenerationOpts} previousHealthy */
   private readonly previousHealthy: Set<string>
+  /** See {@link GenerationOpts} previousNoRewrite */
   private readonly previousNoRewrite: Set<string>
+  /** See {@link GenerationOpts} forceNoRewrite */
   private readonly forceNoRewrite: Set<string>
+  /** See {@link GenerationOpts} nodeEnv */
   private readonly nodeEnv: string
+  /**
+   * Path to the Go bundler binary used to generate the bundle with rewritten code
+   * {@link https://github.com/cypress-io/esbuild/tree/thlorenz/snap}
+   */
   private readonly bundlerPath: string
+  /** See {@link GenerationOpts} addCacheGitignore */
   private readonly addCacheGitignore: boolean
   private readonly _snapshotVerifier: SnapshotVerifier
+  /** See {@link GenerationOpts} flags */
   private readonly _flags: GeneratorFlags
 
+  /**
+   * Path where snapshot bin is stored, derived from {@link GenerationOpts} snapshotBinDir
+   */
   private snapshotBinPath?: string
+  /**
+   * Path where v8context bin is stored, derived from {@link GenerationOpts} snapshotBinDir
+   */
   private v8ContextFile?: string
 
+  /**
+   * Generated snapshot script, needs to be set before calling `makeSnapshot`.
+   */
   snapshotScript?: Buffer
+  /**
+   * Generated snapshot export script, see {@link GeneratorFlags}.
+   */
   snapshotExportScript?: string
 
   /**
+   * Creates a new instance of the {@link SnapshotGenerator}.
    *
-   * @param projectBaseDir
-   * @param snapshotEntryFile
-   * @param opts
+   * @param projectBaseDir the root of the app for which we create the snapshot
+   * @param snapshotEntryFile the file to use as the entry for our app, best is
+   * to use one generated via `./snapshot-generate-entry-via-deps`.
+   * @param opts further configuration {@link GenerationOpts}
+   *
+   * @category snapshot
    */
   constructor(
     readonly projectBaseDir: string,
