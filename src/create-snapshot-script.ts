@@ -23,6 +23,11 @@ const logError = debug('snapgen:error')
 
 const keepConfig = process.env.SNAPSHOT_KEEP_CONFIG != null
 
+/**
+ * The comment injected to denote the start of the bundle content included with
+ * the snapshot script.
+ * @category snapshot
+ */
 export const BUNDLE_WRAPPER_OPEN = Buffer.from(
   `
   //
@@ -32,6 +37,13 @@ export const BUNDLE_WRAPPER_OPEN = Buffer.from(
   'utf8'
 )
 
+/**
+ * The comment injected to denote the end of the bundle content included with
+ * the snapshot script.
+ * Additionally it assigns `customRequire.definitions` to the bundle module
+ * hash.
+ * @category snapshot
+ */
 export const BUNDLE_WRAPPER_CLOSE = Buffer.from(
   `
   //
@@ -43,6 +55,11 @@ export const BUNDLE_WRAPPER_CLOSE = Buffer.from(
   'utf8'
 )
 
+/**
+ * The function type to create a snapshot script which receives the {@link
+ * CreateSnapshotScriptOpts} as configuration.
+ * @category snapshot
+ */
 export type CreateSnapshotScript = (
   opts: CreateSnapshotScriptOpts
 ) => Promise<{ snapshotScript: string }>
@@ -74,10 +91,16 @@ function getMainModuleRequirePath(basedir: string, entryFullPath: string) {
  *
  * @param bundle contents of the bundle created previously
  * @param basedir project root directory
- * @param entryFilepath
- * @param opts
+ * @param entryFilepath the path to the file to use as the entry to the app
+ * direct/indirect dependents are either included directly or a discoverable by
+ * following the imports present
+ * @param opts configure how the script is generated and assembled and are
+ * mainly a subset of {@link GenerationOpts}
  *
- * @return the contents of the assembled script
+ * @return the contents of the assembled script as well as the source map
+ * preprocessed
+ *
+ * @category snapshot
  */
 export function assembleScript(
   bundle: Buffer,
@@ -112,6 +135,7 @@ export function assembleScript(
     }
     auxiliaryData.resolverMap = resolverMap
   }
+  // 1. Prepare the resolver map to be included in the snapshot and embed it via auxiliaryData
   if (opts.meta?.inputs != null) {
     const mapArray = dependencyMapArrayFromInputs(opts.meta.inputs)
     logDebug('Embedding dependency map into snapshot')
@@ -120,6 +144,9 @@ export function assembleScript(
 
   const auxiliaryDataString = JSON.stringify(auxiliaryData)
 
+  // 2. Determine the path of the main module which needs to be required in
+  //    order to trigger initialization o the modules we want to embedd during
+  //    snapshot creation
   const mainModuleRequirePath =
     opts.entryPoint ?? getMainModuleRequirePath(basedir, entryFilePath)
 
@@ -128,8 +155,11 @@ export function assembleScript(
     'metadata should have exactly one entry point'
   )
 
+  // 3. Prepare the bundled definitions for inclusion in the snapshot script
   const defs = requireDefinitions(bundle, mainModuleRequirePath)
 
+  // 4. If an external sourcemap file was generated we prepare the sourcemap
+  //    comment referencing it
   const relSourcemapExternalPath =
     opts.sourcemapExternalPath != null
       ? path
@@ -137,6 +167,8 @@ export function assembleScript(
           .replace(path.sep, '/') // consistent url even on unixlike and windows
       : undefined
 
+  // 5. Prepare the config which we'll use to generate the snapshot script from
+  //    the ./blueprint templates
   const config: BlueprintConfig = {
     processPlatform: process.platform,
     processNodeVersion: process.version,
@@ -151,6 +183,9 @@ export function assembleScript(
     nodeEnv: opts.nodeEnv,
     basedir,
   }
+
+  // 6. Finally return the rendered script buffer and optionally processed
+  //    sourcemaps
   return scriptFromBlueprint(config)
 }
 
@@ -160,6 +195,7 @@ export function assembleScript(
  *
  * @param opts
  * @return promise of the paths and contents of the created bundle and related metadata
+ * @category snapshot
  */
 export async function createBundleAsync(opts: CreateBundleOpts): Promise<{
   warnings: CreateBundleResult['warnings']
@@ -177,6 +213,7 @@ export async function createBundleAsync(opts: CreateBundleOpts): Promise<{
  * @param opts
  * @return the paths and contents of the created bundle and related metadata
  * as well as the created snapshot script
+ * @category snapshot
  */
 export async function createSnapshotScript(
   opts: CreateSnapshotScriptOpts
@@ -208,9 +245,17 @@ function stringToBuffer(contents: string) {
   return Buffer.from(contents, 'hex')
 }
 
+/**
+ * This creates the {@link CreateBundle} function that we provide to packherd.
+ *
+ * It combines the provided {@link CreateBundleOpts} and {@link
+ * PackherdCreateBundleOpts} in order to configure how that step is performed.
+ * @category snapshot
+ */
 const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
   (opts: CreateBundleOpts) => (popts: PackherdCreateBundleOpts) => {
     const basedir = path.resolve(process.cwd(), opts.baseDirPath)
+    // 1. Write the config to a file so that the bundler can pick it up
     const { configPath, config } = writeConfigJSON(
       opts,
       popts.entryFilePath,
@@ -218,10 +263,12 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
       opts.sourcemapExternalPath
     )
 
+    // 2. Launch bundler providing it the path to the config file
     const cmd = `${opts.bundlerPath} ${configPath}`
     logDebug('Running "%s"', cmd)
     logTrace(config)
 
+    // the returned bundle content could be very large, we're making sure we don't exceed the buffer size
     const _MB = 1024 * 1024
     const execOpts: ExecSyncOptions = Object.assign(
       {
@@ -235,9 +282,11 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
     )
 
     try {
+      // 3. Receive the JSON encoded result via stdout and parse it
       const stdout = execSync(cmd, execOpts)
       const { warnings, outfiles, metafile } = JSON.parse(stdout.toString())
 
+      // 4. verify we got what we expected
       assert(outfiles.length >= 1, 'need at least one outfile')
       assert(metafile != null, 'expected metafile to be included in result')
       assert(
@@ -248,6 +297,7 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
       const bundleContents = outfiles[0].contents
       const bundle = { contents: stringToBuffer(bundleContents) }
 
+      // Sourcemaps are optional
       const includedSourcemaps = outfiles.length === 2
       if (!!opts.sourcemap) {
         assert(
@@ -272,6 +322,7 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
         )
       }
 
+      // 5. Optionally write the sourcemap to a file
       let sourceMap: CreateBundleSourcemap | undefined = undefined
       if (opts.sourcemapExternalPath != null) {
         try {
@@ -286,9 +337,11 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
         }
       }
 
+      // 6. Parse out metadata created as part of the bundling process
       const metadata: Metadata = JSON.parse(
         stringToBuffer(metafile.contents).toString()
       )
+      // 7. Piece together the result and return it
       const result: CreateBundleResult = {
         warnings,
         outputFiles: [bundle],
@@ -319,6 +372,14 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
     }
   }
 
+/**
+ * Creates a bundle via {@link https://github.com/thlorenz/packherd}
+ * Note that we overrid the `createBundle` function in order to use our custom
+ * bundler and handle extracting the results from JSON passed via `stdout`.
+ *
+ * @param opts configure how the bundle is generated {@link CreateBundleOpts}
+ * @category snapshot
+ */
 async function createBundle(opts: CreateBundleOpts) {
   const { warnings, bundle, sourceMap, meta } = await packherd({
     entryFile: opts.entryFilePath,
