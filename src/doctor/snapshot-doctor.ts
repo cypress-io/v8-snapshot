@@ -163,7 +163,6 @@ export class SnapshotDoctor {
 
   async heal(): Promise<{
     healthy: string[]
-    includingImplicitsDeferred: string[]
     deferred: string[]
     norewrite: string[]
     bundle: Buffer
@@ -211,209 +210,17 @@ export class SnapshotDoctor {
 
     const sortedNorewrite = Array.from(healState.norewrite).sort()
 
-    logInfo('Optimizing')
-
-    const { optimizedDeferred, includingImplicitsDeferred } =
-      await this._optimizeDeferred(meta, sortedDeferred, sortedNorewrite)
-
     logInfo({ allDeferred: sortedDeferred, len: sortedDeferred.length })
-    logInfo({ optimizedDeferred, len: optimizedDeferred.size })
     logInfo({ norewrite: sortedNorewrite, len: sortedNorewrite.length })
 
     await this._scriptProcessor.dispose()
 
     return {
       healthy: pathifyAndSort(healState.healthy),
-      includingImplicitsDeferred: pathifyAndSort(includingImplicitsDeferred),
-      deferred: pathifyAndSort(optimizedDeferred),
+      deferred: pathifyAndSort(new Set(sortedDeferred)),
       norewrite: pathify(sortedNorewrite),
       bundle,
       meta,
-    }
-  }
-
-  async _optimizeDeferred(
-    meta: Metadata,
-    deferredSortedByLeafness: string[],
-    notRewriting: string[]
-  ) {
-    const optimizedDeferred: Set<string> = new Set(this.previousDeferred)
-
-    // 1. Push down defers where possible, i.e. prefer deferring one import instead of an entire module
-    logInfo('--- OPTIMIZE Pushing down defers ---')
-    for (const key of deferredSortedByLeafness) {
-      if (this.previousDeferred.has(key)) continue
-      if (this.previousNoRewrite.has(key)) continue
-
-      const imports = meta.inputs[key].imports.map((x) => x.path)
-      if (imports.length === 0) {
-        optimizedDeferred.add(key)
-        logInfo('Optimize: deferred leaf', key)
-        continue
-      }
-    }
-
-    await Promise.all(
-      deferredSortedByLeafness
-        .filter(
-          (key) =>
-            !this.previousDeferred.has(key) && !optimizedDeferred.has(key)
-        )
-        .map(async (key) => {
-          // Check if it was fixed by one of the optimizedDeferred added previously
-          if (
-            await this._entryWorksWhenDeferring(
-              key,
-              optimizedDeferred,
-              notRewriting
-            )
-          ) {
-            logInfo('Optimize: deferring no longer needed for', key)
-            return
-          }
-
-          // Treat the deferred as an entry point and find an import that would fix the encountered problem
-          const imports = meta.inputs[key].imports.map((x) => x.path)
-
-          // Defer all imports to verify that the module can be fixed at all, if not give up
-          if (
-            !(await this._entryWorksWhenDeferring(
-              key,
-              new Set([...optimizedDeferred, ...imports]),
-              notRewriting
-            ))
-          ) {
-            logInfo('Optimize: deferred unfixable parent', key)
-            optimizedDeferred.add(key)
-            return
-          }
-
-          await this._tryDeferImport(
-            imports,
-            key,
-            optimizedDeferred,
-            notRewriting
-          )
-        })
-    )
-
-    const includingImplicitsDeferred = new Set(optimizedDeferred)
-
-    // 2. Find children that don't need to be explicitly deferred since they are via their deferred parent
-    logInfo('--- OPTIMIZE Remove implicit defers ---')
-    await this._removeImplicitlyDeferred(optimizedDeferred, notRewriting)
-
-    return { optimizedDeferred, includingImplicitsDeferred }
-  }
-
-  private async _removeImplicitlyDeferred(
-    optimizedDeferred: Set<string>,
-    notRewriting: string[]
-  ) {
-    const entry = path.relative(this.baseDirPath, this.entryFilePath)
-    const implicitDeferredPromises = Array.from(optimizedDeferred.keys())
-      .filter((key) => !this.previousDeferred.has(key))
-      .map(async (key) => {
-        const fine = await this._entryWorksWhenDeferring(
-          entry,
-          new Set([...optimizedDeferred].filter((x) => x !== key)),
-          notRewriting
-        )
-        return { fine, key }
-      })
-    const implicitDeferred = await Promise.all(implicitDeferredPromises)
-    implicitDeferred
-      .filter((x) => x.fine)
-      .map((x) => x.key)
-      .forEach((key) => {
-        optimizedDeferred.delete(key)
-        logInfo(
-          'Optimize: removing defer of "%s", already deferred implicitly',
-          key
-        )
-      })
-  }
-
-  private async _tryDeferImport(
-    imports: string[],
-    key: string,
-    optimizedDeferred: Set<string>,
-    notRewriting: string[]
-  ) {
-    const importPromises = imports
-      .filter((imp) => this.previousDeferred.has(imp))
-      .map(async (imp) => {
-        if (
-          await this._entryWorksWhenDeferring(
-            key,
-            new Set([...optimizedDeferred, imp]),
-            notRewriting
-          )
-        ) {
-          return { deferred: imp, fixed: true }
-        } else {
-          return { deferred: '', fixed: false }
-        }
-      })
-
-    // Find the one import we need to defer to fix the entry module
-    const fixers = new Set(
-      (await Promise.all(importPromises))
-        .filter((x) => x.fixed)
-        .map((x) => x.deferred)
-    )
-
-    if (fixers.size === 0) {
-      logDebug(
-        `${key} does not need to be deferred, but only when more than one of it's imports are deferred.` +
-          `This case is not yet handled, therefore we defer the entire module instead.`
-      )
-      optimizedDeferred.add(key)
-      logInfo('Optimize: deferred parent with >1 problematic import', key)
-    } else {
-      for (const imp of fixers) {
-        optimizedDeferred.add(imp)
-        logInfo('Optimize: deferred import "%s" of "%s"', imp, key)
-      }
-    }
-  }
-
-  async _entryWorksWhenDeferring(
-    key: string,
-    deferring: Set<string>,
-    notRewriting: string[]
-  ) {
-    const entryPoint = `./${key}`
-    const deferred = Array.from(deferring).map((x) => `./${x}`)
-    const norewrite = notRewriting.map((x) => `./${x}`)
-
-    const opts: CreateSnapshotScriptOpts = {
-      baseDirPath: this.baseDirPath,
-      entryFilePath: this.entryFilePath,
-      bundlerPath: this.bundlerPath,
-      nodeModulesOnly: this.nodeModulesOnly,
-      sourcemapEmbed: false,
-      sourcemapInline: false,
-      sourcemap: false,
-      deferred,
-      norewrite,
-      includeStrictVerifiers: true,
-      nodeEnv: this.nodeEnv,
-    }
-    const result = await this._scriptProcessor.createAndProcessScript(
-      opts,
-      entryPoint
-    )
-
-    switch (result.outcome) {
-      case 'completed':
-        logDebug('Verified as healthy "%s"', key)
-        return true
-      default:
-        logDebug('%s script with entry "%s"', result.outcome, key)
-        logDebug(result.error!.toString())
-        logInfo('"%s" cannot be loaded for current setup (1 deferred)', key)
-        return false
     }
   }
 

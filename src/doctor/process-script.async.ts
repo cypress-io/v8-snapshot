@@ -2,12 +2,7 @@ import debug from 'debug'
 import { strict as assert } from 'assert'
 import os from 'os'
 import WorkerNodes from 'worker-nodes'
-import {
-  BundleAndProcessScriptResult,
-  CreateSnapshotScriptOpts,
-  ProcessScriptOpts,
-  ProcessScriptResult,
-} from '../types'
+import { ProcessScriptOpts, ProcessScriptResult } from '../types'
 
 const workerScript = require.resolve('./process-script.worker')
 
@@ -60,14 +55,6 @@ export class AsyncScriptProcessor {
     this._isDisposed = false
 
     this._workers = new WorkerNodes(workerScript, opts)
-  }
-
-  createAndProcessScript(
-    opts: CreateSnapshotScriptOpts,
-    entryPoint: string
-  ): Promise<BundleAndProcessScriptResult> {
-    assert(!this._isDisposed, 'should not createAndProcessScript when disposed')
-    return this._workers.call.createAndProcessScript(opts, entryPoint)
   }
 
   /**

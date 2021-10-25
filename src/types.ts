@@ -138,17 +138,6 @@ export type ProcessScriptResult = {
   outcome: 'failed:assembleScript' | 'failed:verifyScript' | 'completed'
   error?: Error
 }
-/** Adds an outcome to the possible {@link ProcessScriptResult} outcomes.
- *
- * - 'failed:bundleScript' means that the bundler failed to generate a proper
- * bundle, i.e. compilation failed most likely due to an invalid rewrite
- *
- * @category snapshot
- */
-export type BundleAndProcessScriptResult = {
-  outcome: 'failed:bundleScript' | ProcessScriptResult['outcome']
-  error?: Error
-}
 
 /** Specifies the signature of the function that represents a module definition
  * and when invoked returns a Node.js `module`.
