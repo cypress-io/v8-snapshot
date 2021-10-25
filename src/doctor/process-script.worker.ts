@@ -42,6 +42,26 @@ function getBundle(bundlePath?: string, bundleHash?: string) {
 
 const snapshotVerifier = new SnapshotVerifier()
 
+/**
+ * Assembles a script from the provided bundle using the provided `entryPoint`
+ * and verifies it.
+ *
+ * The same bundle is used to determine _healthyness_ of different modules in
+ * parallel by providing a different entry point for each worker.
+ *
+ * This worker process stores the bundle content from the previous call and
+ * only loads it from the file system again if the `bundleHash` changed.
+ *
+ * @param bundlePath path to the bundle to process
+ * @param bundleHash the hash of that bundle
+ * @param baseDirPath base dir of the project we're snapshotting
+ * @param entryFilepath the path to the file to use as the entry to the app
+ * direct/indirect dependents are either included directly or a discoverable by
+ * following the imports present
+ * @param entryPoint the entry file to use during verification
+ * @param nodeEnv the string to provide to `process.env.NODE_ENV` during
+ * script verification
+ */
 export function processScript({
   bundlePath,
   bundleHash,
