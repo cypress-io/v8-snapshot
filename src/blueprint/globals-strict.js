@@ -82,6 +82,7 @@ Object.defineProperties(Error, {
 //
 // Promise
 //
+// TODO(thlorenz): this looks like a bug `Promis`
 Promis = proxyPrevent(Promise, {
   construction: true,
   get: true,
