@@ -1,6 +1,10 @@
 //
 // <globals>
 //
+
+// These stub common globals during snapshot creation and are switched out when
+// the app initializes the snapshot on startup. See ./set-globals.js
+
 const outerScope = this
 function createElement(_type) {
   return {

@@ -25,6 +25,17 @@ const logDebug = debug('snapgen:debug')
 const logTrace = debug('snapgen:trace')
 const logError = debug('snapgen:error')
 
+/**
+ * Configure the snapshot doctor
+ *
+ * @property maxWorkers?:  How many workers to use in order to verify snapshot
+ * scripts. Defaults to number of CPUs.
+ *
+ * @property previousDeferred See {@link GenerationOpts} previousDeferred
+ * @property previousHealthy See {@link GenerationOpts} previousHealthy
+ * @property previousNoRewrite See {@link GenerationOpts} previousNoRewrite
+ * @property forceNoRewrite See {@link GenerationOpts} forceNoRewrite
+ */
 export type SnapshotDoctorOpts = Omit<
   CreateSnapshotScriptOpts,
   | 'deferred'
@@ -41,8 +52,25 @@ export type SnapshotDoctorOpts = Omit<
   forceNoRewrite: Set<string>
 }
 
+/**
+ * Tracks which modules have been deferred, need to be deferred and so on
+ * during the doctor process
+ */
 class HealState {
   processedLeaves: boolean
+
+  /**
+   * Creates an instance of {@link HealState}.
+   *
+   * @param meta esbuild metadata {@link https://esbuild.github.io/api/#metafile}
+   * @param healthy modules determined as healthy
+   * @param deferred modules that need to be deferred
+   * @param norewrite modules that cannot be rewritten
+   * @param needDefer modules that need to be deferred but haven't been added
+   * to `deferred` yet
+   * @param needNorewrite modules that cannot be rewritten  but haven't been
+   * added to `norewrite` yet
+   */
   constructor(
     readonly meta: Readonly<Metadata>,
     readonly healthy: Set<string> = new Set(),
@@ -55,6 +83,23 @@ class HealState {
   }
 }
 
+/**
+ * Sorts modules by leafness via these steps:
+ *
+ * 1. add leafs which are modules that import no other module
+ * 2. add modules that have imports but all those imports have been added in
+ *    a previous step
+ * 3. Repeat 2. with updated `handled` Set until no all `entries` have ben
+ *    added
+ *
+ * @param meta module metatdata which contains information about which other
+ * modules a module imports
+ *
+ * @param entries all modules that we need to handle
+ *
+ * @param circulars all modules which have circular imports which need to be
+ * considered in order to avoid an infinite loop
+ */
 function sortModulesByLeafness(
   meta: Metadata,
   entries: Entries<Metadata['inputs']>,
@@ -94,6 +139,20 @@ function sortModulesByLeafness(
   return sorted
 }
 
+/**
+ * Sorts all modules by leafness and filters out any module that is not part of
+ * `deferred` modules.
+ *
+ * @param meta module metatdata which contains information about which other
+ * modules a module imports
+ *
+ * @param entries all modules that we need to handle
+ *
+ * @param circulars all modules which have circular imports which need to be
+ * considered in order to avoid an infinite loop
+ *
+ * @param deferred modules that should be included in the result
+ */
 function sortDeferredByLeafness(
   meta: Metadata,
   entries: Entries<Metadata['inputs']>,
@@ -105,6 +164,9 @@ function sortDeferredByLeafness(
   )
 }
 
+/**
+ * Maps the given keys to relative paths
+ */
 function pathify(keys: Iterable<string>) {
   const xs = []
   for (const x of keys) {
@@ -116,12 +178,18 @@ function pathify(keys: Iterable<string>) {
   }
   return xs
 }
+/**
+ * Maps the given keys to relative paths and sorts them
+ */
 function pathifyAndSort(keys: Set<string>) {
   const xs = pathify(keys)
   xs.sort()
   return xs
 }
 
+/**
+ * Maps the given paths to keys, i.e. the inverse of {@link pathify}.
+ */
 function unpathify(keys: Set<string>) {
   const unpathified: Set<string> = new Set()
   for (const x of keys) {
@@ -134,6 +202,52 @@ function unpathify(keys: Set<string>) {
   return unpathified
 }
 
+/**
+ * The snapshot doctor performs a series of steps in order to arrive at
+ * metadata which distinguishes between non-problematic aka _healthy_ and
+ * problematic aka _deferred_ and _norewrite_ modules.
+ *
+ * This metada is used when generating the final snapshot script to initialize
+ * the snapshot.
+ *
+ * ## Snapshot Doctor Metadata
+ *
+ * - `norewrite`: modules that should not be rewritten when generating the
+ *    sanpshot script as
+ * - `deferred`: modules that need to be deferred, that is they can not be
+ *    initialized during snapshot inialization
+ * - `healthy`: modules that can be fully initialized during snapshot
+ *   initialization
+ * - `deferredHashFile`: the file use to derive at the current project state
+ *    hash, usually the local `yarn.lock`
+ * - `deferredHash`: the hash of the `deferredHashFile` at the time that this
+ *   metatdata was generated
+ *
+ * The `hash` related properties tell the snapshot doctor for future runs if
+ * the metadata can be used as is since the project state didn't change, i.e.
+ * no dependencies were changed nor added or removed.
+ *
+ * If the `deferredHash` does not match the current state then the doctor
+ * will start fresh, however if you pass one ore more of the following as part
+ * of the {@link SnapshotDoctorOpts | snapshot opts} it will take those as a
+ * starting point and complete much faster.
+ *
+ * ```ts
+ * previousDeferred: Set<string>
+ * previousHealthy: Set<string>
+ * previousNoRewrite: Set<string>
+ * ```
+ *
+ * ## Snapshot Doctor Steps
+ *
+ * When {@link SnapshotDoctor.heal} is invoked the doctor will keep adapting
+ * the bundle that is generated by the bundle until it can be used to
+ * initialize the snapshot without running into any issues.
+ *
+ * It does so by refining the health state and communicating it to the bundler
+ * via a config which in turn produces a slightly different bundle each time,
+ * designed to avoid those issues.
+ */
 export class SnapshotDoctor {
   private readonly baseDirPath: string
   private readonly entryFilePath: string
@@ -147,6 +261,11 @@ export class SnapshotDoctor {
   private readonly _scriptProcessor: AsyncScriptProcessor
   private readonly _warningsProcessor: WarningsProcessor
 
+  /**
+   * Creates an instance of the {@link SnapshotDoctor}
+   *
+   * @param opts configures the _healing_ process of the doctor
+   */
   constructor(opts: SnapshotDoctorOpts) {
     this.baseDirPath = opts.baseDirPath
     this.entryFilePath = opts.entryFilePath
@@ -161,20 +280,41 @@ export class SnapshotDoctor {
     this.nodeEnv = opts.nodeEnv
   }
 
+  /**
+   * The healing process of a given app consists of the following main steps
+   * which are described in more detail in the code below.
+   *
+   * 1. Produce an initial bundle and extract all modules from the metadata
+   * 2. Start with an empty heal state or one derived from previous meta data
+   * 3. Process the bundle which is generated respecting the current heal
+   *    state and update the heal state via the issues we discover during that
+   *    process
+   * 4. Keep doing that until we arrive at a heal state which will result in a
+   *    bundle that doesn't cause any issues when assembled into a snapshot script
+   *    and used to initalize the snapshot
+   * 5. Return that heal state as well as the last collected bundle and related
+   *    metadata
+   */
   async heal(): Promise<{
     healthy: string[]
-    includingImplicitsDeferred: string[]
     deferred: string[]
     norewrite: string[]
     bundle: Buffer
     meta: Metadata
   }> {
+    // 1. Generate the initial bundle not deferring anything yet
     let { warnings, meta, bundle } = await this._createScript()
 
+    // 2. Extract all module inputs from the metadata and detect circular
+    // imports
     const entries = Object.entries(meta.inputs)
     const circulars = circularImports(meta.inputs, entries)
     logDebug({ circulars })
 
+    // 3. Initialize the heal state with data from previous runs that was
+    //    provided to us
+    //    forceNoRewrite is provided for modules which we manually determined
+    //    to result in invalid/problematic code when rewritten
     const healState = new HealState(
       meta,
       this.previousHealthy,
@@ -182,7 +322,16 @@ export class SnapshotDoctor {
       new Set([...this.previousNoRewrite, ...this.forceNoRewrite])
     )
 
+    // 4. Process the initial bundle in order to detect issues during
+    //    verification
+    //    The heal state we pass is mutated in this step
     await this._processCurrentScript(bundle, warnings, healState, circulars)
+
+    // 5. As long as the heal state indicates there is work left todo we add
+    //    problematic modules (needDefer and needNorewrite) to the appropriate
+    //    set and repeat the process
+    //    Each new run will defer/norewrite more and more modules until we
+    //    arrive at a snapshot script that passes verification
     while (healState.needDefer.size > 0 || healState.needNorewrite.size > 0) {
       for (const x of healState.needDefer) {
         healState.deferred.add(x)
@@ -202,6 +351,7 @@ export class SnapshotDoctor {
       await this._processCurrentScript(bundle, warnings, healState, circulars)
     }
 
+    // 6. Sort results
     const sortedDeferred = sortDeferredByLeafness(
       meta,
       entries,
@@ -211,209 +361,20 @@ export class SnapshotDoctor {
 
     const sortedNorewrite = Array.from(healState.norewrite).sort()
 
-    logInfo('Optimizing')
-
-    const { optimizedDeferred, includingImplicitsDeferred } =
-      await this._optimizeDeferred(meta, sortedDeferred, sortedNorewrite)
-
     logInfo({ allDeferred: sortedDeferred, len: sortedDeferred.length })
-    logInfo({ optimizedDeferred, len: optimizedDeferred.size })
     logInfo({ norewrite: sortedNorewrite, len: sortedNorewrite.length })
 
+    // 7. Cleanup
     await this._scriptProcessor.dispose()
 
+    // 8. Return collected metadata as well as the bundle that respected the
+    //    collected heal state
     return {
       healthy: pathifyAndSort(healState.healthy),
-      includingImplicitsDeferred: pathifyAndSort(includingImplicitsDeferred),
-      deferred: pathifyAndSort(optimizedDeferred),
+      deferred: pathifyAndSort(new Set(sortedDeferred)),
       norewrite: pathify(sortedNorewrite),
       bundle,
       meta,
-    }
-  }
-
-  async _optimizeDeferred(
-    meta: Metadata,
-    deferredSortedByLeafness: string[],
-    notRewriting: string[]
-  ) {
-    const optimizedDeferred: Set<string> = new Set(this.previousDeferred)
-
-    // 1. Push down defers where possible, i.e. prefer deferring one import instead of an entire module
-    logInfo('--- OPTIMIZE Pushing down defers ---')
-    for (const key of deferredSortedByLeafness) {
-      if (this.previousDeferred.has(key)) continue
-      if (this.previousNoRewrite.has(key)) continue
-
-      const imports = meta.inputs[key].imports.map((x) => x.path)
-      if (imports.length === 0) {
-        optimizedDeferred.add(key)
-        logInfo('Optimize: deferred leaf', key)
-        continue
-      }
-    }
-
-    await Promise.all(
-      deferredSortedByLeafness
-        .filter(
-          (key) =>
-            !this.previousDeferred.has(key) && !optimizedDeferred.has(key)
-        )
-        .map(async (key) => {
-          // Check if it was fixed by one of the optimizedDeferred added previously
-          if (
-            await this._entryWorksWhenDeferring(
-              key,
-              optimizedDeferred,
-              notRewriting
-            )
-          ) {
-            logInfo('Optimize: deferring no longer needed for', key)
-            return
-          }
-
-          // Treat the deferred as an entry point and find an import that would fix the encountered problem
-          const imports = meta.inputs[key].imports.map((x) => x.path)
-
-          // Defer all imports to verify that the module can be fixed at all, if not give up
-          if (
-            !(await this._entryWorksWhenDeferring(
-              key,
-              new Set([...optimizedDeferred, ...imports]),
-              notRewriting
-            ))
-          ) {
-            logInfo('Optimize: deferred unfixable parent', key)
-            optimizedDeferred.add(key)
-            return
-          }
-
-          await this._tryDeferImport(
-            imports,
-            key,
-            optimizedDeferred,
-            notRewriting
-          )
-        })
-    )
-
-    const includingImplicitsDeferred = new Set(optimizedDeferred)
-
-    // 2. Find children that don't need to be explicitly deferred since they are via their deferred parent
-    logInfo('--- OPTIMIZE Remove implicit defers ---')
-    await this._removeImplicitlyDeferred(optimizedDeferred, notRewriting)
-
-    return { optimizedDeferred, includingImplicitsDeferred }
-  }
-
-  private async _removeImplicitlyDeferred(
-    optimizedDeferred: Set<string>,
-    notRewriting: string[]
-  ) {
-    const entry = path.relative(this.baseDirPath, this.entryFilePath)
-    const implicitDeferredPromises = Array.from(optimizedDeferred.keys())
-      .filter((key) => !this.previousDeferred.has(key))
-      .map(async (key) => {
-        const fine = await this._entryWorksWhenDeferring(
-          entry,
-          new Set([...optimizedDeferred].filter((x) => x !== key)),
-          notRewriting
-        )
-        return { fine, key }
-      })
-    const implicitDeferred = await Promise.all(implicitDeferredPromises)
-    implicitDeferred
-      .filter((x) => x.fine)
-      .map((x) => x.key)
-      .forEach((key) => {
-        optimizedDeferred.delete(key)
-        logInfo(
-          'Optimize: removing defer of "%s", already deferred implicitly',
-          key
-        )
-      })
-  }
-
-  private async _tryDeferImport(
-    imports: string[],
-    key: string,
-    optimizedDeferred: Set<string>,
-    notRewriting: string[]
-  ) {
-    const importPromises = imports
-      .filter((imp) => this.previousDeferred.has(imp))
-      .map(async (imp) => {
-        if (
-          await this._entryWorksWhenDeferring(
-            key,
-            new Set([...optimizedDeferred, imp]),
-            notRewriting
-          )
-        ) {
-          return { deferred: imp, fixed: true }
-        } else {
-          return { deferred: '', fixed: false }
-        }
-      })
-
-    // Find the one import we need to defer to fix the entry module
-    const fixers = new Set(
-      (await Promise.all(importPromises))
-        .filter((x) => x.fixed)
-        .map((x) => x.deferred)
-    )
-
-    if (fixers.size === 0) {
-      logDebug(
-        `${key} does not need to be deferred, but only when more than one of it's imports are deferred.` +
-          `This case is not yet handled, therefore we defer the entire module instead.`
-      )
-      optimizedDeferred.add(key)
-      logInfo('Optimize: deferred parent with >1 problematic import', key)
-    } else {
-      for (const imp of fixers) {
-        optimizedDeferred.add(imp)
-        logInfo('Optimize: deferred import "%s" of "%s"', imp, key)
-      }
-    }
-  }
-
-  async _entryWorksWhenDeferring(
-    key: string,
-    deferring: Set<string>,
-    notRewriting: string[]
-  ) {
-    const entryPoint = `./${key}`
-    const deferred = Array.from(deferring).map((x) => `./${x}`)
-    const norewrite = notRewriting.map((x) => `./${x}`)
-
-    const opts: CreateSnapshotScriptOpts = {
-      baseDirPath: this.baseDirPath,
-      entryFilePath: this.entryFilePath,
-      bundlerPath: this.bundlerPath,
-      nodeModulesOnly: this.nodeModulesOnly,
-      sourcemapEmbed: false,
-      sourcemapInline: false,
-      sourcemap: false,
-      deferred,
-      norewrite,
-      includeStrictVerifiers: true,
-      nodeEnv: this.nodeEnv,
-    }
-    const result = await this._scriptProcessor.createAndProcessScript(
-      opts,
-      entryPoint
-    )
-
-    switch (result.outcome) {
-      case 'completed':
-        logDebug('Verified as healthy "%s"', key)
-        return true
-      default:
-        logDebug('%s script with entry "%s"', result.outcome, key)
-        logDebug(result.error!.toString())
-        logInfo('"%s" cannot be loaded for current setup (1 deferred)', key)
-        return false
     }
   }
 
@@ -427,12 +388,35 @@ export class SnapshotDoctor {
     return { bundleHash, bundlePath }
   }
 
+  /**
+   * The bundler produced a bundle respecting the current heal state.
+   * Now we need to test different modules as entry points in order to identify
+   * if initializing a particular module in isolation would cause issues.
+   *
+   * Note that even though we use the same bundle, by changing the entry point
+   * we can check multiple modules with it.
+   *
+   * We first look at the warnings and take the needed consequence for some of
+   * them, either marking a module to be deferred or as not rewritable.
+   *
+   * The bundle is invalid if we encountered extra modules that cannot be
+   * rewritten. In that case we return immediately causing a new bundle to be
+   * generated that doesn't have rewrites for those modules.
+   *
+   * @param bundle the bundle returned by the bundler
+   * @param warnings the warnings emitted by the bundler
+   * @param healState current heal state
+   * @param circulars circular imports
+   * @private
+   */
   private async _processCurrentScript(
     bundle: Buffer,
     warnings: Warning[],
     healState: HealState,
     circulars: Map<string, Set<string>>
   ) {
+    // 1. Filter out warnings we've seen before and map them to warnings that
+    //    signal the consequence
     const processedWarnings = this._warningsProcessor.process(warnings, {
       deferred: healState.deferred,
       norewrite: healState.norewrite,
@@ -454,31 +438,41 @@ export class SnapshotDoctor {
       }
     }
 
-    // If norwrite is required we actually need to rebuild the bundle so we exit early
+    // If norwrite is required we actually need to rebuild the bundle so we
+    // exit early
     if (healState.needNorewrite.size > 0) {
       return
     }
 
+    // 3. Write the bundle so that the workers can read it in order to assemble
+    // the snapshot script from it
     logInfo('Preparing to process current script')
     const { bundleHash, bundlePath } = await this._writeBundle(bundle)
     logDebug('Stored bundle file (%s)', bundleHash)
     logTrace(bundlePath)
     /* START using (bundlePath) */ {
+      // 4. Obtain the set of modules we need to verify as healthy until no
+      //    more can be verified until a new bundle is created which will
+      //    respect the heal state we're obtaining
       for (
         let nextStage = this._findNextStage(healState, circulars);
         nextStage.length > 0;
         nextStage = this._findNextStage(healState, circulars)
       ) {
+        // Special case during the first processing step, checked all leaves
         if (!healState.processedLeaves) {
           healState.processedLeaves = true
-          // In case all leaves were determined to be healthy before we can move on to therefore
-          // next step
+          // In case all leaves were determined to be healthy before we can
+          // move on to the next step
           if (nextStage.length < 0) {
             nextStage = this._findNextStage(healState, circulars)
           }
         }
+        // 5. Process the module verification in parallel
         const promises = nextStage.map(async (key): Promise<void> => {
           logDebug('Testing entry in isolation "%s"', key)
+          // 5.1. The script processor distributes processing modules across
+          // multiple worker threads
           const result = await this._scriptProcessor.processScript({
             bundlePath,
             bundleHash,
@@ -490,6 +484,8 @@ export class SnapshotDoctor {
 
           assert(result != null, 'expected result from script processor')
 
+          // 5.2. Query the outcome and depending on its consequence mark
+          //      modules as healthy, deferred or non-rewritable
           switch (result.outcome) {
             case 'completed': {
               healState.healthy.add(key)
@@ -534,6 +530,8 @@ export class SnapshotDoctor {
         await Promise.all(promises)
       }
     } /* END using (bundlePath) */
+
+    // 6. Remove the bundle file in order to not flood our /tmp folder
     logDebug('Removing bundle file (%s)', bundleHash)
     logTrace(bundlePath)
     const err = await tryRemoveFile(bundlePath)
@@ -542,6 +540,19 @@ export class SnapshotDoctor {
     }
   }
 
+  /**
+   * Creates a bundle providing the modules that should be deferred or not
+   * rewritten to the bundler.
+   *
+   * The bundler will rewrite the code such that deferreds are wrapped inside
+   * functions and only resolved once accessed.
+   * The bundler only transpiles code of modules that should not be rewritten
+   * but doesn't rewrite it in any way.
+   *
+   * The resulting bundle is then wrapped inside a snapshot script.
+   *
+   * @private
+   */
   private async _createScript(
     deferred?: Set<string>,
     norewrite?: Set<string>
@@ -573,6 +584,14 @@ export class SnapshotDoctor {
     }
   }
 
+  /**
+   * Finds the next set modules that we should verify to be healthy or not or
+   * empty if no more can be verified.
+   *
+   * @param healState current heal state
+   * @param circulars circular imports
+   * @private
+   */
   private _findNextStage(
     healState: HealState,
     circulars: Map<string, Set<string>>
@@ -584,6 +603,13 @@ export class SnapshotDoctor {
     }
   }
 
+  /**
+   * Finds all modules that import no other modules.
+   * This is only called the very first time during the doctor process.
+   *
+   * @param healState current heal state
+   * @private
+   */
   private _findLeaves(healState: HealState) {
     const leaves = []
     for (const [key, { imports }] of Object.entries(healState.meta.inputs)) {
@@ -599,11 +625,20 @@ export class SnapshotDoctor {
     return leaves
   }
 
+  /**
+   * Finds modules that only depend on previously handled modules and thus can
+   * be verified at this point.
+   *
+   * If no such modules are found it returns an empty array.
+   *
+   * @param healState current heal state
+   * @param circulars circular imports
+   * @private
+   */
   private _findVerifiables(
     healState: HealState,
     circulars: Map<string, Set<string>>
   ) {
-    // Finds modules that only depend on previously handled modules
     const verifiables = []
     for (const [key, { imports }] of Object.entries(healState.meta.inputs)) {
       if (healState.needNorewrite.has(key)) continue

@@ -23,7 +23,93 @@ const logInfo = debug('snapgen:info')
 const logDebug = debug('snapgen:debug')
 const logError = debug('snapgen:error')
 
-type GenerationOpts = {
+/**
+ * Configure snapshot creation.
+ *
+ * @property verify if `true` the snapshot script will be verified for correctness and snapshot-ability
+ *
+ * @property minify if `true` the snapshot script will be minified before creating a snapshot from it (this is not actively used as no benefits from this were observed)
+ *
+ * @property skipWriteOnVerificationFailure if `true` the snapshot script will not be written to the file system if verification fails
+ *
+ * @property cacheDir the path to store the snapshot script and all snapshot generation related meta data in
+ *
+ * @property snapshotBinDir the path where to store the generated snapshot binary (before it is installed)
+ *
+ * @property nodeModulesOnly if `true` only node modules will be included in the snapshot and app modules are omitted
+ *
+ * @property sourcemapEmbed if `true` a sourcemap of modules included in the snapshot is embedded in the snapshot itself
+ *
+ * @property sourcemapInline if `true` a sourcemap of modules included in the snapshot is inlined into the snapshot script
+ *
+ * @property includeStrictVerifiers if `true` the snapshot script will include
+ * overrides to ensure that specific snapshot incompatible accesses, i.e. to a
+ * `Promise` constructor don't run during module initialization.
+ * This is turned on during the doctor step.
+ *
+ * @property previousHealthy relative paths to modules that were previously
+ * determined to be _healthy_ that is they can be included into the snapshot
+ * without being deferred
+ *
+ * @property previousDeferred relative paths to modules that were previously
+ * determnied as problematic, that is it cannot be initialized during snapshot
+ * creation and thus need to be _deferred_ during snapshot creation
+ *
+ * @property previousNoRewrite relative paths to modules that were previously
+ * determined to result in invalid code when the snapshot bundler rewrites
+ * their code and thus should not be rewritten
+ *
+ * @property forceNoRewrite relative paths to modules that we know will cause
+ * problems when rewritten and we manually want to exclude them from snapshot
+ * bundler rewrites
+ *
+ * @property resolverMap the map which will be embedded into the snapshot in
+ * order to resolve modules without relying on the Node.js module resolution
+ * mechanism which requires I/O.
+ *
+ * This map is determined via metadata that the bundler emits during bundle
+ * generation.  The keys are the directory relative to the project base dir,
+ * from which a module was resolved concatentated with the import request
+ * string (seprated by `'***'`, see ./loading/snapshot-require
+ * RESOLVER_MAP_KEY_SEP) and the value the fully resolved path relative to the
+ * project base dir.
+ *
+ * #### Example
+ *
+ *```text
+ * Given this statement inside:
+ *
+ *  /dev/project/base/pack-uno/lib/foo.js: `const bar = require('../bar')`
+ *
+ * which resolved to
+ *
+ *  /dev/project/base/pack-uno/bar/index.js
+ *
+ * The following is stored inside the map:
+ *
+ * `{ './pack-uno/lib***../bar': './pack-uno/bar/index.js' }`
+ * ```
+ *   `
+ * @property auxiliaryData any additional data to embed into the snapshot
+ *
+ * @property electronVersion the version of electron we're targeting with this
+ * snapshot
+ *
+ * @property maxWorkers the maximum amounts of workers to spawn in order to run
+ * verfications of a particular snapshot script provided different entry points
+ * in parallel (more info see ./doctor/snapshot-doctor.ts)
+ *
+ * @property flags snapshot script creation flags
+ *
+ * @property nodeEnv the string to provide to `process.env.NODE_ENV` during
+ * snapshot creation
+ *
+ * @property addCacheGitignore if `true` a `.gitignore` file is written to the
+ * `cacheDir` ignoring large artifacts like the snapshot script
+ *
+ * @category snapshot
+ */
+export type GenerationOpts = {
   verify: boolean
   minify: boolean
   skipWriteOnVerificationFailure: boolean
@@ -65,38 +151,96 @@ function getDefaultGenerationOpts(projectBaseDir: string): GenerationOpts {
   }
 }
 
+/**
+ * The snapshot generator provides the top level API to create a snapshot
+ * script and then convert that into a snapshot binary and finally install it
+ * to the correct location.
+ *
+ * NOTE: that most fields are directly derived from {@link GenerationOpts} and
+ * you should refer to the documentation there for more info.
+ *
+ * @category snapshot
+ */
 export class SnapshotGenerator {
+  /** See {@link GenerationOpts} verify */
   private readonly verify: boolean
+  /** See {@link GenerationOpts} minify */
   private readonly minify: boolean
+  /** See {@link GenerationOpts} skipWriteOnVerificationFailure */
   private readonly skipWriteOnVerificationFailure: boolean
+  /** See {@link GenerationOpts} cacheDir */
   private readonly cacheDir: string
+  /** See {@link GenerationOpts} snapshotScriptPath */
   private readonly snapshotScriptPath: string
+  /** Path to store snapshot script inside {@link GenerationOpts} cacheDir */
   private readonly snapshotExportScriptPath: string
+  /** See {@link GenerationOpts} snapshotBinDir */
   private readonly snapshotBinDir: string
+  /** See {@link GenerationOpts} ?: */
   private readonly resolverMap?: Record<string, string>
+  /** See {@link GenerationOpts} ?: */
   private readonly auxiliaryData?: Record<string, any>
+  /** See {@link GenerationOpts} electronVersion */
   private readonly electronVersion: string
+  /** See {@link GenerationOpts} nodeModulesOnly */
   private readonly nodeModulesOnly: boolean
+  /** See {@link GenerationOpts} sourcemapEmbed */
   private readonly sourcemapEmbed: boolean
+  /** See {@link GenerationOpts} sourcemapInline */
   private readonly sourcemapInline: boolean
+  /** See {@link GenerationOpts} includeStrictVerifiers */
   private readonly includeStrictVerifiers: boolean
+  /** See {@link GenerationOpts} ?: */
   private readonly maxWorkers?: number
+  /** See {@link GenerationOpts} previousDeferred */
   private readonly previousDeferred: Set<string>
+  /** See {@link GenerationOpts} previousHealthy */
   private readonly previousHealthy: Set<string>
+  /** See {@link GenerationOpts} previousNoRewrite */
   private readonly previousNoRewrite: Set<string>
+  /** See {@link GenerationOpts} forceNoRewrite */
   private readonly forceNoRewrite: Set<string>
+  /** See {@link GenerationOpts} nodeEnv */
   private readonly nodeEnv: string
+  /**
+   * Path to the Go bundler binary used to generate the bundle with rewritten code
+   * {@link https://github.com/cypress-io/esbuild/tree/thlorenz/snap}
+   */
   private readonly bundlerPath: string
+  /** See {@link GenerationOpts} addCacheGitignore */
   private readonly addCacheGitignore: boolean
   private readonly _snapshotVerifier: SnapshotVerifier
+  /** See {@link GenerationOpts} flags */
   private readonly _flags: GeneratorFlags
 
+  /**
+   * Path where snapshot bin is stored, derived from {@link GenerationOpts} snapshotBinDir
+   */
   private snapshotBinPath?: string
+  /**
+   * Path where v8context bin is stored, derived from {@link GenerationOpts} snapshotBinDir
+   */
   private v8ContextFile?: string
 
+  /**
+   * Generated snapshot script, needs to be set before calling `makeSnapshot`.
+   */
   snapshotScript?: Buffer
+  /**
+   * Generated snapshot export script, see {@link GeneratorFlags}.
+   */
   snapshotExportScript?: string
 
+  /**
+   * Creates a new instance of the {@link SnapshotGenerator}.
+   *
+   * @param projectBaseDir the root of the app for which we create the snapshot
+   * @param snapshotEntryFile the file to use as the entry for our app, best is
+   * to use one generated via `./snapshot-generate-entry-via-deps`.
+   * @param opts further configuration {@link GenerationOpts}
+   *
+   * @category snapshot
+   */
   constructor(
     readonly projectBaseDir: string,
     readonly snapshotEntryFile: string,
@@ -182,10 +326,16 @@ export class SnapshotGenerator {
     return fs.promises.writeFile(gitignorePath, gitignore)
   }
 
+  /**
+   * Creates the snapshot script for the provided configuration
+   */
   async createScript() {
     let deferred
     let norewrite
     try {
+      // 1. Try to obtain a starting point so we don't always start from scratch
+      //    If we're bundling for the first time and no then this will
+      //    return empty arrays
       ;({ deferred, norewrite } = await determineDeferred(
         this.bundlerPath,
         this.projectBaseDir,
@@ -210,6 +360,8 @@ export class SnapshotGenerator {
     let result
     const sourcemapExternalPath = `${this.snapshotScriptPath}.map`
     try {
+      // 2. Create the initial snapshot script using whatever info we
+      // collected in step 1 as well as the provided configuration
       result = await createSnapshotScript({
         baseDirPath: this.projectBaseDir,
         entryFilePath: this.snapshotEntryFile,
@@ -240,6 +392,8 @@ export class SnapshotGenerator {
 
     this.snapshotScript = result.snapshotScript
 
+    // 3. Since we don't want the `mksnapshot` command to bomb with cryptic
+    //    errors w verify that the generated script is snapshot-able.
     if (this.verify) {
       logInfo('Verifying snapshot script')
       try {
@@ -261,6 +415,9 @@ export class SnapshotGenerator {
     }
     logInfo(`Writing snapshot script to ${this.snapshotScriptPath}`)
 
+    // Optionally minify, but I haven't seen any gains from doing that since
+    // the exports and/or export definitions are included in the snapshot
+    // and not the code itself
     if (this.minify) {
       logInfo('Minifying snapshot script')
       const minified = await minify(this.snapshotScript!.toString(), {
@@ -272,10 +429,20 @@ export class SnapshotGenerator {
     if (this.addCacheGitignore) {
       await this._addGitignore()
     }
+    // 4. Write the snapshot script to the configured file
     return fs.promises.writeFile(this.snapshotScriptPath, this.snapshotScript)
   }
 
+  /**
+   * Creates an export bundle.
+   * This is almost identical to `createScript` except that it will export
+   * all definitions.
+   * This is mostly useful for tests.
+   *
+   */
   async createExportBundle() {
+    // As the steps are almost identical to `createScript` no extra code
+    // comments were added.
     let deferred
     let norewrite
     try {
@@ -340,12 +507,21 @@ export class SnapshotGenerator {
     )
   }
 
+  /**
+   * This will call the `mksnapshot` command feeding it the snapshot script
+   * previously created via `createScript` which needs to be invoked before
+   * running this function.
+   *
+   * The resulting snapshot binary is written to `this.snapshotBinPath` and
+   * needs to be moved to the correct location by calling `installSnapshot`.
+   */
   async makeSnapshot() {
     function runInstructions() {
       const bin = require.resolve('@thlorenz/mksnapshot/dist/mksnapshot-bin')
       const cmd = `node ${bin} ${args.join(' ')}`
       logError(`Run:\n   ${cmd}\n to investigate.`)
     }
+    // 1. Check that everything is prepared to create the snapshot
     assert(
       this.snapshotScript != null,
       'Run `createScript` first to create snapshotScript'
@@ -354,6 +530,9 @@ export class SnapshotGenerator {
       this._flags.has(Flag.MakeSnapshot),
       'Cannot makeSnapshot when MakeSnapshot flag is not set'
     )
+
+    // 2. Run the `mksnapshot` binary providing it the path to our snapshot
+    //    script
     const args = [this.snapshotScriptPath, '--output_dir', this.snapshotBinDir]
     try {
       const { snapshotBlobFile, v8ContextFile } = await syncAndRun(
@@ -363,6 +542,8 @@ export class SnapshotGenerator {
       this.v8ContextFile = v8ContextFile
       this.snapshotBinPath = join(this.snapshotBinDir, snapshotBlobFile)
 
+      // 3. Verify that all worked out and the snapshot binary is where we
+      //    expect it
       if (!fileExistsSync(this.snapshotBinPath)) {
         logError(
           `Cannot find ${this.snapshotBinPath} which should've been created.\n` +
@@ -379,12 +560,24 @@ export class SnapshotGenerator {
       if (err.stdout != null) {
         logDebug(err.stdout.toString())
       }
+      // If things went wrong print instructions on how to execute the
+      // `mksnapshot` command directly to trouble shoot
       runInstructions()
       throw new Error('Failed `mksnapshot` command')
     }
   }
 
+  /**
+   * Calling this function will first back up the existing electron snapshot
+   * unless it was previously backed up. This allows to always revert back
+   * to a version of the app without any modified snapshot binary, see
+   * `uninstallSnapshot`.
+   *
+   * Then it will move the snapshot bin into the correct location such that
+   * when electron starts up it will load it.
+   */
   installSnapshot() {
+    // 1. Check that we performed all required steps
     assert(
       this.snapshotScript != null,
       'Run `createScript` and `makeSnapshot` first to create snapshot'
@@ -403,6 +596,7 @@ export class SnapshotGenerator {
       'mksnapshot ran but v8ContextFile was not set'
     )
 
+    // 2. Back up the original electron snapshot
     const electronV8ContextBin = installedElectronResourcesFilePath(
       this.projectBaseDir,
       this.v8ContextFile
@@ -427,6 +621,8 @@ export class SnapshotGenerator {
     logInfo(`Moving ${this.v8ContextFile} to '${electronV8ContextBin}'`)
     fs.renameSync(v8ContextFullPath, electronV8ContextBin)
 
+    // 3. Move the snapshot binary we want to install into the electron
+    //    snapshot location
     const snapshotBinFile = basename(this.snapshotBinPath)
     const electronSnapshotBin = join(electronResourcesDir, snapshotBinFile)
 
@@ -434,6 +630,10 @@ export class SnapshotGenerator {
     fs.renameSync(this.snapshotBinPath, electronSnapshotBin)
   }
 
+  /**
+   * Convenience function that invokes `makeSnapshot` followed by
+   * `installSnapshot`.
+   */
   async makeAndInstallSnapshot() {
     const res = await this.makeSnapshot()
     if (res != null) {
@@ -450,6 +650,15 @@ export class SnapshotGenerator {
   }
 }
 
+/**
+ * Invoking this will attempt to restore the original electron snapshot
+ * which was backed up during the `installSnapshot` step.
+ *
+ * @param projectBaseDir the root of the project whose snapshot we're trying
+ * to restore
+ * @param version the version of electron for which to restore the snapshot,
+ * will be determined automatically if not provided
+ */
 export function uninstallSnapshot(projectBaseDir: string, version?: string) {
   version = version ?? resolveElectronVersion(projectBaseDir)
   const { v8ContextFile } = getMetadata(version)

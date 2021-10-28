@@ -39,6 +39,14 @@ class CircularImports {
   }
 }
 
+/**
+ * Resolves circular references in the module tree given a list of entries
+ * included in the bundle.
+ *
+ * @param inputs map of filesincluding information about the modules they are
+ * importing. See {@link Metadata} inputs.
+ * @param entries iterable version of inputs
+ */
 export function circularImports(
   inputs: Metadata['inputs'],
   entries: Entries<Metadata['inputs']>

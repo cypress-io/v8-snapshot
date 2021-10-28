@@ -6,6 +6,11 @@
 // When generating a snapshot to feed to mksnapshot they cannot
 // be included as then they'd modify the environment when running the
 // snapshotted application.
+// These are included in addition to the commmon globals, see: ./globals.js
+//
+// NOTE: that the errors it throws for particular issues are designed to be
+// parsed by the snapshot doctor such that it can handle it by deferring
+// the module.
 
 function cannotAccess(proto, prop) {
   return function () {
@@ -77,6 +82,7 @@ Object.defineProperties(Error, {
 //
 // Promise
 //
+// TODO(thlorenz): this looks like a bug `Promis`
 Promis = proxyPrevent(Promise, {
   construction: true,
   get: true,

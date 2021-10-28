@@ -1,3 +1,7 @@
+/**
+ * Replaces globals that have been stubbed during snapshot creation with the
+ * instances that are present in the app on startup.
+ */
 function setGlobals(
   newGlobal,
   newProcess,

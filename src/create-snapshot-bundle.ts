@@ -45,7 +45,8 @@ function __resolve_path(local) {
 const postlude = `
 module.exports = __commonJS`
 
-/** Similar to @see createSnapshotScript, but creates a bundle instead which provides all
+/**
+ * Similar to see {@link createSnapshotScript}, but creates a bundle instead which provides all
  *  definitions via its export.
  *  This is mostly used when diagnosing/debugging why a particular snapshot script has problems.
  *
