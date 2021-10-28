@@ -18,9 +18,28 @@ const logDebug = debug('snapshot:debug')
 
 const RESOLVER_MAP_KEY_SEP = '***'
 
+/**
+ * Creates the function which tries to obtain the module key for a given module
+ * uri.
+ *
+ * @param resolverMap the {@link Map} of a map from directory to module key
+ * which was prepared during snapshotting and embedded into it
+ * @private
+ */
 function createGetModuleKey(resolverMap?: Record<string, string>) {
-  // moduleUri is expected to be forward slashed regardless of which OS we're running on
-  // The resolver map also only includes forward slashed paths
+  /**
+   * Attempts to find the module key from the resolver map if we can find a key
+   * for the relative dir of the module importing the module uri.
+   *
+   * This requires that the `opts.path` or `opts.relPath` is provided (in this
+   * these paths represent the location of the module that is importing the
+   * uri).
+   *
+   * @param moduleUri expected to be forward slashed regardless of which OS
+   * we're running on as the resolver map also only includes forward slashed paths
+   * @param baseDir project base dir
+   * @param opts {@link GetModuleKeyOpts}
+   */
   const getModuleKey: GetModuleKey = ({ moduleUri, baseDir, opts }) => {
     // We can only reliably resolve modules without the Node.js machinery if we can find it in the
     // resolver map. For instance resolving `./util` involves probing the file system to resolve to
@@ -33,7 +52,7 @@ function createGetModuleKey(resolverMap?: Record<string, string>) {
       return { moduleKey: undefined, moduleRelativePath: undefined }
     }
 
-    // Use posix version of the path module to keep forward slashes going
+    // Wrap result in order to keep forward slashes going
     const relParentDir = forwardSlash(
       opts.relPath ?? path.relative(baseDir, opts.path)
     )
@@ -51,11 +70,19 @@ function createGetModuleKey(resolverMap?: Record<string, string>) {
   return getModuleKey
 }
 
+/**
+ * Creates the predicate that determines if a module needs to be reloaded or if
+ * it can be pulled from either the Node.js module cache or our exports cache,
+ * embedded in the snapshot.
+ *
+ * @param dependencyMapArray the dependency map embedded in the snapshot
+ * @param projectBaseDir the root of the project
+ * @private
+ */
 function createModuleNeedsReload(
   dependencyMapArray: DependencyMapArray,
   projectBaseDir: string
 ) {
-  // NOTE: dependency map uses native slashed keys/values
   const map = DependencyMap.fromDepArrayAndBaseDir(
     dependencyMapArray,
     projectBaseDir
@@ -63,6 +90,13 @@ function createModuleNeedsReload(
 
   // NOTE: that all keys as well as moduleId are native slashed in order to normalize
   // on Node.js Module._cache which is provided here as the `moduleCache`
+  /**
+   * Determines if a module needs to be reloaded.
+   *
+   * @param moduleId the id of the module
+   * @param loadedModules modules that we tracked as loaded
+   * @param moduleCache the Node.js module cache
+   */
   const moduleNeedsReload: ModuleNeedsReload = (
     moduleId: string,
     loadedModules: Set<string>,
@@ -81,6 +115,18 @@ function createModuleNeedsReload(
   return moduleNeedsReload
 }
 
+/**
+ * Configures the setup of the require hook.
+ *
+ * @property useCache if `true` we use the cached module exports and definitions embedded in the snapshot
+ * @property diagnostics toggles diagnostics
+ * @property snapshotOverride if set overrides the exports and definitions
+ * embedded in the snapshot
+ * @property requireStatsFile if set require stats are written to this file
+ * @property transpileOpts configures {@link
+ * https://github.com/thlorenz/packherd | packherd} TypeScript transpilation
+ * @property alwaysHook if `true` we hook `Module._load` even if no embedded snapshot is found
+ */
 export type SnapshotRequireOpts = {
   useCache?: boolean
   diagnostics?: boolean
@@ -96,6 +142,9 @@ const DEFAULT_SNAPSHOT_REQUIRE_OPTS = {
   alwaysHook: true,
 }
 
+/**
+ * Attempts to extract the exports and definitions from the snapshot
+ */
 function getCaches(sr: Snapshot | undefined, useCache: boolean) {
   if (typeof sr !== 'undefined') {
     return {
@@ -107,6 +156,9 @@ function getCaches(sr: Snapshot | undefined, useCache: boolean) {
   }
 }
 
+/**
+ * Attempts to extract the souremap embedded in the snapshot
+ */
 function getSourceMapLookup() {
   // @ts-ignore global snapshotAuxiliaryData
   if (typeof snapshotAuxiliaryData === 'undefined')
@@ -118,6 +170,12 @@ function getSourceMapLookup() {
   return (uri: string) => (uri === EMBEDDED ? sourceMap : undefined)
 }
 
+/**
+ * Sets up the require hook to use assets embedded in the snapshot.
+ *
+ * @param projectBaseDir project root
+ * @param opts configure how the hook is setup and how it behaves
+ */
 export function snapshotRequire(
   projectBaseDir: string,
   opts: SnapshotRequireOpts = {}
@@ -127,14 +185,18 @@ export function snapshotRequire(
     DEFAULT_SNAPSHOT_REQUIRE_OPTS,
     opts
   )
+  // 1. Assign snapshot which is a global if it was embedded
   const sr: Snapshot =
     opts.snapshotOverride ||
     // @ts-ignore global snapshotResult
     (typeof snapshotResult !== 'undefined' ? snapshotResult : undefined)
 
+  // If we have no snapshot we don't need to hook anything
   if (sr != null || alwaysHook) {
+    // 2. Pull out our exports and definitions embedded inside the snapshot
     const { moduleExports, moduleDefinitions } = getCaches(sr, useCache)
 
+    // 3. Provide some info about what we found
     const cacheKeys = Object.keys(moduleExports || {})
     const defKeys = Object.keys(moduleDefinitions)
     logInfo(
@@ -146,6 +208,7 @@ export function snapshotRequire(
 
     logDebug('initializing packherd require')
 
+    // 4. Attempt to pull out the resolver map as well as the dependency map
     let resolverMap: Record<string, string> | undefined
     let moduleNeedsReload: ModuleNeedsReload | undefined
 
@@ -157,6 +220,7 @@ export function snapshotRequire(
         // @ts-ignore global snapshotAuxiliaryData
         snapshotAuxiliaryData.dependencyMapArray
 
+      // 5. Setup the module needs reload predicate with the dependency map
       if (dependencyMapArray != null) {
         moduleNeedsReload = createModuleNeedsReload(
           dependencyMapArray,
@@ -165,8 +229,11 @@ export function snapshotRequire(
       }
     }
 
+    // 6. Setup the module key resolver with the resolver map
     const getModuleKey = createGetModuleKey(resolverMap)
 
+    // 7. Use packherd to hook Node.js require and get hold of some callbacks
+    //    to interact with packherd's module loading mechanism
     const { resolve, shouldBypassCache, registerModuleLoad, tryLoad } =
       packherdRequire(projectBaseDir, {
         diagnostics,
@@ -180,6 +247,8 @@ export function snapshotRequire(
       })
 
     // @ts-ignore global snapshotResult
+    // 8. Ensure that the user passed the project base dir since the loader
+    //    cannot resolve modules without it
     if (typeof snapshotResult !== 'undefined') {
       const projectBaseDir = process.env.PROJECT_BASE_DIR
       if (projectBaseDir == null) {
@@ -190,6 +259,8 @@ export function snapshotRequire(
         )
       }
 
+      // 9. Setup the path resolver that is used from inside the snapshot in
+      //    order to resolve full paths of modules
       const pathResolver = {
         resolve(p: string) {
           try {
@@ -201,6 +272,17 @@ export function snapshotRequire(
         },
       }
 
+      // -----------------
+      // Snapshot Globals
+      // -----------------
+      // While creating the snapshot we use stubs for globals like process.
+      // When we execute code that is inside the snapshot we need to ensure
+      // that it is using the actual instances. We do this by swapping out the
+      // stubs with the those instances.
+      // For more info see ../blueprint/set-globals.js
+
+      // 10. Prepare the globals we need to inject into the snapshot
+
       // The below aren't available in all environments
       const checked_process: any =
         typeof process !== 'undefined' ? process : undefined
@@ -208,6 +290,8 @@ export function snapshotRequire(
         typeof window !== 'undefined' ? window : undefined
       const checked_document: any =
         typeof document !== 'undefined' ? document : undefined
+
+      // 11. Inject those globals
 
       // @ts-ignore global snapshotResult
       snapshotResult.setGlobals(
@@ -220,10 +304,16 @@ export function snapshotRequire(
         require
       )
 
+      // 11. Setup the customRequire inside the snapshot
+
       // @ts-ignore private module var
       require.cache = Module._cache
       // @ts-ignore global snapshotResult
       snapshotResult.customRequire.cache = require.cache
+
+      // 12. Add some 'magic' functions that we can use from inside the
+      //    snapshot in order to integrate module loading
+      //    See ../blueprint/custom-require.js
 
       // @ts-ignore custom method on require
       require._tryLoad = tryLoad
