@@ -12,7 +12,9 @@
     "debug-test": "node --inspect-brk -r ./tests/utils/hook-require.js tests/**/*.ts",
     "lint": "prettier -c ./src/",
     "lint:fix": "prettier --write ./src",
-    "watch": "tsc -p ./tsconfig.json --watch"
+    "watch": "tsc -p ./tsconfig.json --watch",
+    "doc": "typedoc src/*.ts src/doctor/*.ts src/loading/*.ts src/meta/*.ts src/sourcemap/*.ts --readme README.md",
+    "toc": "doctoc README.md"
   },
   "directories": {
     "dist": "./dist"
@@ -54,6 +56,7 @@
     "spok": "^1.3.0",
     "stealthy-require": "^1.1.1",
     "tape": "^5.2.2",
+    "typedoc": "^0.22.6",
     "typescript": "^4.4.2"
   }
 }
