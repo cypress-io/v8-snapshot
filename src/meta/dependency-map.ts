@@ -69,6 +69,8 @@ function dependencyArrayToResolvedMap(
   arr: DependencyMapArray,
   projectBaseDir: string
 ) {
+  // NOTE: using path.resolve here guarantess that map keys/values are native slashed
+  // even though the included dependency map array uses always forward slashes
   const map: Map<string, DependencyNode> = new Map()
   for (const [k, { directDeps, allDeps }] of arr) {
     const resolvedKey = path.resolve(projectBaseDir, k)

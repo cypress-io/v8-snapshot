@@ -3,6 +3,7 @@ import test from 'tape'
 import { SnapshotGenerator } from '../../snapshot-generator'
 import { exec as execOrig } from 'child_process'
 import { promisify } from 'util'
+import { electronExecutable } from '../utils/consts'
 
 import rimraf from 'rimraf'
 const rmrf = promisify(rimraf)
@@ -24,13 +25,12 @@ test('doctor: entry requires a module that depends on a module needing to be def
 
   const env: Record<string, any> = {
     ELECTRON_RUN_AS_NODE: 1,
-    DEBUG: '(packherd|snapgen):*',
+    DEBUG: process.env.DEBUG ?? '(packherd|snapgen):*',
     PROJECT_BASE_DIR: projectBaseDir,
     DEBUG_COLORS: 1,
   }
   const cmd =
-    `node ${require.resolve('electron/cli')}` +
-    ` -r ${projectBaseDir}/hook-require.js` +
+    `${electronExecutable} -r ${projectBaseDir}/hook-require.js` +
     ` ${projectBaseDir}/app.js`
 
   let stdout: string | undefined
@@ -38,7 +38,7 @@ test('doctor: entry requires a module that depends on a module needing to be def
   try {
     ;({ stdout, stderr } = await exec(cmd, { env }))
     const res = JSON.parse(stdout.trim())
-    console.log(res)
+    console.log(stderr)
     t.equal(res.errname, 'Unknown system error -666')
   } catch (err: any) {
     console.log(stdout)

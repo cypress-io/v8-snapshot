@@ -3,6 +3,7 @@ import test from 'tape'
 import { SnapshotGenerator } from '../../snapshot-generator'
 import { exec as execOrig } from 'child_process'
 import { promisify } from 'util'
+import { electronExecutable } from '../utils/consts'
 
 import rimraf from 'rimraf'
 const rmrf = promisify(rimraf)
@@ -30,8 +31,7 @@ test('require: cached module modifies require cache', async (t) => {
     DEBUG_COLORS: 1,
   }
   const cmd =
-    `node ${require.resolve('electron/cli')}` +
-    ` -r ${projectBaseDir}/hook-require.js` +
+    `${electronExecutable} -r ${projectBaseDir}/hook-require.js` +
     ` ${projectBaseDir}/cached-app.js`
 
   try {
@@ -62,7 +62,7 @@ test('require: uncached module modifies require cache', async (t) => {
     DEBUG_COLORS: 1,
   }
   const cmd =
-    `node ${require.resolve('electron/cli')}` +
+    `${electronExecutable} -r ${projectBaseDir}/hook-require.js` +
     ` -r ${projectBaseDir}/hook-require.js` +
     ` ${projectBaseDir}/uncached-app.js`
 

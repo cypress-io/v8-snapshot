@@ -26,19 +26,6 @@ function customRequire(
   // The relative path to the module is used to resolve modules from the various caches
   let key = modulePathFromAppRoot
 
-  // Normalize path and key on Windows
-  if (PATH_SEP !== '/') {
-    modulePath = modulePath.startsWith('./')
-      ? `./${modulePath.slice(2).replace(/\//g, '\\')}`
-      : modulePath.replace(/\//g, '\\')
-
-    if (key != null) {
-      key = key.startsWith('./')
-        ? `./${key.slice(2).replace(/\//g, '\\')}`
-        : key.replace(/\//g, '\\')
-    }
-  }
-
   // This is a somewhat brittle attempt to resolve the parent if it is the receiver
   const loader /* NodeModule? */ =
     this != null && this !== global && this.id != null && this.filename != null

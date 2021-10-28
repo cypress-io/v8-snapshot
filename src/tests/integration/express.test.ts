@@ -22,9 +22,10 @@ test('integration: install snapshot for example-express', async (t) => {
     return t.end()
   }
 
+  const _MB = 1024 * 1024
   const cmd = `node ./snapshot/install-snapshot.js`
   try {
-    await exec(cmd, { cwd: projectBaseDir })
+    await exec(cmd, { cwd: projectBaseDir, maxBuffer: 600 * _MB })
     const metadata = require(metadataFile)
     spok(t, metadata, EXPECTED)
     t.end()
