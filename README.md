@@ -1,9 +1,33 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [v8-snapshot *](#v8-snapshot-)
+  - [Features](#features)
+  - [Snapshot Doctor](#snapshot-doctor)
+    - [Snapshot Creation](#snapshot-creation)
+    - [Requirements](#requirements)
+    - [Generating the Snapshot Script](#generating-the-snapshot-script)
+    - [Snapshot Doctor: Steps to Optimize Included Modules](#snapshot-doctor-steps-to-optimize-included-modules)
+    - [Strict vs. Non-Strict Mode](#strict-vs-non-strict-mode)
+    - [Result of Snapshot Doctor](#result-of-snapshot-doctor)
+  - [Loading From Snapshot](#loading-from-snapshot)
+    - [Windows Caveats](#windows-caveats)
+    - [Resolver Map](#resolver-map)
+  - [Examples](#examples)
+  - [Debugging and Diagnosing](#debugging-and-diagnosing)
+  - [Env Vars](#env-vars)
+  - [External Documentation](#external-documentation)
+  - [TODO](#todo)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # v8-snapshot [![](https://github.com/thlorenz/v8-snapshot/workflows/Node/badge.svg?branch=master)](https://github.com/thlorenz/v8-snapshot/actions)
 
 Tool to create a snapshot for Electron applications. Derived and extended immensly from
 [electron-link](https://github.com/atom/electron-link).
 
-- [API docs](https://cypress-io.github.io/v8-snapshot/docs)
+- [API docs](https://cypress-io.github.io/v8-snapshot/docs) _currently not available see TODO below_
 
 ## Features
 
@@ -12,7 +36,7 @@ allow those modules to be snapshotted via the `mksnapshot` tool. This snapshot i
 into the Electron application.
 
 v8-snapshot then provides the snapshotted modules to [packherd][packherd] and helps in
-locating modules to load from the snapshot by deriving its key from information about the
+locating modules to load from the snapshot by deriving their keys from information about each
 module provided by packherd.
 
 ## Snapshot Doctor
@@ -114,6 +138,48 @@ To archieve that we write a slightly different snapshot script while _doctoring_
 [BlueprintConfig#includeStrictVerifiers][blueprint-config]. The code that patches those
 problematic _Globals_ can be found inside [globals-strict.js][globals-strict-code].
 
+### Result of Snapshot Doctor
+
+When the snapshot doctor completes you'll find a `snapshot-meta.json` file inside the
+_cacheDir_, i.e. `./cache`. This file abbreviated looks like this (for snapshotting an app
+using _expresss).
+
+```json
+{
+  "norewrite": [],
+  "deferred": [
+    "./node_modules/body-parser/index.js",
+    "./node_modules/debug/src/browser.js",
+    ".. many more ..",
+    "./node_modules/send/index.js",
+    "./node_modules/send/node_modules/http-errors/index.js"
+  ],
+  "healthy": [
+    "./node_modules/accepts/index.js",
+    "./node_modules/array-flatten/array-flatten.js",
+    "./node_modules/body-parser/lib/read.js",
+    "./node_modules/body-parser/lib/types/json.js",
+    ".. many more ..",
+    "./node_modules/unpipe/index.js",
+    "./node_modules/utils-merge/index.js",
+    "./node_modules/vary/index.js",
+    "./snapshot/snapshot.js"
+  ],
+  "deferredHashFile": "yarn.lock",
+  "deferredHash": "216a61df3760151255ce41db2a279ab4d83b4cb053687766b65b19c4010753a2"
+}
+```
+
+As you can see this meta file can be used as is as long as the content of the `yarn.lock` file
+doesn't change and in that case the doctor step does not have to be repeated.
+
+Another option is to provide the meta information to the doctor via `previousDeferred`,
+`previousHealthy`, etc. in order to have it use this information instead of starting totally
+from scratch.
+
+Aside from this script the snapshot generator allows making and installing the snapshot into
+our app. See [makeAndInstallSnapshot][makeAndInstallSnapshot].
+
 ## Loading From Snapshot
 
 In order to facilitate loading from the snapshot, v8-snapshot ties into the [packerd][packherd]
@@ -124,7 +190,28 @@ _exports_ or its _definition_ from the snapshotted Object that v8-snasphot also 
 It uses the [resolver-map][resolver-map] in order to resolve modules without querying the file
 system.
 
+Once v8-snapshot provides this key to packherd it then tries to first load a fully initialized
+version of the module, aka _exports_, falling back to a function which will initialize it, aka
+_definitions_ and only finally loads it from the file system via Node.js.
 
+Most of that logic lives inside [packherd][packherd] and it is recommended to read its
+documentation.
+
+### Windows Caveats
+
+Since v8-snapshot and packherd rely heavily on path derived keys issues were encountered when
+trying to use it on Windows. It was developed solely on operating systems, i.e. OSX and Linux
+and only rather late tested on Windows. The fact that it uses `\` instead of `/` to separate
+paths is respoonsible for a bulk of those issues.
+
+The first part of the solution was to normalize the output of the [esbuild snap][esbuild-snap]
+tool. All module hashes in the bundle use forward slashes and the same is true for all output
+metadata.
+
+v8-snapshot was then adapted to consider this when resolving keys on all platforms as well as
+when modules have to be loaded from the file system.
+
+However some unsolved issues remain resulting in the integration test not passing on windows.
 
 ### Resolver Map
 
@@ -137,6 +224,41 @@ the fully resolved path relative to the project base dir.
 
 This map is embedded into the snapshot and used fast module key resolution and used to resolve
 a module's key via the [getModuleKey function][getModuleKey-code].
+
+## Examples
+
+In order to learn how to orchestrate snapshot creation and loading please have a look at the
+examples provided with this app, for instance:
+
+- [example-express/snapshot/install-snasphot.js](https://github.com/cypress-io/v8-snapshot/blob/99c80ff79416a061be304653dcfa2741c58b4a06/example-express/snapshot/install-snapshot.js)
+- [example-express/app/hook-require.js](https://github.com/cypress-io/v8-snapshot/blob/99c80ff79416a061be304653dcfa2741c58b4a06/example-express/app/hook-require.js)
+
+## Debugging and Diagnosing
+
+In order to gain insight into the doctor step as well as loading modules please set the
+`DEBUG=(pack|snap)*` which will cause the tool to emit a wealth of information part of which
+will provide insight into how many modules were initialized from the snapshot and which
+weren't.
+
+```js
+packherd:debug { exportHits: 20, definitionHits: 8, misses: 3 }
+```
+
+It will also provide information about what it encountered inside the snapshot, namely the
+number of:
+
+- `exports` modules that are fully initialized inside the snapshot
+- `definitions` functions that will return `module.exports` when invoked
+
+NOTE: that `definitions` and `exports` overlap as a module's definition is always included even
+if its export is included as well.
+
+Thus the below means that we have `12` modules that are included fully initialized and `6 (18 - 12)` that aren't.
+
+```
+exports: 12
+definitions: 18
+```
 
 ## Env Vars
 
@@ -151,13 +273,26 @@ a module's key via the [getModuleKey function][getModuleKey-code].
   transpilation
 - [Snapshot Require Miro](https://miro.com/app/board/o9J_l3XYLEc=/)
 
+
+## TODO
+
+When creating those links the `gh-pages` branch failed to render the docs at
+`https://cypress-io.github.io/v8-snapshot/docs` like it does for [packherd
+docs](https://cypress-io.github.io/packherd/docs) and I didn't have access to the repo
+settings to go about fixing that.
+
+Once it is fixed please replace `file:///Volumes/d/dev/cy/perf-tr1/v8-snapshot/docs` with
+`https://cypress-io.github.io/packherd/docs` everywhere in this document.
+ 
 [doctor-next-stage]:file:///Volumes/d/dev/cy/perf-tr1/v8-snapshot/docs/classes/doctor_snapshot_doctor.SnapshotDoctor.html#_findNextStage
 [doctor-class]:file:///Volumes/d/dev/cy/perf-tr1/v8-snapshot/docs/classes/doctor_snapshot_doctor.SnapshotDoctor.html
+[makeAndInstallSnapshot]:file:///Volumes/d/dev/cy/perf-tr1/v8-snapshot/docs/classes/snapshot_generator.SnapshotGenerator.html#makeAndInstallSnapshot
 
 [blueprint-config]:file:///Volumes/d/dev/cy/perf-tr1/v8-snapshot/docs/modules/blueprint.html#BlueprintConfig
 [globals-strict-code]:https://github.com/cypress-io/v8-snapshot/blob/99c80ff79416a061be304653dcfa2741c58b4a06/src/blueprint/globals-strict.js
 
 [getModuleKey-code]:https://github.com/cypress-io/v8-snapshot/blob/99c80ff/src/loading/snapshot-require.ts#L43
+
 [generation-opts]:file:///Volumes/d/dev/cy/perf-tr1/v8-snapshot/docs/modules/snapshot_generator.html#GenerationOpts
 [resolver-map]:file:///Volumes/d/dev/cy/perf-tr1/v8-snapshot/docs/modules/snapshot_generator.html#GenerationOpts
 [snapshot-verifier]:file:///Volumes/d/dev/cy/perf-tr1/v8-snapshot/docs/classes/snapshot_verifier.SnapshotVerifier.html
