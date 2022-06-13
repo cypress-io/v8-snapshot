@@ -6,7 +6,6 @@
   "types": "dist/v8-snapshot.d.ts",
   "scripts": {
     "build": "tsc -p ./tsconfig.json && (rimraf ./dist/blueprint && cpr ./src/blueprint ./dist/blueprint)",
-    "prepack": "yarn build",
     "prepublish": "rimraf ./dist/tests",
     "pretest": "make pretest",
     "test": "tape dist/tests/**/*.test.js",
