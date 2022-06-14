@@ -22,7 +22,7 @@ export const SNAPSHOT_CACHE_FAILURE = '[SNAPSHOT_CACHE_FAILURE]'
  * @category snapshot
  */
 export const REFERENCE_ERROR_DEFER =
-  /^(Reference|Type)?Error: (.+ is not defined|Cannot read property)/i
+  /^(Reference|Type)?Error: (.+ is not defined|Cannot read property|Cannot read properties)/i
 
 /**
  * This error is raised due to missing functions, most likely due to incorrect rewrite
