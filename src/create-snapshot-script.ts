@@ -272,7 +272,7 @@ const makePackherdCreateBundle: (opts: CreateBundleOpts) => CreateBundle =
     const _MB = 1024 * 1024
     const execOpts: ExecSyncOptions = Object.assign(
       {
-        maxBuffer: 600 * _MB,
+        maxBuffer: 1000 * _MB,
         cwd: basedir,
       },
       // Windows doesn't properly support piping stdio
