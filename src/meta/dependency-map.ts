@@ -11,6 +11,8 @@ import { strict as assert } from 'assert'
  */
 export type DependencyNode = { directDeps: Set<string>; allDeps: Set<string> }
 
+const arrayCache = new Map()
+
 /**
  * Builds a dependency map from the inputs of the {@link
  * https://esbuild.github.io/api/#metafile | esbuild metadata}.
@@ -122,6 +124,15 @@ export function dependencyMapArrayFromInputs(inputs: Metadata['inputs']) {
   return arr
 }
 
+const getResolvedPathForKey = (projectBaseDir: string, key: string) => {
+  let resolvedPath = arrayCache.get(key)
+  if (!resolvedPath) {
+    resolvedPath = path.resolve(projectBaseDir, key)
+    arrayCache.set(key, resolvedPath)
+  }
+  return resolvedPath
+}
+
 /**
  * Converts the array representation that was embedded into the snapshot back
  * into a dependency map.
@@ -137,11 +148,13 @@ function dependencyArrayToResolvedMap(
   // even though the included dependency map array uses always forward slashes
   const map: Map<string, DependencyNode> = new Map()
   for (const [k, { directDeps, allDeps }] of arr) {
-    const resolvedKey = path.resolve(projectBaseDir, k)
-    const resolvedDirectDeps = directDeps.map((x) =>
-      path.resolve(projectBaseDir, x)
-    )
-    const resolvedAllDeps = allDeps.map((x) => path.resolve(projectBaseDir, x))
+    const resolvedKey = getResolvedPathForKey(projectBaseDir, k)
+    const resolvedDirectDeps = directDeps.map((x) => {
+      return getResolvedPathForKey(projectBaseDir, x)
+    })
+    const resolvedAllDeps = allDeps.map((x) => {
+      return getResolvedPathForKey(projectBaseDir, x)
+    })
     map.set(resolvedKey, {
       directDeps: new Set(resolvedDirectDeps),
       allDeps: new Set(resolvedAllDeps),
