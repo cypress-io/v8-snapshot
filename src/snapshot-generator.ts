@@ -320,7 +320,7 @@ export class SnapshotGenerator {
   }
 
   private _addGitignore() {
-    const gitignore = 'snapshot.js\nsnapshot.js.map'
+    const gitignore = 'snapshot.js\nsnapshot.js.map\nesbuild-meta.json'
 
     const gitignorePath = join(this.cacheDir, '.gitignore')
     return fs.promises.writeFile(gitignorePath, gitignore)
