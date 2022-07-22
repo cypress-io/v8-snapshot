@@ -440,7 +440,7 @@ export class SnapshotDoctor {
 
     // If norwrite is required we actually need to rebuild the bundle so we
     // exit early
-    if (healState.needNorewrite.size > 0) {
+    if (healState.needNorewrite.size > 0 || healState.norewrite.size > 0) {
       return
     }
 
