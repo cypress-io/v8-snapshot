@@ -233,7 +233,7 @@ export class DependencyMap {
     // be in snapshot exports either
     assert(
       node != null,
-      'should not check dependencies that are not inside the snapshot'
+      `should not check dependencies that are not inside the snapshot: ${id}`
     )
 
     // 1. Determine if any of direct deps should be reloaded
