@@ -186,6 +186,13 @@ function generateSnapshot() {
     setGlobals: ${setGlobals},
   }
 }
+console.log('generating snapshot!!!!')
+
+try {
+  console.log('window')
+} catch (error) {
+  console.log(error)
+}
 var snapshotResult = generateSnapshot.call({})
 generateSnapshot = null
 `,
